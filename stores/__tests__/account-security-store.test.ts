@@ -20,10 +20,21 @@ vi.mock('@/stores/auth-store', () => ({
   },
 }));
 
+// TOTP is webmail-managed now (not Stalwart AccountPassword): the store reads
+// status and toggles enrollment through /api/account/twofactor via apiFetch.
+vi.mock('@/lib/browser-navigation', () => ({
+  apiFetch: vi.fn(async () => ({ ok: true, json: async () => ({ enabled: false }) })),
+}));
+vi.mock('@/lib/auth/active-account-slot', () => ({
+  getActiveAccountSlotHeaders: () => ({}),
+}));
+
 import { useAccountSecurityStore } from '../account-security-store';
 import { stalwartJmap } from '@/lib/stalwart/jmap-passthrough';
+import { apiFetch } from '@/lib/browser-navigation';
 
 const mockedJmap = stalwartJmap as unknown as ReturnType<typeof vi.fn>;
+const mockedApiFetch = apiFetch as unknown as ReturnType<typeof vi.fn>;
 
 function resetStore() {
   useAccountSecurityStore.getState().clearState();
@@ -32,6 +43,8 @@ function resetStore() {
 describe('account-security-store', () => {
   beforeEach(() => {
     mockedJmap.mockReset();
+    mockedApiFetch.mockReset();
+    mockedApiFetch.mockResolvedValue({ ok: true, json: async () => ({ enabled: false }) });
     resetStore();
   });
 
@@ -45,23 +58,24 @@ describe('account-security-store', () => {
   });
 
   describe('fetchAuthInfo', () => {
-    it('reports TOTP enabled when AccountPassword singleton has otpUrl', async () => {
+    it('reports TOTP enabled when the webmail 2FA store says enabled', async () => {
+      mockedApiFetch.mockResolvedValue({ ok: true, json: async () => ({ enabled: true }) });
       mockedJmap.mockResolvedValueOnce([
-        ['x:AccountPassword/get', { list: [{ id: 'singleton', otpAuth: { otpUrl: 'otpauth://totp/x' } }] }, '0'],
         ['x:AppPassword/query', { ids: [] }, '1'],
         ['x:ApiKey/query', { ids: [] }, '2'],
       ]);
 
       await useAccountSecurityStore.getState().fetchAuthInfo();
 
+      expect(mockedApiFetch).toHaveBeenCalledWith('/api/account/twofactor', expect.anything());
       expect(useAccountSecurityStore.getState().otpEnabled).toBe(true);
       expect(useAccountSecurityStore.getState().appPasswords).toEqual([]);
       expect(useAccountSecurityStore.getState().apiKeys).toEqual([]);
     });
 
-    it('reports TOTP disabled when otpAuth is empty', async () => {
+    it('reports TOTP disabled when the webmail 2FA store says disabled', async () => {
+      mockedApiFetch.mockResolvedValue({ ok: true, json: async () => ({ enabled: false }) });
       mockedJmap.mockResolvedValueOnce([
-        ['x:AccountPassword/get', { list: [{ id: 'singleton', otpAuth: {} }] }, '0'],
         ['x:AppPassword/query', { ids: [] }, '1'],
         ['x:ApiKey/query', { ids: [] }, '2'],
       ]);
@@ -74,7 +88,6 @@ describe('account-security-store', () => {
     it('resolves app password and api key rows via a single follow-up batch when queries return ids', async () => {
       mockedJmap
         .mockResolvedValueOnce([
-          ['x:AccountPassword/get', { list: [{ otpAuth: {} }] }, '0'],
           ['x:AppPassword/query', { ids: ['p1'] }, '1'],
           ['x:ApiKey/query', { ids: ['k1'] }, '2'],
         ])
@@ -253,32 +266,44 @@ describe('account-security-store', () => {
   });
 
   describe('enableTotp / disableTotp', () => {
-    it('enableTotp sends currentSecret + otpAuth.otpUrl + otpCode', async () => {
-      mockedJmap.mockResolvedValueOnce([
-        ['x:AccountPassword/set', { updated: { singleton: null } }, '0'],
-      ]);
+    it('enableTotp posts action=enable with otpUrl + otpCode to the webmail 2FA route', async () => {
+      mockedApiFetch.mockResolvedValue({ ok: true, json: async () => ({ ok: true, enabled: true }) });
 
       await useAccountSecurityStore.getState().enableTotp('pw', 'otpauth://totp/x?secret=S', '123456');
 
       expect(useAccountSecurityStore.getState().otpEnabled).toBe(true);
-      const args = mockedJmap.mock.calls[0][0][0][1];
-      expect(args.update.singleton).toEqual({
-        currentSecret: 'pw',
-        otpAuth: { otpUrl: 'otpauth://totp/x?secret=S', otpCode: '123456' },
+      const [url, init] = mockedApiFetch.mock.calls[0];
+      expect(url).toBe('/api/account/twofactor');
+      expect(init.method).toBe('POST');
+      expect(JSON.parse(init.body)).toEqual({
+        action: 'enable',
+        otpUrl: 'otpauth://totp/x?secret=S',
+        otpCode: '123456',
       });
+      // Never touches Stalwart's Enterprise AccountPassword.
+      expect(mockedJmap).not.toHaveBeenCalled();
     });
 
-    it('disableTotp clears otpUrl', async () => {
+    it('enableTotp surfaces an invalid-code error from the route', async () => {
+      mockedApiFetch.mockResolvedValue({ ok: false, json: async () => ({ error: 'invalid_code' }) });
+
+      await expect(
+        useAccountSecurityStore.getState().enableTotp('pw', 'otpauth://totp/x?secret=S', '000000'),
+      ).rejects.toThrow(/invalid verification code/i);
+      expect(useAccountSecurityStore.getState().otpEnabled).toBe(false);
+    });
+
+    it('disableTotp posts action=disable to the webmail 2FA route', async () => {
       useAccountSecurityStore.setState({ otpEnabled: true });
-      mockedJmap.mockResolvedValueOnce([
-        ['x:AccountPassword/set', { updated: { singleton: null } }, '0'],
-      ]);
+      mockedApiFetch.mockResolvedValue({ ok: true, json: async () => ({ ok: true, enabled: false }) });
 
       await useAccountSecurityStore.getState().disableTotp('pw');
 
       expect(useAccountSecurityStore.getState().otpEnabled).toBe(false);
-      const args = mockedJmap.mock.calls[0][0][0][1];
-      expect(args.update.singleton).toEqual({ currentSecret: 'pw', otpAuth: { otpUrl: null } });
+      const [url, init] = mockedApiFetch.mock.calls[0];
+      expect(url).toBe('/api/account/twofactor');
+      expect(JSON.parse(init.body)).toEqual({ action: 'disable' });
+      expect(mockedJmap).not.toHaveBeenCalled();
     });
   });
 
@@ -289,7 +314,6 @@ describe('account-security-store', () => {
           ['x:AppPassword/set', { created: { new: { id: 'p-new', secret: 'S3CR3T' } } }, '0'],
         ])
         .mockResolvedValueOnce([
-          ['x:AccountPassword/get', { list: [{ otpAuth: {} }] }, '0'],
           ['x:AppPassword/query', { ids: [] }, '1'],
           ['x:ApiKey/query', { ids: [] }, '2'],
         ]);
@@ -315,7 +339,6 @@ describe('account-security-store', () => {
           ['x:AppPassword/set', { created: { new: { id: 'p', secret: 's' } } }, '0'],
         ])
         .mockResolvedValueOnce([
-          ['x:AccountPassword/get', { list: [{ otpAuth: {} }] }, '0'],
           ['x:AppPassword/query', { ids: [] }, '1'],
           ['x:ApiKey/query', { ids: [] }, '2'],
         ]);
@@ -352,7 +375,6 @@ describe('account-security-store', () => {
       mockedJmap
         .mockResolvedValueOnce([['x:AppPassword/set', { destroyed: ['p1'] }, '0']])
         .mockResolvedValueOnce([
-          ['x:AccountPassword/get', { list: [{ otpAuth: {} }] }, '0'],
           ['x:AppPassword/query', { ids: [] }, '1'],
           ['x:ApiKey/query', { ids: [] }, '2'],
         ]);
@@ -372,7 +394,6 @@ describe('account-security-store', () => {
           ['x:ApiKey/set', { created: { new: { id: 'k1', secret: 'API_KEY' } } }, '0'],
         ])
         .mockResolvedValueOnce([
-          ['x:AccountPassword/get', { list: [{ otpAuth: {} }] }, '0'],
           ['x:AppPassword/query', { ids: [] }, '1'],
           ['x:ApiKey/query', { ids: [] }, '2'],
         ]);
@@ -388,7 +409,6 @@ describe('account-security-store', () => {
       mockedJmap
         .mockResolvedValueOnce([['x:ApiKey/set', { destroyed: ['k1'] }, '0']])
         .mockResolvedValueOnce([
-          ['x:AccountPassword/get', { list: [{ otpAuth: {} }] }, '0'],
           ['x:AppPassword/query', { ids: [] }, '1'],
           ['x:ApiKey/query', { ids: [] }, '2'],
         ]);
