@@ -93,11 +93,49 @@ login: heslo --Basic(plain)--> Stalwart (community, OK)
 - [ ] bod 5 seed v control-plane pipeline (mimo tento repo)
 - [ ] build image, test server, E2E (enroll → login s kódem → trust → login bez kódu), pak live
 
+## ⚠️ Bezpečnostní hranice (vědomě přijatá bez Stalwart Enterprise)
+- **Webmail-2FA chrání POUZE webové rozhraní.** Stalwart community nevynucuje 2FA na protokolech
+  (IMAP/SMTP/JMAP), takže **přímé připojení klientem jen s heslem 2FA OBEJDE**. Kdo má heslo, čte poštu
+  přes IMAP/JMAP bez kódu. To je inherentní: secret bydlí v mailboxu čitelném tím heslem a Stalwart
+  o našem 2FA neví. Doporučení: pro účty s 2FA používat **app-passwords** pro klienty a hlavní heslo
+  nesdílet, popř. omezit protokoly na úrovni Stalwartu/proxy.
+- **`/api/auth/stalwart-context` gate míjí.** Tento endpoint nastaví Basic-auth kontext z hesla bez
+  průchodu 2FA gate; slouží k JMAP passthrough (správa účtu) a je dostupný s platným heslem. Enrollment
+  endpoint na něm staví, ale **disable/re-enroll je chráněn čerstvým TOTP** (viz H2 níže), takže samotný
+  kontext neumožní 2FA vypnout. Plné vynucení 2FA i pro management by chtělo Stalwart Enterprise / vlastní
+  proxy vrstvu.
+
+## Bezpečnostní review — opraveno (2. kolo)
+- **C1 fail-open (KRIT.)**: `readTotpSecretUrl` teď **fail-closed** — když carrier e-mail existuje, ale
+  nejde dešifrovat (nebo chybí `SESSION_SECRET`), **hodí chybu** (gate → 503), nevrací null. Null jen
+  když carrier opravdu není. Config chyba se kontroluje PŘED dešifrováním.
+- **C1b klíč vázaný na username**: šifrovací klíč se odvozuje z **kanonického `accountId`** (stabilní
+  server UUID), ne z login username → enroll jako `alice@example.com` a login jako `alice` dají týž klíč.
+- **H2 disable/re-enroll bez re-auth**: `/api/account/twofactor` `disable` (a re-enroll přes `enable`
+  když už je secret uložen) vyžaduje **platný aktuální TOTP kód**, ověřený server-side. Disable UI teď
+  místo hesla chce kód.
+- **M1 brute-force**: login gate i enroll verify mají per-účet počítadlo chyb + lockout
+  (`lib/twofactor/rate-limit.ts`, 5 chyb / 15 min → 15 min lock). **In-memory per-proces** (nesdílí se
+  mezi workery/restarty — viz M3).
+- **M2 trust přežil re-enroll/disable**: trust cookie (`v2`) nese **otisk aktuálního secretu**
+  (`secretFingerprint`); gate porovná s otiskem uloženého secretu → re-enroll/disable staré trusty
+  zneplatní.
+
+## Známé follow-upy (zatím NEřešeno — poznámka do reviewu)
+- **M3**: rate-limit je in-memory per-proces; pro víc workerů/replik dát sdílený store (Redis).
+- **L1–L3**: (drobnosti z reviewu) — doladit až po E2E na test serveru.
+- **replay-cache TOTP kódu**: úspěšně použitý kód lze v rámci ~30s okna teoreticky přehrát; přidat
+  krátkou cache spotřebovaných (účet, kód) pro gate i enroll.
+
 ## Runtime předpoklady k ověření na test serveru (nebylo možné ověřit buildem)
 - **JMAP zápis nosiče**: `Email/set` create s `mailboxIds`+`keywords`+`subject`+`bodyValues` (bez `from`/`to`)
   musí Stalwart přijmout do dedikované složky. Ověřit, že se secret uloží a přečte napříč loginy.
 - **`Mailbox/set` create** složky `.namailu-2fa` (`isSubscribed:false`) — že ji Stalwart vytvoří a
   neukazuje ve výchozích pohledech.
+- **`accountId` z JMAP session** (`primaryAccounts['urn:ietf:params:jmap:mail']`) musí být **stabilní
+  napříč loginy** (i pod různým aliasem) — na tom stojí odvození šifrovacího klíče (C1b). Ověřit.
 - **Login gate round-trip**: enroll v Settings → odhlásit → login (bez kódu ⇒ `totp_required`, s kódem ⇒ OK)
-  → další login do 7 dní bez kódu (trust cookie) → po expiraci/jiném zařízení zase chce kód.
+  → další login do 7 dní bez kódu (trust cookie) → po expiraci/jiném zařízení/re-enrollu zase chce kód.
+- **Disable vyžaduje kód**: v Settings disable → zadat aktuální TOTP → ověřit, že bez/špatný kód
+  neodstraní secret (`reauth_required`), a že 5 chyb spustí lockout.
 - **`SESSION_SECRET` musí být nastaven** (jinak store hodí chybu a 2FA nejde použít — gate vrátí 503).
