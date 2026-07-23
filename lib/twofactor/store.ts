@@ -72,18 +72,26 @@ type JmapMethodResponse = [string, Record<string, unknown>, string];
 
 // ── Crypto ──────────────────────────────────────────────────────────────────
 
-function deriveKey(username: string): Buffer {
+/**
+ * Derive the AES key. `identity` MUST be a canonical, login-alias-independent
+ * account identifier — we pass the JMAP account id (a stable server-assigned
+ * UUID), NOT the login username. The same mailbox can be reached as `alice` or
+ * `alice@example.com` (see emailMatchesUsername in stores/auth-store), so
+ * deriving from the login name would produce a different key per alias and make
+ * a secret enrolled under one alias undecryptable on a later login under
+ * another — a false decryption failure. The account id is identical regardless
+ * of the alias used to log in, so enroll and the login gate always agree.
+ */
+function deriveKey(identity: string): Buffer {
   const secret = getSessionSecret();
   if (!secret) {
     throw new Error('SESSION_SECRET not configured — cannot use webmail-managed 2FA');
   }
-  // Bind the key to the account so a secret encrypted for one user cannot be
-  // decrypted as another, even under the same server secret.
-  return createHash('sha256').update(`${secret}:namailu-twofactor:v1:${username}`).digest();
+  return createHash('sha256').update(`${secret}:namailu-twofactor:v2:${identity}`).digest();
 }
 
-function encryptSecretUrl(username: string, otpUrl: string): string {
-  const key = deriveKey(username);
+function encryptSecretUrl(identity: string, otpUrl: string): string {
+  const key = deriveKey(identity);
   const iv = randomBytes(IV_LENGTH);
   const cipher = createCipheriv(CRYPTO_ALGORITHM, key, iv);
   const encrypted = Buffer.concat([cipher.update(otpUrl, 'utf8'), cipher.final()]);
@@ -91,23 +99,39 @@ function encryptSecretUrl(username: string, otpUrl: string): string {
   return Buffer.concat([iv, tag, encrypted]).toString('base64');
 }
 
-function decryptSecretUrl(username: string, token: string): string | null {
-  try {
-    const key = deriveKey(username);
-    const data = Buffer.from(token, 'base64');
-    if (data.length < IV_LENGTH + TAG_LENGTH) return null;
-    const iv = data.subarray(0, IV_LENGTH);
-    const tag = data.subarray(IV_LENGTH, IV_LENGTH + TAG_LENGTH);
-    const encrypted = data.subarray(IV_LENGTH + TAG_LENGTH);
-    const decipher = createDecipheriv(CRYPTO_ALGORITHM, key, iv);
-    decipher.setAuthTag(tag);
-    const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
-    const url = decrypted.toString('utf8');
-    return url.startsWith('otpauth://') ? url : null;
-  } catch {
-    // Wrong key, tampered ciphertext, or garbage subject — treat as "no secret".
-    return null;
+/**
+ * Decrypt a stored ciphertext. Returns null ONLY when the plaintext is not a
+ * valid `otpauth://` URL that we could produce; throws on any crypto failure
+ * (wrong key, tampered/garbage ciphertext) so a *present* carrier that cannot be
+ * decrypted fails CLOSED at the caller rather than being mistaken for "no 2FA".
+ */
+function decryptSecretUrl(identity: string, token: string): string {
+  const key = deriveKey(identity);
+  const data = Buffer.from(token, 'base64');
+  if (data.length < IV_LENGTH + TAG_LENGTH) {
+    throw new Error('2FA ciphertext too short');
   }
+  const iv = data.subarray(0, IV_LENGTH);
+  const tag = data.subarray(IV_LENGTH, IV_LENGTH + TAG_LENGTH);
+  const encrypted = data.subarray(IV_LENGTH + TAG_LENGTH);
+  const decipher = createDecipheriv(CRYPTO_ALGORITHM, key, iv);
+  decipher.setAuthTag(tag);
+  const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
+  const url = decrypted.toString('utf8');
+  if (!url.startsWith('otpauth://')) {
+    throw new Error('2FA plaintext is not an otpauth URL');
+  }
+  return url;
+}
+
+/**
+ * Stable fingerprint of a stored secret, embedded in the trusted-device cookie
+ * so that re-enrolling or disabling 2FA (which changes/removes the secret)
+ * invalidates previously issued trust cookies. It only needs to change when the
+ * secret changes; the secret itself never leaves the server.
+ */
+export function secretFingerprint(otpUrl: string): string {
+  return createHash('sha256').update(`namailu-2fa-fp:${otpUrl}`).digest('hex').slice(0, 32);
 }
 
 /**
@@ -222,10 +246,17 @@ async function findSecretEmailIds(
 // ── Public API ───────────────────────────────────────────────────────────────
 
 /**
- * Read and decrypt the stored `otpauth://` URL for this account, or null when
- * no secret is stored. Returns null (not throw) when the mailbox/email is
- * simply absent; throws only on genuine JMAP/transport failures so callers can
- * fail closed rather than silently treat an outage as "2FA disabled".
+ * Read and decrypt the stored `otpauth://` URL for this account.
+ *
+ * Returns null ONLY when there is genuinely no 2FA secret (no store mailbox, no
+ * carrier email). It FAILS CLOSED — throws — in every case where a secret is (or
+ * may be) present but cannot be produced, so a caller (the login gate) can never
+ * mistake an unreadable-but-present secret for "2FA disabled" and let the user
+ * in without a code:
+ *   - JMAP/transport failure (getMailContext / jmapCall throw),
+ *   - a carrier email with our SUBJECT_PREFIX exists but SESSION_SECRET is not
+ *     configured (checked BEFORE any decryption), or
+ *   - a carrier exists but decryption fails (wrong key, tampered ciphertext).
  */
 export async function readTotpSecretUrl(creds: TwoFactorCreds): Promise<string | null> {
   const ctx = await getMailContext(creds);
@@ -239,13 +270,34 @@ export async function readTotpSecretUrl(creds: TwoFactorCreds): Promise<string |
     ['Email/get', { accountId: ctx.accountId, ids, properties: ['id', 'subject'] }, '0'],
   ]);
   const emails = (resultOf(responses, 'Email/get')?.list ?? []) as Array<{ subject?: string }>;
-  for (const email of emails) {
-    const subject = email.subject ?? '';
-    if (!subject.startsWith(SUBJECT_PREFIX)) continue;
-    const url = decryptSecretUrl(creds.username, subject.slice(SUBJECT_PREFIX.length));
-    if (url) return url;
+  const carriers = emails
+    .map((e) => e.subject ?? '')
+    .filter((s) => s.startsWith(SUBJECT_PREFIX));
+
+  // No carrier with our marker → genuinely no 2FA. (SESSION_SECRET irrelevant:
+  // there is nothing to decrypt.)
+  if (carriers.length === 0) return null;
+
+  // A carrier IS present: from here on we MUST be able to decrypt it or fail
+  // closed. Distinguish a config error (SESSION_SECRET missing) from a
+  // decryption failure, but neither may return null.
+  if (!getSessionSecret()) {
+    throw new Error('2FA secret present but SESSION_SECRET is not configured — refusing to bypass 2FA');
   }
-  return null;
+
+  let lastError: unknown = null;
+  for (const subject of carriers) {
+    try {
+      return decryptSecretUrl(ctx.accountId, subject.slice(SUBJECT_PREFIX.length));
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw new Error(
+    `2FA secret present but could not be decrypted (failing closed): ${
+      lastError instanceof Error ? lastError.message : 'unknown error'
+    }`,
+  );
 }
 
 /** True when a usable TOTP secret is stored for this account. */
@@ -266,7 +318,7 @@ export async function writeTotpSecretUrl(creds: TwoFactorCreds, otpUrl: string):
   const mailboxId = await findOrCreateStoreMailboxId(creds, ctx);
   const staleIds = await findSecretEmailIds(creds, ctx, mailboxId);
 
-  const ciphertext = encryptSecretUrl(creds.username, otpUrl);
+  const ciphertext = encryptSecretUrl(ctx.accountId, otpUrl);
   const createId = 'secret';
   const emailData: Record<string, unknown> = {
     mailboxIds: { [mailboxId]: true },
