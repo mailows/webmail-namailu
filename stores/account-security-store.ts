@@ -63,7 +63,9 @@ interface AccountSecurityState {
   updateDisplayName: (displayName: string) => Promise<void>;
 
   enableTotp: (currentPassword: string, otpUrl: string, otpCode: string) => Promise<void>;
-  disableTotp: (currentPassword: string) => Promise<void>;
+  // Disabling requires a fresh code from the CURRENT authenticator (server-side
+  // re-auth), so a stolen session cannot turn 2FA off on its own.
+  disableTotp: (otpCode: string) => Promise<void>;
 
   createAppPassword: (input: AppCredentialInput) => Promise<{ id: string; secret: string }>;
   removeAppPassword: (id: string) => Promise<void>;
@@ -438,17 +440,22 @@ export const useAccountSecurityStore = create<AccountSecurityState>()((set, get)
     }
   },
 
-  disableTotp: async (_currentPassword) => {
+  disableTotp: async (otpCode) => {
     set({ isSaving: true, error: null });
     try {
       const res = await apiFetch('/api/account/twofactor', {
         method: 'POST',
         headers: { ...getActiveAccountSlotHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'disable' }),
+        body: JSON.stringify({ action: 'disable', otpCode }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({} as { error?: string }));
-        throw new Error(body?.error || 'Failed to disable TOTP');
+        const msg = body?.error === 'reauth_required'
+          ? 'Invalid verification code'
+          : body?.error === 'totp_locked'
+            ? 'Too many attempts — try again later'
+            : (body?.error || 'Failed to disable TOTP');
+        throw new Error(msg);
       }
       set({ otpEnabled: false, isSaving: false });
     } catch (error) {

@@ -8,6 +8,7 @@ import {
   verifyTotpCode,
   type TwoFactorCreds,
 } from '@/lib/twofactor/store';
+import { isTotpLocked, recordTotpFailure, clearTotpFailures, totpRateLimitKey } from '@/lib/twofactor/rate-limit';
 
 /**
  * Webmail-managed TOTP enrollment endpoint (namailu fork).
@@ -57,7 +58,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
   }
 
-  let body: { action?: string; otpUrl?: string; otpCode?: string };
+  let body: { action?: string; otpUrl?: string; otpCode?: string; currentOtpCode?: string };
   try {
     body = await request.json();
   } catch {
@@ -65,6 +66,7 @@ export async function POST(request: NextRequest) {
   }
 
   const creds = credsFrom(context);
+  const rlKey = totpRateLimitKey(creds.serverUrl, creds.username);
 
   try {
     if (body.action === 'enable') {
@@ -73,7 +75,30 @@ export async function POST(request: NextRequest) {
       if (!otpUrl || !otpCode) {
         return NextResponse.json({ error: 'Missing otpUrl or otpCode' }, { status: 400 });
       }
-      // Re-verify the code server-side against the very secret we are about to
+
+      // Re-enrollment guard: if a secret is already stored, replacing it is a
+      // security-sensitive change (a hijacked session must not be able to swap
+      // the authenticator), so require a valid code from the CURRENT secret.
+      // Fail closed if a secret is present but unreadable.
+      let existing: string | null;
+      try {
+        existing = await readTotpSecretUrl(creds);
+      } catch {
+        return NextResponse.json({ error: 'enrolled_unreadable' }, { status: 409 });
+      }
+      if (existing) {
+        if (isTotpLocked(rlKey)) {
+          return NextResponse.json({ error: 'totp_locked' }, { status: 429 });
+        }
+        const currentOtpCode = typeof body.currentOtpCode === 'string' ? body.currentOtpCode : '';
+        if (!currentOtpCode || !verifyTotpCode(existing, currentOtpCode)) {
+          if (currentOtpCode) recordTotpFailure(rlKey);
+          return NextResponse.json({ error: 'reauth_required' }, { status: 401 });
+        }
+        clearTotpFailures(rlKey);
+      }
+
+      // Verify the code server-side against the very secret we are about to
       // store, so a stored secret is always one the user has proven they hold.
       if (!verifyTotpCode(otpUrl, otpCode)) {
         return NextResponse.json({ error: 'invalid_code' }, { status: 400 });
@@ -83,6 +108,29 @@ export async function POST(request: NextRequest) {
     }
 
     if (body.action === 'disable') {
+      // Disabling 2FA is exactly the action an attacker with a stolen session
+      // would want, so it requires fresh proof: a valid code from the CURRENT
+      // secret. Fail closed if a secret is present but unreadable.
+      let existing: string | null;
+      try {
+        existing = await readTotpSecretUrl(creds);
+      } catch {
+        return NextResponse.json({ error: 'enrolled_unreadable' }, { status: 409 });
+      }
+      if (!existing) {
+        // Nothing enrolled — make sure no stray carrier remains, idempotently.
+        await clearTotpSecret(creds);
+        return NextResponse.json({ ok: true, enabled: false });
+      }
+      if (isTotpLocked(rlKey)) {
+        return NextResponse.json({ error: 'totp_locked' }, { status: 429 });
+      }
+      const otpCode = typeof body.otpCode === 'string' ? body.otpCode : '';
+      if (!otpCode || !verifyTotpCode(existing, otpCode)) {
+        if (otpCode) recordTotpFailure(rlKey);
+        return NextResponse.json({ error: 'reauth_required' }, { status: 401 });
+      }
+      clearTotpFailures(rlKey);
       await clearTotpSecret(creds);
       return NextResponse.json({ ok: true, enabled: false });
     }

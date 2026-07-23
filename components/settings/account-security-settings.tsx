@@ -200,6 +200,7 @@ function TotpSection() {
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [password, setPassword] = useState('');
   const [otpCode, setOtpCode] = useState('');
+  const [disableCode, setDisableCode] = useState('');
   const [setupError, setSetupError] = useState<string | null>(null);
   const [disableOpen, setDisableOpen] = useState(false);
 
@@ -248,11 +249,13 @@ function TotpSection() {
   };
 
   const handleDisable = async () => {
-    if (!password) { setSetupError(t('totp.password_required')); return; }
+    // Disabling requires a fresh code from the current authenticator; the server
+    // re-verifies it (a stolen session must not be able to turn 2FA off).
+    if (!disableCode.trim()) { setSetupError(t('totp.code_required')); return; }
     try {
-      await disableTotp(password);
+      await disableTotp(disableCode.trim());
       setDisableOpen(false);
-      setPassword('');
+      setDisableCode('');
       setSetupError(null);
       toast.success(t('totp.disabled'));
     } catch (err) {
@@ -266,7 +269,7 @@ function TotpSection() {
       startSetup();
     } else {
       setDisableOpen(true);
-      setPassword('');
+      setDisableCode('');
     }
   };
 
@@ -326,20 +329,22 @@ function TotpSection() {
       {disableOpen && (
         <div className="ms-4 p-3 bg-muted rounded-md space-y-2">
           <p className="text-xs text-muted-foreground">{t('totp.disable_confirm_prompt')}</p>
+          <label className="text-xs text-muted-foreground mb-1 block">{t('totp.verification_code')}</label>
           <Input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder={t('password.current')}
-            autoComplete="current-password"
+            value={disableCode}
+            onChange={(e) => setDisableCode(e.target.value)}
+            inputMode="numeric"
+            maxLength={6}
+            autoComplete="one-time-code"
+            placeholder={t('totp.verification_code')}
           />
           {setupError && <p className="text-xs text-destructive">{setupError}</p>}
           <div className="flex gap-2">
-            <Button size="sm" variant="destructive" onClick={handleDisable} disabled={isSaving || !password}>
+            <Button size="sm" variant="destructive" onClick={handleDisable} disabled={isSaving || !disableCode.trim()}>
               {isSaving ? <Loader2 className="w-4 h-4 me-1 animate-spin" /> : null}
               {t('totp.disable')}
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => { setDisableOpen(false); setPassword(''); setSetupError(null); }}>
+            <Button size="sm" variant="ghost" onClick={() => { setDisableOpen(false); setDisableCode(''); setSetupError(null); }}>
               {t('app_passwords.cancel')}
             </Button>
           </div>

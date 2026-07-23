@@ -293,17 +293,27 @@ describe('account-security-store', () => {
       expect(useAccountSecurityStore.getState().otpEnabled).toBe(false);
     });
 
-    it('disableTotp posts action=disable to the webmail 2FA route', async () => {
+    it('disableTotp posts action=disable with the current code to the webmail 2FA route', async () => {
       useAccountSecurityStore.setState({ otpEnabled: true });
       mockedApiFetch.mockResolvedValue({ ok: true, json: async () => ({ ok: true, enabled: false }) });
 
-      await useAccountSecurityStore.getState().disableTotp('pw');
+      await useAccountSecurityStore.getState().disableTotp('654321');
 
       expect(useAccountSecurityStore.getState().otpEnabled).toBe(false);
       const [url, init] = mockedApiFetch.mock.calls[0];
       expect(url).toBe('/api/account/twofactor');
-      expect(JSON.parse(init.body)).toEqual({ action: 'disable' });
+      expect(JSON.parse(init.body)).toEqual({ action: 'disable', otpCode: '654321' });
       expect(mockedJmap).not.toHaveBeenCalled();
+    });
+
+    it('disableTotp surfaces a re-auth error when the current code is rejected', async () => {
+      useAccountSecurityStore.setState({ otpEnabled: true });
+      mockedApiFetch.mockResolvedValue({ ok: false, json: async () => ({ error: 'reauth_required' }) });
+
+      await expect(
+        useAccountSecurityStore.getState().disableTotp('000000'),
+      ).rejects.toThrow(/invalid verification code/i);
+      expect(useAccountSecurityStore.getState().otpEnabled).toBe(true);
     });
   });
 
