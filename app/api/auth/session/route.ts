@@ -14,6 +14,8 @@ import {
   clearStalwartAuthContextInStore,
   setStalwartAuthContextInStore,
 } from '@/lib/stalwart/auth-context';
+import { readTotpSecretUrl, verifyTotpCode } from '@/lib/twofactor/store';
+import { hasValidTotpTrust, issueTotpTrust } from '@/lib/twofactor/trust';
 import { configManager } from '@/lib/admin/config-manager';
 import { isPublicHttpUrl } from '@/lib/security/url-guard';
 import { recordLogin } from '@/lib/telemetry/login-tracker';
@@ -43,7 +45,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Basic authentication is disabled' }, { status: 403 });
     }
 
-    const { serverUrl, username, password, slot: bodySlot } = await request.json();
+    const {
+      serverUrl,
+      username,
+      password,
+      slot: bodySlot,
+      totp,
+      // When false the caller does not want the long-lived session cookie
+      // (equivalent to "remember me" being unchecked); the 2FA gate still runs.
+      // Defaults to true so existing callers are unaffected.
+      persist: bodyPersist,
+      // When false, a successful TOTP is NOT remembered for this device.
+      // Defaults to on (trusted-device is opt-out), configurable via
+      // TOTP_TRUST_DAYS (0 disables trust entirely).
+      rememberDevice: bodyRememberDevice,
+    } = await request.json();
     if (!serverUrl || !username || !password) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
@@ -80,6 +96,7 @@ export async function POST(request: NextRequest) {
 
     const slot = typeof bodySlot === 'number' && bodySlot >= 0 && bodySlot < MAX_ACCOUNT_SLOTS ? bodySlot : getSlot(request);
     const cookieName = sessionCookieName(slot);
+    const persist = bodyPersist !== false;
     const authHeader = `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`;
     // Trusted (admin-configured) URLs skip the upstream re-fetch: the cookie
     // we write here is only ever consumed for requests on behalf of this same
@@ -88,9 +105,49 @@ export async function POST(request: NextRequest) {
     const normalizedServerUrl = upstreamTrusted
       ? (validateProxyAuthHeader(authHeader), normalizeJmapServerUrl(upstreamUrl))
       : await verifyJmapAuth(upstreamUrl, authHeader, { trusted: false });
-    const token = encryptSession(normalizedServerUrl, username, password);
+
     const cookieStore = await cookies();
-    cookieStore.set(cookieName, token, sessionCookieOptions());
+
+    // ── Webmail-managed 2FA gate (namailu fork) ──────────────────────────
+    // The plain password has been accepted upstream. Before issuing any
+    // session, check whether this account has a webmail-managed TOTP secret
+    // (stored in its own mailbox, independent of Stalwart's Enterprise
+    // AccountPassword). If so, a valid code is required — unless a valid
+    // trusted-device cookie is already present for this exact account.
+    let otpUrl: string | null;
+    try {
+      otpUrl = await readTotpSecretUrl({ serverUrl: normalizedServerUrl, authHeader, username });
+    } catch (error) {
+      // A genuine JMAP/transport failure: fail closed (no session) but keep it
+      // retryable rather than locking the account out permanently.
+      logger.error('2FA gate: failed to read secret', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      return NextResponse.json({ error: 'totp_check_failed' }, { status: 503 });
+    }
+
+    if (otpUrl) {
+      const account = { username, serverUrl: normalizedServerUrl };
+      if (!hasValidTotpTrust(cookieStore, slot, account)) {
+        const code = typeof totp === 'string' ? totp.trim() : '';
+        if (!code) {
+          return NextResponse.json({ error: 'totp_required' }, { status: 401 });
+        }
+        if (!verifyTotpCode(otpUrl, code)) {
+          return NextResponse.json({ error: 'totp_invalid' }, { status: 401 });
+        }
+        // Remember this device for the configured window (default 7 days) so
+        // the code is not demanded on every login.
+        if (bodyRememberDevice !== false) {
+          issueTotpTrust(cookieStore, slot, account);
+        }
+      }
+    }
+
+    if (persist) {
+      const token = encryptSession(normalizedServerUrl, username, password);
+      cookieStore.set(cookieName, token, sessionCookieOptions());
+    }
     setStalwartAuthContextInStore(cookieStore, slot, {
       serverUrl: normalizedServerUrl,
       username,

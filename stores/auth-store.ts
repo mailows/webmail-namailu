@@ -585,67 +585,40 @@ export const useAuthStore = create<AuthState>()(
             ? (accountStore.getAccountById(accountId)?.cookieSlot ?? accountStore.getNextCookieSlot())
             : accountStore.getNextCookieSlot();
 
-          let client: JMAPClient;
-          let upgradedToOAuth = false;
-          let oauthAccessToken: string | null = null;
-          let oauthExpiresIn = 0;
+          // The webmail is the 2FA authority now (namailu fork). Always connect
+          // with the PLAIN password over Basic — Stalwart community sees only
+          // the password, never a `password$code`. Any TOTP is verified by our
+          // own login gate below, not by Stalwart's Enterprise AccountPassword.
+          const client = new JMAPClient(serverUrl, username, password);
+          await client.connect();
 
-          if (totp) {
-            // Stalwart 0.16+ dropped the `password$totp` basic-auth convention;
-            // the MFA code must be exchanged for tokens via the structured login
-            // endpoint (handled server-side). Token auth also survives TOTP
-            // rotation, unlike basic auth which embeds the ~30s code per request.
-            let bearerToken: string | null = null;
-            try {
-              // The callback URL the OAuth client already registers; the route
-              // needs an identical redirect URI for the login + token-exchange
-              // steps (and registered when require_client_registration is on).
-              const redirectUri = typeof window !== 'undefined'
-                ? `${window.location.origin}${getPathPrefix()}/${getLocaleFromPath()}/auth/callback`
-                : '';
-              const tokenRes = await apiFetch('/api/auth/totp-token-exchange', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                // server_id isn't passed - the route looks up the server entry by
-                // serverUrl, so per-server OAuth still applies for password+TOTP.
-                body: JSON.stringify({ serverUrl, username, password, totp, slot: cookieSlot, redirectUri }),
-              });
-              if (tokenRes.ok) {
-                const { access_token, expires_in, has_refresh_token } = await tokenRes.json();
-                bearerToken = access_token;
-                oauthExpiresIn = expires_in;
-                debug.log('auth', 'TOTP login exchanged for token-based auth (has_refresh_token=' + has_refresh_token + ')');
-              } else {
-                const errorBody = await tokenRes.json().catch(() => ({ error: 'unknown' }));
-                // A correct password with a missing/invalid MFA token surfaces as
-                // a TOTP prompt rather than a generic failure.
-                if (errorBody?.error === 'totp_required') {
-                  throw new Error('TOTP_REQUIRED');
-                }
-                debug.warn('auth', 'TOTP login exchange failed, trying legacy basic auth:', tokenRes.status, errorBody);
-              }
-            } catch (err) {
-              if (err instanceof Error && err.message === 'TOTP_REQUIRED') throw err;
-              debug.warn('auth', 'TOTP login exchange error, trying legacy basic auth:', err);
+          // 2FA gate + session persistence in a single server round-trip. The
+          // gate (POST /api/auth/session) reads this account's TOTP secret from
+          // its mailbox and, if present, requires a valid `totp` unless a
+          // trusted-device cookie is already set. `persist` mirrors "remember
+          // me": when off, no long-lived session cookie is written, but the
+          // gate still runs.
+          const gateRes = await apiFetch(`/api/auth/session?slot=${cookieSlot}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ serverUrl, username, password, totp, slot: cookieSlot, persist: !!rememberMe }),
+          });
+          if (!gateRes.ok) {
+            const gateBody = await gateRes.json().catch(() => ({} as { error?: string }));
+            client.disconnect();
+            if (gateBody?.error === 'totp_required') {
+              // Reveal/keep the TOTP field on the login page.
+              throw new Error('TOTP_REQUIRED');
             }
-
-            if (bearerToken) {
-              client = JMAPClient.withBearer(serverUrl, bearerToken, username, () => get().refreshAccessToken());
-              await client.connect();
-              oauthAccessToken = bearerToken;
-              upgradedToOAuth = true;
-            } else {
-              // Legacy fallback for pre-0.16 Stalwart, which accepts the TOTP
-              // appended to the password over basic auth.
-              client = new JMAPClient(serverUrl, username, `${password}$${totp}`);
-              await client.connect();
-              const { useTotpReauthStore } = await import('@/stores/totp-reauth-store');
-              client.enableTotpReauth(password, () => useTotpReauthStore.getState().requestTotp());
-              debug.log('auth', 'TOTP re-auth enabled (legacy basic-auth path)');
+            if (gateBody?.error === 'totp_invalid') {
+              // Field is already shown with a code entered — surface as invalid
+              // so the page renders the "invalid code" hint.
+              throw new Error('Invalid username or password');
             }
-          } else {
-            client = new JMAPClient(serverUrl, username, password);
-            await client.connect();
+            if (gateRes.status >= 500) {
+              throw new Error(`Session refresh failed: ${gateRes.status}`);
+            }
+            throw new Error('Invalid username or password');
           }
 
           // Snapshot/clear before kicking off any feature-store fetches so they
@@ -659,25 +632,12 @@ export const useAuthStore = create<AuthState>()(
           // Identities can fly in parallel with everything below.
           const identitiesPromise = client.getIdentities();
 
-          const effectiveAuthMode = upgradedToOAuth ? 'oauth' : 'basic';
-
-          // Run the remaining independent requests in parallel. The session
-          // write and stalwart-context write are best-effort persistence; the
-          // outer login still succeeds even if they log a warning. Errors are
-          // caught locally so Promise.all doesn't reject on either.
-          const sessionWrite: Promise<unknown> = (rememberMe && !upgradedToOAuth)
-            ? apiFetch(`/api/auth/session?slot=${cookieSlot}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ serverUrl, username, password, slot: cookieSlot }),
-              }).then((res) => {
-                if (!res.ok) debug.error('Failed to store session: server returned', res.status);
-              }).catch((err) => debug.error('Failed to store session:', err))
-            : Promise.resolve();
+          // Login is always plain Basic now; the 2FA gate above already handled
+          // session persistence and the Stalwart auth context.
+          const effectiveAuthMode = 'basic';
 
           const [rawIdentities] = await Promise.all([
             identitiesPromise,
-            sessionWrite,
             syncStalwartAuthContext(serverUrl, username, client.getAuthHeader(), cookieSlot),
           ]);
 
@@ -732,8 +692,8 @@ export const useAuthStore = create<AuthState>()(
             primaryIdentity,
             authMode: effectiveAuthMode,
             rememberMe: !!rememberMe,
-            accessToken: oauthAccessToken,
-            tokenExpiresAt: oauthAccessToken ? Date.now() + oauthExpiresIn * 1000 : null,
+            accessToken: null,
+            tokenExpiresAt: null,
             connectionLost: false,
             error: null,
             activeAccountId: accountId,
@@ -747,11 +707,6 @@ export const useAuthStore = create<AuthState>()(
               debug.error('Initial data prefetch failed:', err);
             });
           }).catch(() => {});
-
-          // Schedule token refresh for TOTP-upgraded sessions
-          if (upgradedToOAuth && oauthExpiresIn > 0) {
-            scheduleRefresh(oauthExpiresIn, get().refreshAccessToken, accountId);
-          }
 
           // Sync settings from server (only if enabled)
           fetchConfig().then(config => {
