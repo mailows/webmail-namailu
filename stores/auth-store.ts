@@ -610,9 +610,11 @@ export const useAuthStore = create<AuthState>()(
               // Reveal/keep the TOTP field on the login page.
               throw new Error('TOTP_REQUIRED');
             }
-            if (gateBody?.error === 'totp_invalid') {
-              // Field is already shown with a code entered — surface as invalid
-              // so the page renders the "invalid code" hint.
+            if (gateBody?.error === 'totp_invalid' || gateBody?.error === 'totp_locked') {
+              // A code was submitted (field already shown). Surface as invalid so
+              // the page renders the "invalid code" hint. `totp_locked` (429,
+              // too many wrong codes) reuses the same message; the server keeps
+              // rejecting until the lockout window clears.
               throw new Error('Invalid username or password');
             }
             if (gateRes.status >= 500) {

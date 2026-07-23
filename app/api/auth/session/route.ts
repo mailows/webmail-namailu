@@ -14,8 +14,9 @@ import {
   clearStalwartAuthContextInStore,
   setStalwartAuthContextInStore,
 } from '@/lib/stalwart/auth-context';
-import { readTotpSecretUrl, verifyTotpCode } from '@/lib/twofactor/store';
+import { readTotpSecretUrl, verifyTotpCode, secretFingerprint } from '@/lib/twofactor/store';
 import { hasValidTotpTrust, issueTotpTrust } from '@/lib/twofactor/trust';
+import { isTotpLocked, recordTotpFailure, clearTotpFailures, totpRateLimitKey } from '@/lib/twofactor/rate-limit';
 import { configManager } from '@/lib/admin/config-manager';
 import { isPublicHttpUrl } from '@/lib/security/url-guard';
 import { recordLogin } from '@/lib/telemetry/login-tracker';
@@ -128,18 +129,30 @@ export async function POST(request: NextRequest) {
 
     if (otpUrl) {
       const account = { username, serverUrl: normalizedServerUrl };
-      if (!hasValidTotpTrust(cookieStore, slot, account)) {
+      const fingerprint = secretFingerprint(otpUrl);
+      // Trust is bound to the CURRENT secret's fingerprint, so re-enrolling or
+      // disabling 2FA invalidates old trusted-device cookies.
+      if (!hasValidTotpTrust(cookieStore, slot, account, fingerprint)) {
         const code = typeof totp === 'string' ? totp.trim() : '';
+        // Check code presence BEFORE the lockout so a normal first login (no
+        // code yet) always gets `totp_required` and reveals the field; the
+        // lockout only bites once codes are actually being submitted.
         if (!code) {
           return NextResponse.json({ error: 'totp_required' }, { status: 401 });
         }
+        const rlKey = totpRateLimitKey(normalizedServerUrl, username);
+        if (isTotpLocked(rlKey)) {
+          return NextResponse.json({ error: 'totp_locked' }, { status: 429 });
+        }
         if (!verifyTotpCode(otpUrl, code)) {
+          recordTotpFailure(rlKey);
           return NextResponse.json({ error: 'totp_invalid' }, { status: 401 });
         }
+        clearTotpFailures(rlKey);
         // Remember this device for the configured window (default 7 days) so
         // the code is not demanded on every login.
         if (bodyRememberDevice !== false) {
-          issueTotpTrust(cookieStore, slot, account);
+          issueTotpTrust(cookieStore, slot, account, fingerprint);
         }
       }
     }
