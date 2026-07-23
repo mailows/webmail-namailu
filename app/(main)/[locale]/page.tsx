@@ -43,7 +43,6 @@ import {
 } from "@/components/error";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { PromptDialog } from "@/components/ui/prompt-dialog";
-import { TotpReauthDialog } from "@/components/totp-reauth-dialog";
 import { DragDropProvider } from "@/contexts/drag-drop-context";
 import { isFilterEmpty, activeFilterCount } from "@/lib/jmap/search-utils";
 import { WelcomeBanner } from "@/components/ui/welcome-banner";
@@ -3551,7 +3550,6 @@ export default function Home() {
         )}
         <ConfirmDialog {...confirmDialogProps} />
         <PromptDialog {...promptDialogProps} />
-        <TotpReauthDialog />
       </div>
     </DragDropProvider>
   );
