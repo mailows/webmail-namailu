@@ -28,9 +28,11 @@ type CookieStore = {
 };
 
 interface TotpTrustPayload {
-  v: 1;
+  v: 2;
   username: string;
   serverUrl: string;
+  /** Fingerprint of the secret that was in force when trust was granted. */
+  fp: string;
   /** Absolute expiry, epoch ms. */
   exp: number;
 }
@@ -60,14 +62,16 @@ export function issueTotpTrust(
   cookieStore: CookieStore,
   slot: number,
   account: { username: string; serverUrl: string },
+  secretFingerprint: string,
 ): void {
   const days = getTotpTrustDays();
   if (days <= 0) return;
   const maxAgeSeconds = days * 24 * 60 * 60;
   const payload: TotpTrustPayload = {
-    v: 1,
+    v: 2,
     username: account.username,
     serverUrl: account.serverUrl,
+    fp: secretFingerprint,
     exp: Date.now() + maxAgeSeconds * 1000,
   };
   const { maxAge: _maxAge, ...cookieOptions } = getCookieOptions();
@@ -79,20 +83,24 @@ export function issueTotpTrust(
 
 /**
  * True when a valid, unexpired trust cookie exists that is bound to this exact
- * account. A mismatched account, tampered/undecryptable cookie, or a passed
- * hard-expiry all return false (and the caller then requires a code).
+ * account AND to the CURRENT secret. A mismatched account, a mismatched secret
+ * fingerprint (i.e. 2FA was re-enrolled or disabled since the cookie was
+ * issued), a tampered/undecryptable cookie, or a passed hard-expiry all return
+ * false (and the caller then requires a code).
  */
 export function hasValidTotpTrust(
   cookieStore: CookieStore,
   slot: number,
   account: { username: string; serverUrl: string },
+  currentSecretFingerprint: string,
 ): boolean {
   if (!isTotpTrustEnabled()) return false;
   const token = cookieStore.get(totpTrustCookieName(slot))?.value;
   if (!token) return false;
   const payload = decryptPayload(token) as unknown as Partial<TotpTrustPayload> | null;
-  if (!payload || payload.v !== 1) return false;
+  if (!payload || payload.v !== 2) return false;
   if (payload.username !== account.username || payload.serverUrl !== account.serverUrl) return false;
+  if (payload.fp !== currentSecretFingerprint) return false;
   if (typeof payload.exp !== 'number' || payload.exp <= Date.now()) return false;
   return true;
 }
