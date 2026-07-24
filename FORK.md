@@ -24,32 +24,34 @@ Chceme 2FA bez placení → přesunout ho **do Bulwarku samotného**, mimo Stalw
    `otpauth` (klient), validuje kód klientsky, a přes `enableTotp` uloží `otpAuth.otpUrl` DO STALWARTU.
 
 ## Cílová architektura (fork)
-Bulwark = **autorita 2FA**. Secret bydlí v **mailboxu uživatele přes normální JMAP** (běžné úložiště,
-community licence zdarma — NE `AccountPassword`). Stalwart vidí jen **plain heslo**.
+Bulwark = **autorita 2FA**. Secret bydlí v **server-side úložišti webmailu** (`/app/data/twofactor/…`,
+kam uživatel nemá přístup — viz „4. kolo" níže; do 3. kola byl v mailboxu uživatele přes JMAP, což byla
+bezpečnostní díra). Stalwart vidí jen **plain heslo**, žádný `AccountPassword`.
 
 ```
 login: heslo --Basic(plain)--> Stalwart (community, OK)
                  │ po úspěchu, PŘED vydáním session cookie:
                  ▼
-        Bulwark: přečti TOTP secret z mailboxu (JMAP) → je-li nastaven, vyžádej kód
-                 → ověř knihovnou otpauth (server-side) → teprve pak vydej session cookie
+        Bulwark: přečti TOTP secret ze server-side úložiště (klíč = accountId z JMAP session)
+                 → je-li nastaven, vyžádej kód → ověř knihovnou otpauth (server-side)
+                 → teprve pak vydej session cookie
 ```
 
 ## Mapa zásahů (co přesně měníme)
-1. **Úložiště secretu** — nový modul `lib/twofactor/store.ts`: TOTP secret **zašifrovaný** ulož/čti
-   v mailboxu přes JMAP. NEpoužívat `x:AccountPassword`.
-   - **ROZHODNUTÍ nosiče: skrytý `Email` v dedikované složce** (`.namailu-2fa`, `isSubscribed:false`),
-     NE JMAP `blob`. Důvody: (a) *trvanlivost* — nereferencovaný blob je dle RFC 8620 §6 přechodný a
-     server (Stalwart) ho může GC-nout; `Email` je perzistentní objekt. (b) *dohledatelnost* — `Email`
-     najdeme deterministicky přes `Email/query` (filtr na naši složku) při každém příštím loginu; blob
-     má jen neprůhledné blobId, které bychom stejně museli někam uložit (slepice/vejce). (c) *community
-     JMAP* — `Mailbox/*`+`Email/*` jsou standardní `urn:ietf:params:jmap:mail` (zdarma), žádný `x:`.
-     Ciphertext se ukládá do `subject` (`namailu-2fa-totp:<base64>`), Email nese i marker keyword
-     `$namailu2fa`.
-   - **Šifrování**: `otpauth://` URL šifrujeme AES-256-GCM klíčem odvozeným ze **serverového
-     `SESSION_SECRET`** (ne z hesla) navázaným na `username`. Klíč z hesla by nedával smysl (kdo má
-     heslo, dešifroval by secret a razil kódy). Díky tomu je secret čitelný jen na serveru → ověřování
-     TOTP je server-side (login gate). Čtení nosiče navíc vždy vyžaduje autentizovanou JMAP session.
+1. **Úložiště secretu** — modul `lib/twofactor/store.ts` (+ backend `lib/twofactor/secret-store.ts`):
+   TOTP secret **zašifrovaný** ulož/čti v **server-side úložišti webmailu**. NEpoužívat
+   `x:AccountPassword`.
+   - **ROZHODNUTÍ nosiče (aktuální, 4. kolo): soubor v `/app/data/twofactor/<sha256(accountId)>.json`.**
+     Detaily, formát, migrace a proč mailbox NEBYL vhodný → sekce „4. kolo" níže.
+   - ~~**Původní rozhodnutí (1.–3. kolo): skrytý `Email` v dedikované složce** (`.namailu-2fa`,
+     `isSubscribed:false`) s ciphertextem v `subject` (`namailu-2fa-totp:<base64>`).~~ **ZRUŠENO** —
+     nosič byl v schránce uživatele, tedy **smazatelný uživatelem** = vypnutí 2FA. Kód pro čtení
+     starého nosiče zůstává jen jako **jednorázová migrace** při čtení.
+   - **Šifrování (beze změny)**: `otpauth://` URL šifrujeme AES-256-GCM klíčem odvozeným ze
+     **serverového `SESSION_SECRET`** (ne z hesla) navázaným na kanonický `accountId` (`deriveKey`,
+     label `v2`). Klíč z hesla by nedával smysl (kdo má heslo, dešifroval by secret a razil kódy).
+     Díky tomu je secret čitelný jen na serveru → ověřování TOTP je server-side (login gate).
+     Na klienta se secret (ani ciphertext) nikdy nedostane.
 2. **Enrollment** `components/settings/account-security-settings.tsx` + store `enableTotp`/`disableTotp`
    (`stores/account-security-store.ts`): místo `x:AccountPassword/set` volají nový endpoint
    `app/api/account/twofactor/route.ts` (ten šifruje a zapisuje přes bod 1). Generování secretu a
@@ -86,7 +88,8 @@ login: heslo --Basic(plain)--> Stalwart (community, OK)
 - ⚠️ Na produkci (port 3000) překlopit až po zelené validaci na test serveru. Nikdy netestovat na živém.
 
 ## TODO (implementace)
-- [x] bod 1 store — nosič: **skrytý Email** v `.namailu-2fa` (viz zdůvodnění výše); nutno ověřit na test serveru
+- [x] bod 1 store — nosič: **server-side soubor** `/app/data/twofactor/<hash>.json` (4. kolo; dřív skrytý
+      Email v `.namailu-2fa` — zrušeno jako díra). Migrace starých účtů automatická při čtení; ověřit na test serveru
 - [x] bod 2 enrollment přepojen na `/api/account/twofactor` (store), status přes GET
 - [x] bod 3 login gate v session route + trusted-device (`TOTP_TRUST_DAYS`, default 7)
 - [x] bod 4 vyřazeny Stalwart-OTP cesty (token-exchange, reauth dialog+store, `password$totp`)
@@ -96,9 +99,10 @@ login: heslo --Basic(plain)--> Stalwart (community, OK)
 ## ⚠️ Bezpečnostní hranice (vědomě přijatá bez Stalwart Enterprise)
 - **Webmail-2FA chrání POUZE webové rozhraní.** Stalwart community nevynucuje 2FA na protokolech
   (IMAP/SMTP/JMAP), takže **přímé připojení klientem jen s heslem 2FA OBEJDE**. Kdo má heslo, čte poštu
-  přes IMAP/JMAP bez kódu. To je inherentní: secret bydlí v mailboxu čitelném tím heslem a Stalwart
-  o našem 2FA neví. Doporučení: pro účty s 2FA používat **app-passwords** pro klienty a hlavní heslo
-  nesdílet, popř. omezit protokoly na úrovni Stalwartu/proxy.
+  přes IMAP/JMAP bez kódu. To je inherentní: Stalwart o našem 2FA neví. Doporučení: pro účty s 2FA
+  používat **app-passwords** pro klienty a hlavní heslo nesdílet, popř. omezit protokoly na úrovni
+  Stalwartu/proxy. (Od 4. kola už ale uživatel přes IMAP/JMAP **nemůže 2FA vypnout** — secret v jeho
+  schránce není.)
 - **`/api/auth/stalwart-context` gate míjí.** Tento endpoint nastaví Basic-auth kontext z hesla bez
   průchodu 2FA gate; slouží k JMAP passthrough (správa účtu) a je dostupný s platným heslem. Enrollment
   endpoint na něm staví, ale **disable/re-enroll je chráněn čerstvým TOTP** (viz H2 níže), takže samotný
@@ -128,10 +132,9 @@ login: heslo --Basic(plain)--> Stalwart (community, OK)
   krátkou cache spotřebovaných (účet, kód) pro gate i enroll.
 
 ## Runtime předpoklady k ověření na test serveru (nebylo možné ověřit buildem)
-- **JMAP zápis nosiče**: `Email/set` create s `mailboxIds`+`keywords`+`subject`+`bodyValues` (bez `from`/`to`)
-  musí Stalwart přijmout do dedikované složky. Ověřit, že se secret uloží a přečte napříč loginy.
-- **`Mailbox/set` create** složky `.namailu-2fa` (`isSubscribed:false`) — že ji Stalwart vytvoří a
-  neukazuje ve výchozích pohledech.
+- ~~**JMAP zápis nosiče** / **`Mailbox/set` create** složky `.namailu-2fa`~~ — **odpadá od 4. kola**,
+  do mailboxu už nic nezapisujeme. Nově ověřit: **zápis do `/app/data/twofactor`** (volume připojený,
+  práva pro uživatele `nextjs`) a **migrace** starých účtů (viz 4. kolo).
 - **`accountId` z JMAP session** (`primaryAccounts['urn:ietf:params:jmap:mail']`) musí být **stabilní
   napříč loginy** (i pod různým aliasem) — na tom stojí odvození šifrovacího klíče (C1b). Ověřit.
 - **Login gate round-trip**: enroll v Settings → odhlásit → login (bez kódu ⇒ `totp_required`, s kódem ⇒ OK)
@@ -238,3 +241,93 @@ webmail na 12 h (obtěžuje uživatele ❌), nebo keep-alive ping webmail→port
 ### Kdyby se v budoucnu chtěl i směr portál→webmail bez re-loginu
 Doménová (`.namailu.cz`) **jen PORTÁLOVÁ** cookie — ta heslo nenese; webmailovou nechat izolovanou.
 K tomu keep-alive nebo obdobný handoff opačným směrem. Zatím NEimplementováno (viz roadmap).
+
+## 4. kolo (KRIT. oprava): TOTP secret pryč z mailboxu → server-side úložiště webmailu
+
+### Díra, kterou to zavírá
+Nosič secretu z 1.–3. kola byl **skrytý e-mail v schránce uživatele** (složka `.namailu-2fa`, ciphertext
+v `subject`). Jenže do své schránky uživatel **plně vidí a smí do ní psát** — webmailem i přímo přes
+IMAP/JMAP. **Smazáním toho jednoho e-mailu si tedy sám vypnul 2FA.** Ověřeno testem:
+
+| stav | login bez TOTP kódu |
+|---|---|
+| před smazáním nosiče | **401 `totp_required`** |
+| po smazání nosiče | **200 (session vydána, 2FA pryč)** |
+
+Tím se obešel tvrdý **403 `twofactor_managed`** na `action:'disable'` (2. kolo) — zákaz vypnutí 2FA byl
+jen kosmetický, dokud nosič ležel v dosahu uživatele. **Poučení:** nosič autentizačního faktoru nesmí
+ležet v úložišti, do kterého má zapisovat ten, koho ověřuje. Původní důvody pro `Email` (trvanlivost
+oproti GC-ovanému blobu, dohledatelnost přes `Email/query`, community JMAP) platily jen v rámci volby
+„kam do mailboxu" — všechny padají proti tomu, že je nosič smazatelný.
+
+### Nové úložiště (`lib/twofactor/secret-store.ts`)
+- **Cesta:** `TWOFACTOR_DATA_DIR` (default `<cwd>/data/twofactor` → v image **`/app/data/twofactor`**),
+  **jeden soubor na účet**: `sha256("namailu-2fa-account:" + accountId)` + `.json`.
+  Účet se na disk nikdy nepropíše v čitelné podobě a název nemůže utéct z adresáře (kontrola `path.resolve`).
+  Per-účet soubor (ne jeden index) = žádný souběh mezi enrollmenty různých účtů.
+- **Formát** (`TwoFactorRecord`):
+  ```json
+  { "version": 2, "algorithm": "aes-256-gcm",
+    "ciphertext": "<base64(iv|tag|ct) otpauth:// URL>",
+    "updatedAt": "2026-07-24T…Z", "legacyCleanupPending": false }
+  ```
+- **Atomický zápis:** temp soubor `<cíl>.<8 hex>.tmp` ve stejném adresáři → `rename(2)` přes cíl
+  (temp se při chybě uklidí). Nikdy tedy nevznikne half-written = nedešifrovatelný = fail-closed záznam.
+- **Práva:** adresář `0700` (`mkdir` + `chmod` i v Dockerfile), soubory `0600`.
+- **Šifrování beze změny:** AES-256-GCM, klíč `sha256(SESSION_SECRET + ":namailu-twofactor:v2:" + accountId)`
+  (`deriveKey`). Ciphertext existujících účtů se při migraci **přebírá 1:1** (nešifruje se znovu), takže
+  `secretFingerprint` a tím i trust cookies zůstávají platné.
+- **Klíč záznamu:** `accountId` z JMAP session (`primaryAccounts['urn:ietf:params:jmap:mail']`) — stabilní
+  napříč aliasy, beze změny oproti 3. kolu. Kvůli němu se při každém čtení pořád načítá JMAP session.
+- **Veřejné API `lib/twofactor/store.ts` beze změny** (`readTotpSecretUrl`, `writeTotpSecretUrl`,
+  `clearTotpSecret`, `verifyTotpCode`, `secretFingerprint`, `hasTotpSecret`) → login gate
+  (`app/api/auth/session/route.ts`) ani enroll (`app/api/account/twofactor/route.ts`) se nemění.
+
+### Migrace stávajících uživatelů (automatická, při čtení)
+`readTotpSecretUrl` → není-li server-side záznam, spustí se `migrateLegacyMailboxSecret`:
+1. Najdi složku `.namailu-2fa` (`Mailbox/get`). Není → účet **genuinně nemá 2FA** → `null`.
+2. Najdi v ní nosič (`Email/query` + `Email/get`, subject s prefixem `namailu-2fa-totp:`).
+   Složka je naše vlastní, takže **složka bez nosiče** = žádné 2FA → složku uklidíme a vrátíme `null`.
+3. Nosič je → dešifruj (fail-closed, viz níže) → **zapiš ciphertext do server-side úložiště**
+   (s `legacyCleanupPending: true`) → **smaž nosič (`Email/set destroy`) i celou složku
+   (`Mailbox/set destroy` + `onDestroyRemoveEmails`)** → přepiš záznam s `legacyCleanupPending: false`
+   → vrať secret. Uživateli tak ten divný e-mail zmizí ze schránky při prvním dalším loginu.
+4. **Pořadí je záměrné** (nejdřív zapsat, pak mazat): selhání mezi tím nemůže secret ztratit.
+   Když selže zápis na disk, nosič se **nemaže** a vrátí se secret (2FA drží, migrace se zopakuje).
+   Když selže úklid mailboxu, secret už je bezpečně na disku a příznak `legacyCleanupPending` zůstane —
+   **další čtení úklid zopakuje** (a chyba úklidu login neshodí, protože secret je již server-side).
+5. **Idempotence:** po úspěchu už nosič ani složka neexistují a čtení jde rovnou ze souboru; opakované
+   spuštění migrace je no-op.
+6. `writeTotpSecretUrl` (enroll/seed) dělá totéž pořadí: zapiš záznam → best-effort smaž starý nosič
+   z mailboxu → přepiš příznak. Nikdy tak nezůstane starý nosič se **starým** secretem jako past.
+
+### Fail-closed drží (nezměněno v chování gate)
+`readTotpSecretUrl` vrací `null` **jen** když opravdu žádný secret není (žádný soubor **a** žádná
+legacy složka/nosič). **Throw** (login gate → **503 `totp_check_failed`**, nikdy session) nastane, když:
+- selže JMAP session / `Mailbox/get` / `Email/*` **při migraci** (nevíme, jestli 2FA je → nesmíme pustit),
+- **soubor existuje, ale nejde přečíst** (EACCES/EIO) nebo je rozbitý JSON / bez `ciphertext`
+  (`TwoFactorRecordUnreadableError`),
+- secret existuje a **chybí `SESSION_SECRET`** (kontrola **PŘED** dešifrováním),
+- secret existuje a **dešifrování selže** (jiný klíč, poškozený ciphertext).
+
+Naopak **nikdy neshodí login**: selhání odloženého úklidu mailboxu (`legacyCleanupPending`) a selhání
+úklidu prázdné legacy složky — obojí jen `logger.warn`.
+
+### Provoz / deployment
+- `Dockerfile`: `mkdir -p … /app/data/twofactor` + `chown nextjs:nodejs` + `chmod 700` (čistá instalace
+  funguje bez ručního zásahu).
+- `docker-compose.yml`: nový volume `bulwark-twofactor:/app/data/twofactor`.
+- `.env.example`: dokumentován `TWOFACTOR_DATA_DIR`.
+- ⚠️ **`/app/data` (a zvlášť `/app/data/twofactor`) PATŘÍ DO ZÁLOH.** Ztráta adresáře = všichni uživatelé
+  s 2FA se nedostanou do webmailu (fail-closed by je nepustil… resp. účet vypadá jako bez 2FA jen tehdy,
+  když soubor **genuinně** neexistuje — proto zálohovat a nikdy nemazat ručně). Stejně tak **změna
+  `SESSION_SECRET` znehodnotí všechny uložené secrety** (klíč se z něj odvozuje) → gate vrátí 503.
+- Adresář **nesmí** být exponován uživatelům (žádný route ho nečte na klienta; secret se nikdy neserializuje
+  do odpovědi — endpoint `/api/account/twofactor` vrací jen `{ enabled: boolean }`).
+
+### Ověření
+- `npx tsc --noEmit` → 0 chyb. `npm run lint` → 0 errors (jen preexistující warningy).
+  `npm run build` → OK (exit 0).
+- K doověření na test serveru: (a) starý účet s nosičem → login → nosič i složka `.namailu-2fa` zmizí
+  a 2FA dál platí; (b) smazání čehokoliv ve schránce už 2FA nevypne; (c) nový enroll zapíše soubor
+  do `/app/data/twofactor` a přežije `docker compose up --force-recreate`.
