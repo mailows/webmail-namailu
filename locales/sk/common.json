@@ -23,7 +23,9 @@
       "generic": "Vyskytla sa neočakávaná chyba. Ak problém pretrváva, kontaktujte správcu.",
       "totp_required": "Je vyžadovaný kód dvojfaktorového overenia. Zadajte kód nižšie.",
       "totp_invalid": "Neplatný overovací kód. Skontrolujte svoju overovaciu aplikáciu a skúste znova.",
-      "oauth_discovery_failed": "SSO je povolené, ale poskytovateľa identity sa nepodarilo dosiahnuť. Skontrolujte konfiguráciu OAuth."
+      "oauth_discovery_failed": "SSO je povolené, ale poskytovateľa identity sa nepodarilo dosiahnuť. Skontrolujte konfiguráciu OAuth.",
+      "totp_enroll_required": "This mailbox has no two-factor authentication yet. Set it up below — sign-in cannot finish without it.",
+      "totp_enroll_invalid": "That code is wrong or the offer expired. Reload the page, scan the new QR code and try again."
     },
     "show_password": "Zobraziť heslo",
     "hide_password": "Skryť heslo",
@@ -61,7 +63,9 @@
       "token_exchange_failed": "Overenie sa nepodarilo dokončiť. Skúste to znova.",
       "access_denied": "Prístup bol zamietnutý. Kontaktujte správcu.",
       "back_to_login": "Späť na prihlásenie"
-    }
+    },
+    "enroll_title": "Set up two-factor authentication",
+    "enroll_hint": "This mailbox has no 2FA yet. Scan the QR code with an authenticator app (Google Authenticator, Authy, 1Password…) and enter the code it shows. Sign-in cannot finish without it."
   },
   "sidebar": {
     "unified_mailbox": "Zjednotená schránka",
@@ -140,7 +144,8 @@
     "unified_all_starred": "Všetky s hviezdičkou",
     "unified_all_mail": "Všetka pošta",
     "remove_account": "Odstrániť účet",
-    "remove_account_confirm": "Odstrániť {account} z tohto zariadenia? Neskôr ho môžete znova pridať."
+    "remove_account_confirm": "Odstrániť {account} z tohto zariadenia? Neskôr ho môžete znova pridať.",
+    "portal": "namailu.cz portal"
   },
   "protocol_handlers": {
     "title": "Predvolené aplikácie",
@@ -1438,7 +1443,8 @@
         "disable_confirm_prompt": "Na vypnutie dvojfaktorového overenia zadajte heslo.",
         "password_required": "Heslo je povinné",
         "code_required": "Overovací kód je povinný",
-        "code_invalid": "Neplatný kód. Skontrolujte overovaciu aplikáciu a skúste znova."
+        "code_invalid": "Neplatný kód. Skontrolujte overovaciu aplikáciu a skúste znova.",
+        "active_managed": "2FA is active (managed by namailu.cz)"
       },
       "app_passwords": {
         "title": "Heslá aplikácií",

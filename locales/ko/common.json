@@ -23,7 +23,9 @@
       "generic": "예상치 못한 오류가 발생했어요. 계속되면 관리자에게 문의해 주세요.",
       "totp_required": "2단계 인증 코드가 필요해요. 아래에 코드를 입력해 주세요.",
       "totp_invalid": "인증 코드가 올바르지 않아요. 인증 앱을 확인하고 다시 시도해 주세요.",
-      "oauth_discovery_failed": "SSO가 활성화되어 있지만 ID 공급자에 연결할 수 없어요. OAuth 설정을 확인해 주세요."
+      "oauth_discovery_failed": "SSO가 활성화되어 있지만 ID 공급자에 연결할 수 없어요. OAuth 설정을 확인해 주세요.",
+      "totp_enroll_required": "This mailbox has no two-factor authentication yet. Set it up below — sign-in cannot finish without it.",
+      "totp_enroll_invalid": "That code is wrong or the offer expired. Reload the page, scan the new QR code and try again."
     },
     "show_password": "비밀번호 표시",
     "hide_password": "비밀번호 숨기기",
@@ -61,7 +63,9 @@
       "token_exchange_failed": "인증을 완료하지 못했어요. 다시 시도해 주세요.",
       "access_denied": "접근이 거부되었어요. 관리자에게 문의해 주세요.",
       "back_to_login": "로그인 화면으로 돌아가기"
-    }
+    },
+    "enroll_title": "Set up two-factor authentication",
+    "enroll_hint": "This mailbox has no 2FA yet. Scan the QR code with an authenticator app (Google Authenticator, Authy, 1Password…) and enter the code it shows. Sign-in cannot finish without it."
   },
   "sidebar": {
     "close": "닫기",
@@ -140,7 +144,8 @@
     "unified_all_starred": "모든 별표",
     "unified_all_mail": "모든 메일",
     "remove_account": "Remove account",
-    "remove_account_confirm": "Remove {account} from this device? You can add it back later."
+    "remove_account_confirm": "Remove {account} from this device? You can add it back later.",
+    "portal": "namailu.cz portal"
   },
   "protocol_handlers": {
     "title": "기본 앱",
@@ -1431,7 +1436,8 @@
         "disable_confirm_prompt": "2단계 인증을 비활성화하려면 비밀번호를 입력하세요.",
         "password_required": "비밀번호가 필요합니다",
         "code_required": "확인 코드가 필요합니다",
-        "code_invalid": "유효하지 않은 확인 코드입니다. 인증 앱을 확인하고 다시 시도하세요."
+        "code_invalid": "유효하지 않은 확인 코드입니다. 인증 앱을 확인하고 다시 시도하세요.",
+        "active_managed": "2FA is active (managed by namailu.cz)"
       },
       "app_passwords": {
         "title": "앱 비밀번호",

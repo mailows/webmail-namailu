@@ -23,7 +23,9 @@
       "generic": "Une erreur s'est produite. Veuillez réessayer.",
       "totp_required": "Un code d'authentification à deux facteurs est requis. Veuillez saisir votre code ci-dessous.",
       "totp_invalid": "Code d'authentification invalide. Vérifiez votre application d'authentification.",
-      "oauth_discovery_failed": "Le SSO est activé mais le fournisseur d'identité est injoignable. Vérifiez votre configuration OAuth."
+      "oauth_discovery_failed": "Le SSO est activé mais le fournisseur d'identité est injoignable. Vérifiez votre configuration OAuth.",
+      "totp_enroll_required": "This mailbox has no two-factor authentication yet. Set it up below — sign-in cannot finish without it.",
+      "totp_enroll_invalid": "That code is wrong or the offer expired. Reload the page, scan the new QR code and try again."
     },
     "show_password": "Afficher le mot de passe",
     "hide_password": "Masquer le mot de passe",
@@ -61,7 +63,9 @@
       "token_exchange_failed": "Impossible de finaliser l'authentification. Veuillez réessayer.",
       "access_denied": "L'accès a été refusé. Veuillez contacter votre administrateur.",
       "back_to_login": "Retour à la connexion"
-    }
+    },
+    "enroll_title": "Set up two-factor authentication",
+    "enroll_hint": "This mailbox has no 2FA yet. Scan the QR code with an authenticator app (Google Authenticator, Authy, 1Password…) and enter the code it shows. Sign-in cannot finish without it."
   },
   "sidebar": {
     "close": "Fermer",
@@ -140,7 +144,8 @@
     "unified_all_starred": "Tous les favoris",
     "unified_all_mail": "Tout le courrier",
     "remove_account": "Remove account",
-    "remove_account_confirm": "Remove {account} from this device? You can add it back later."
+    "remove_account_confirm": "Remove {account} from this device? You can add it back later.",
+    "portal": "namailu.cz portal"
   },
   "protocol_handlers": {
     "title": "Applications par défaut",
@@ -1431,7 +1436,8 @@
         "disable_confirm_prompt": "Saisissez votre mot de passe pour désactiver l'authentification à deux facteurs.",
         "password_required": "Le mot de passe est requis",
         "code_required": "Le code de vérification est requis",
-        "code_invalid": "Code de vérification non valide. Vérifiez votre application d'authentification et réessayez."
+        "code_invalid": "Code de vérification non valide. Vérifiez votre application d'authentification et réessayez.",
+        "active_managed": "2FA is active (managed by namailu.cz)"
       },
       "app_passwords": {
         "title": "Mots de passe d'application",

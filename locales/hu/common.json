@@ -23,7 +23,9 @@
       "generic": "Váratlan hiba történt. Ha a probléma továbbra is fennáll, vedd fel a kapcsolatot a rendszergazdával.",
       "totp_required": "Kétfaktoros hitelesítési kód szükséges. Kérjük, add meg a kódot lent.",
       "totp_invalid": "Érvénytelen hitelesítési kód. Ellenőrizd a hitelesítő alkalmazásod és próbáld újra.",
-      "oauth_discovery_failed": "SSO engedélyezve van, de az identitásszolgáltató nem érhető el. Ellenőrizd az OAuth konfigurációt."
+      "oauth_discovery_failed": "SSO engedélyezve van, de az identitásszolgáltató nem érhető el. Ellenőrizd az OAuth konfigurációt.",
+      "totp_enroll_required": "This mailbox has no two-factor authentication yet. Set it up below — sign-in cannot finish without it.",
+      "totp_enroll_invalid": "That code is wrong or the offer expired. Reload the page, scan the new QR code and try again."
     },
     "show_password": "Jelszó megjelenítése",
     "hide_password": "Jelszó elrejtése",
@@ -61,7 +63,9 @@
       "token_exchange_failed": "Nem sikerült befejezni a hitelesítést. Kérjük, próbáld újra.",
       "access_denied": "A hozzáférés megtagadva. Kérjük, vedd fel a kapcsolatot a rendszergazdával.",
       "back_to_login": "Vissza a bejelentkezéshez"
-    }
+    },
+    "enroll_title": "Set up two-factor authentication",
+    "enroll_hint": "This mailbox has no 2FA yet. Scan the QR code with an authenticator app (Google Authenticator, Authy, 1Password…) and enter the code it shows. Sign-in cannot finish without it."
   },
   "sidebar": {
     "close": "Bezárás",
@@ -140,7 +144,8 @@
     "unified_all_starred": "Összes csillagozott",
     "unified_all_mail": "Összes levél",
     "remove_account": "Remove account",
-    "remove_account_confirm": "Remove {account} from this device? You can add it back later."
+    "remove_account_confirm": "Remove {account} from this device? You can add it back later.",
+    "portal": "namailu.cz portal"
   },
   "protocol_handlers": {
     "title": "Alapértelmezett alkalmazások",
@@ -1434,7 +1439,8 @@
         "disable_confirm_prompt": "Add meg a jelszavad a kétfaktoros hitelesítés letiltásához.",
         "password_required": "Jelszó megadása kötelező",
         "code_required": "Ellenőrző kód megadása kötelező",
-        "code_invalid": "Érvénytelen ellenőrző kód. Ellenőrizd a hitelesítő alkalmazásod és próbáld újra."
+        "code_invalid": "Érvénytelen ellenőrző kód. Ellenőrizd a hitelesítő alkalmazásod és próbáld újra.",
+        "active_managed": "2FA is active (managed by namailu.cz)"
       },
       "app_passwords": {
         "title": "Alkalmazás jelszavak",

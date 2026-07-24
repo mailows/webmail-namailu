@@ -204,6 +204,17 @@ export function NavigationRail({
   const visibleSidebarApps = sidebarAppsEnabled ? sidebarApps : [];
   const inboxUnread = mailboxes.find(m => m.role === "inbox")?.unreadEmails || 0;
   const [isStalwartAdmin, setIsStalwartAdmin] = useState(false);
+  // FORK: odkaz „Portál" jen pro toho, kdo v control-plane opravdu má účet (viz níž u odkazu).
+  // Dokud neodpoví (nebo když portál nejede), odkaz nezobrazujeme — slepý odkaz je horší.
+  const [portalAvailable, setPortalAvailable] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    apiFetch('/api/auth/portal-available')
+      .then((res) => (res.ok ? res.json() : { available: false }))
+      .then((data) => { if (!cancelled) setPortalAvailable(data?.available === true); })
+      .catch(() => { if (!cancelled) setPortalAvailable(false); });
+    return () => { cancelled = true; };
+  }, []);
   const hasUpdate = useUpdateStore(selectHasUpdate);
   const updateSeverity = useUpdateStore((s) => s.status?.severity);
   const startUpdatePolling = useUpdateStore((s) => s.startPolling);
@@ -627,14 +638,20 @@ export function NavigationRail({
             server-side SSO handoff (/api/auth/portal-sso) so the signed-in
             mailbox is carried across as a short-lived HMAC token and the user
             lands in the portal already authenticated. Navigates in the SAME tab
-            (the webmail session cookie survives, so going back keeps you signed in). */}
-        <a
-          href={withBasePath("/api/auth/portal-sso")}
-          className="flex items-center justify-center w-10 h-10 rounded-md transition-colors text-muted-foreground hover:text-foreground hover:bg-muted"
-          title={t("portal")}
-        >
-          <ExternalLink className="w-[18px] h-[18px]" />
-        </a>
+            (the webmail session cookie survives, so going back keeps you signed in).
+
+            Shown only to users who actually HAVE a portal account: a mailbox on a
+            customer domain is created by the domain admin and has none, so the
+            handoff would just dump them on the portal login. */}
+        {portalAvailable && (
+          <a
+            href={withBasePath("/api/auth/portal-sso")}
+            className="flex items-center justify-center w-10 h-10 rounded-md transition-colors text-muted-foreground hover:text-foreground hover:bg-muted"
+            title={t("portal")}
+          >
+            <ExternalLink className="w-[18px] h-[18px]" />
+          </a>
+        )}
 
         <div className="w-8 border-t" style={{ borderColor: 'rgba(128, 128, 128, 0.3)' }} />
 

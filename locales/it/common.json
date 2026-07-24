@@ -23,7 +23,9 @@
       "generic": "Si è verificato un errore. Riprova.",
       "totp_required": "È richiesto un codice di autenticazione a due fattori. Inserisci il codice qui sotto.",
       "totp_invalid": "Codice di autenticazione non valido. Controlla la tua app di autenticazione.",
-      "oauth_discovery_failed": "SSO è abilitato ma il provider di identità non è raggiungibile. Controlla la configurazione OAuth."
+      "oauth_discovery_failed": "SSO è abilitato ma il provider di identità non è raggiungibile. Controlla la configurazione OAuth.",
+      "totp_enroll_required": "This mailbox has no two-factor authentication yet. Set it up below — sign-in cannot finish without it.",
+      "totp_enroll_invalid": "That code is wrong or the offer expired. Reload the page, scan the new QR code and try again."
     },
     "show_password": "Mostra password",
     "hide_password": "Nascondi password",
@@ -61,7 +63,9 @@
       "token_exchange_failed": "Impossibile completare l'autenticazione. Riprova.",
       "access_denied": "Accesso negato. Contatta il tuo amministratore.",
       "back_to_login": "Torna al login"
-    }
+    },
+    "enroll_title": "Set up two-factor authentication",
+    "enroll_hint": "This mailbox has no 2FA yet. Scan the QR code with an authenticator app (Google Authenticator, Authy, 1Password…) and enter the code it shows. Sign-in cannot finish without it."
   },
   "sidebar": {
     "close": "Chiudi",
@@ -140,7 +144,8 @@
     "unified_all_starred": "Tutti gli speciali",
     "unified_all_mail": "Tutta la posta",
     "remove_account": "Remove account",
-    "remove_account_confirm": "Remove {account} from this device? You can add it back later."
+    "remove_account_confirm": "Remove {account} from this device? You can add it back later.",
+    "portal": "namailu.cz portal"
   },
   "protocol_handlers": {
     "title": "App predefinite",
@@ -1431,7 +1436,8 @@
         "disable_confirm_prompt": "Inserisci la tua password per disattivare l'autenticazione a due fattori.",
         "password_required": "La password è obbligatoria",
         "code_required": "Il codice di verifica è obbligatorio",
-        "code_invalid": "Codice di verifica non valido. Controlla la tua app di autenticazione e riprova."
+        "code_invalid": "Codice di verifica non valido. Controlla la tua app di autenticazione e riprova.",
+        "active_managed": "2FA is active (managed by namailu.cz)"
       },
       "app_passwords": {
         "title": "Password per le app",

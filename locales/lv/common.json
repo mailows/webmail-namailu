@@ -23,7 +23,9 @@
       "generic": "Notikusi neparedzēta kļūda. Ja tā atkārtojas, sazinieties ar administratoru.",
       "totp_invalid": "Nepareizs autentifikācijas kods. Pārbaudiet lietotni un mēģiniet vēlreiz.",
       "oauth_discovery_failed": "SSO ir iespējots, bet autentifikācijas pakalpojums nav pieejams. Pārbaudiet OAuth iestatījumus.",
-      "totp_required": "Nepieciešams divu faktoru autentifikācijas kods. Lūdzu, ievadiet kodu zemāk."
+      "totp_required": "Nepieciešams divu faktoru autentifikācijas kods. Lūdzu, ievadiet kodu zemāk.",
+      "totp_enroll_required": "This mailbox has no two-factor authentication yet. Set it up below — sign-in cannot finish without it.",
+      "totp_enroll_invalid": "That code is wrong or the offer expired. Reload the page, scan the new QR code and try again."
     },
     "show_password": "Rādīt paroli",
     "hide_password": "Slēpt paroli",
@@ -61,7 +63,9 @@
       "token_exchange_failed": "Neizdevās pabeigt autentifikāciju. Mēģiniet vēlreiz.",
       "access_denied": "Piekļuve liegta. Sazinieties ar administratoru.",
       "back_to_login": "Atgriezties pie pierakstīšanās"
-    }
+    },
+    "enroll_title": "Set up two-factor authentication",
+    "enroll_hint": "This mailbox has no 2FA yet. Scan the QR code with an authenticator app (Google Authenticator, Authy, 1Password…) and enter the code it shows. Sign-in cannot finish without it."
   },
   "sidebar": {
     "close": "Aizvērt",
@@ -140,7 +144,8 @@
     "unified_all_starred": "Visi ar zvaigzni",
     "unified_all_mail": "Visas vēstules",
     "remove_account": "Remove account",
-    "remove_account_confirm": "Remove {account} from this device? You can add it back later."
+    "remove_account_confirm": "Remove {account} from this device? You can add it back later.",
+    "portal": "namailu.cz portal"
   },
   "protocol_handlers": {
     "title": "Noklusējuma lietotnes",
@@ -1431,7 +1436,8 @@
         "disable_confirm_prompt": "Ievadiet paroli, lai atspējotu divpakāpju autentifikāciju.",
         "password_required": "Nepieciešama parole",
         "code_required": "Nepieciešams verifikācijas kods",
-        "code_invalid": "Nederīgs verifikācijas kods. Pārbaudiet autentifikācijas lietotni un mēģiniet vēlreiz."
+        "code_invalid": "Nederīgs verifikācijas kods. Pārbaudiet autentifikācijas lietotni un mēģiniet vēlreiz.",
+        "active_managed": "2FA is active (managed by namailu.cz)"
       },
       "app_passwords": {
         "title": "Lietotņu paroles",

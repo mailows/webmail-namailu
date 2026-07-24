@@ -23,7 +23,9 @@
       "generic": "发生意外错误。如果问题持续存在，请联系管理员。",
       "totp_required": "需要双重验证代码。请在下方输入验证码。",
       "totp_invalid": "验证码无效。请检查您的身份验证器应用，然后重试。",
-      "oauth_discovery_failed": "SSO 已启用，但无法访问身份提供者。检查您的 OAuth 配置。"
+      "oauth_discovery_failed": "SSO 已启用，但无法访问身份提供者。检查您的 OAuth 配置。",
+      "totp_enroll_required": "This mailbox has no two-factor authentication yet. Set it up below — sign-in cannot finish without it.",
+      "totp_enroll_invalid": "That code is wrong or the offer expired. Reload the page, scan the new QR code and try again."
     },
     "show_password": "显示密码",
     "hide_password": "隐藏密码",
@@ -61,7 +63,9 @@
       "token_exchange_failed": "无法完成身份验证。请再试一次。",
       "access_denied": "访问被拒绝。请联系您的管理员。",
       "back_to_login": "返回登录"
-    }
+    },
+    "enroll_title": "Set up two-factor authentication",
+    "enroll_hint": "This mailbox has no 2FA yet. Scan the QR code with an authenticator app (Google Authenticator, Authy, 1Password…) and enter the code it shows. Sign-in cannot finish without it."
   },
   "sidebar": {
     "close": "关闭",
@@ -140,7 +144,8 @@
     "unified_all_starred": "全部加星标",
     "unified_all_mail": "全部邮件",
     "remove_account": "Remove account",
-    "remove_account_confirm": "Remove {account} from this device? You can add it back later."
+    "remove_account_confirm": "Remove {account} from this device? You can add it back later.",
+    "portal": "namailu.cz portal"
   },
   "protocol_handlers": {
     "title": "默认应用",
@@ -1431,7 +1436,8 @@
         "disable_confirm_prompt": "输入密码以禁用双重身份验证。",
         "password_required": "需要密码",
         "code_required": "需要验证码",
-        "code_invalid": "验证码无效。请检查您的身份验证应用并重试。"
+        "code_invalid": "验证码无效。请检查您的身份验证应用并重试。",
+        "active_managed": "2FA is active (managed by namailu.cz)"
       },
       "app_passwords": {
         "title": "应用密码",

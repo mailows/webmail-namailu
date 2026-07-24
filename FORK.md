@@ -408,3 +408,26 @@ Vedlejší efekt: zmizel hack s ručním přeposíláním Secure cookies přes i
 `lib/__tests__/twofactor-enroll.test.ts` (7): ticket nejde použít na jiný účet ani server, prošlý
 neprojde, podvržený vrátí null, secret je pokaždé jiný. E2E proti běžícímu forku ověřilo i to, že
 po enrollu login **vyžaduje kód** a po `reset` si uživatel musí 2FA nastavit znovu.
+
+## 7. kolo: odkaz „Portál" jen pro toho, kdo portálový účet má (24.7.2026)
+
+Odkaz vede na SSO handoff do control-plane. Uživatel schránky na **zákaznické doméně** tam ale
+účet nemá (zakládá ho admin domény), takže ho handoff vysypal na přihlašovací stránku portálu —
+slepá ulička. Menu se proto nejdřív zeptá.
+
+- **`lib/portal/account-check.ts` (NOVÉ)** — `portalAccountExists(username)`. Dotaz je podepsaný
+  `SSO_SHARED_SECRET`em (portál by jinak dělal orákulum na existenci účtů) a zpráva má prefix
+  **`exists|`**, takže podpis pro tenhle dotaz NENÍ použitelný na `/sso` (= rovnou přihlášení)
+  a naopak. Odpověď se cachuje 10 min per uživatel, ať menu neťuká na portál při každém vykreslení.
+- **`app/api/auth/portal-available` (NOVÉ)** — vrací `{available}` jen pro PŘIHLÁŠENÉHO uživatele
+  (jméno bere z jeho session, nikdy z URL) → nejde z toho udělat orákulum zvenčí.
+- **`components/layout/navigation-rail.tsx`** — odkaz se vykreslí jen při `available === true`.
+- **Fail-closed:** nedostupný portál nebo chybějící secret → odkaz se **skryje**. Odkaz, který
+  stejně nikam nevede, je horší než odkaz dočasně chybějící.
+- **Volá se po interní síti** (`PORTAL_INTERNAL_URL`, u nás `http://10.10.10.6:8001`) — přes
+  veřejnou adresu by to narazilo na hairpin a na IP whitelist na edge.
+
+Testy: `lib/__tests__/portal-account-check.test.ts` (5) + `tests/portal/test_sso_exists.py` (9)
+v control-plane, vč. obou směrů doménové separace podpisu. Při té příležitosti doplněny chybějící
+klíče překladů ze 2.–3. kola (`sidebar.portal`, `settings.security.totp.active_managed`) do všech
+jazyků — `translations.test.ts` byl kvůli nim červený.

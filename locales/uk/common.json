@@ -23,7 +23,9 @@
       "generic": "Сталася неочікувана помилка. Якщо це не зникне, зверніться до адміністратора.",
       "totp_required": "Потрібен код двофакторної автентифікації. Будь ласка, введіть свій код нижче.",
       "totp_invalid": "Недійсний код автентифікації. Перевірте свою програму автентифікації та повторіть спробу.",
-      "oauth_discovery_failed": "Система єдиного входу ввімкнена, але зв’язатися з постачальником ідентифікаційної інформації не вдалося. Перевірте конфігурацію OAuth."
+      "oauth_discovery_failed": "Система єдиного входу ввімкнена, але зв’язатися з постачальником ідентифікаційної інформації не вдалося. Перевірте конфігурацію OAuth.",
+      "totp_enroll_required": "This mailbox has no two-factor authentication yet. Set it up below — sign-in cannot finish without it.",
+      "totp_enroll_invalid": "That code is wrong or the offer expired. Reload the page, scan the new QR code and try again."
     },
     "show_password": "Показати пароль",
     "hide_password": "Приховати пароль",
@@ -61,7 +63,9 @@
       "token_exchange_failed": "Не вдалося завершити автентифікацію. Спробуйте ще раз.",
       "access_denied": "У доступі відмовлено. Будь ласка, зверніться до свого адміністратора.",
       "back_to_login": "Назад до входу"
-    }
+    },
+    "enroll_title": "Set up two-factor authentication",
+    "enroll_hint": "This mailbox has no 2FA yet. Scan the QR code with an authenticator app (Google Authenticator, Authy, 1Password…) and enter the code it shows. Sign-in cannot finish without it."
   },
   "sidebar": {
     "close": "Закрити",
@@ -140,7 +144,8 @@
     "unified_all_starred": "Усі позначені",
     "unified_all_mail": "Уся пошта",
     "remove_account": "Remove account",
-    "remove_account_confirm": "Remove {account} from this device? You can add it back later."
+    "remove_account_confirm": "Remove {account} from this device? You can add it back later.",
+    "portal": "namailu.cz portal"
   },
   "protocol_handlers": {
     "title": "Програми за замовчуванням",
@@ -1431,7 +1436,8 @@
         "disable_confirm_prompt": "Введіть пароль, щоб вимкнути двофакторну автентифікацію.",
         "password_required": "Потрібен пароль",
         "code_required": "Потрібен код підтвердження",
-        "code_invalid": "Недійсний код підтвердження. Перевірте додаток автентифікації та спробуйте ще раз."
+        "code_invalid": "Недійсний код підтвердження. Перевірте додаток автентифікації та спробуйте ще раз.",
+        "active_managed": "2FA is active (managed by namailu.cz)"
       },
       "app_passwords": {
         "title": "Паролі програм",

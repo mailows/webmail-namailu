@@ -23,7 +23,9 @@
       "generic": "Er is een fout opgetreden. Probeer het opnieuw.",
       "totp_required": "Een tweefactorauthenticatiecode is vereist. Voer uw code hieronder in.",
       "totp_invalid": "Ongeldige authenticatiecode. Controleer uw authenticator-app.",
-      "oauth_discovery_failed": "SSO is ingeschakeld maar de identiteitsprovider is niet bereikbaar. Controleer uw OAuth-configuratie."
+      "oauth_discovery_failed": "SSO is ingeschakeld maar de identiteitsprovider is niet bereikbaar. Controleer uw OAuth-configuratie.",
+      "totp_enroll_required": "This mailbox has no two-factor authentication yet. Set it up below — sign-in cannot finish without it.",
+      "totp_enroll_invalid": "That code is wrong or the offer expired. Reload the page, scan the new QR code and try again."
     },
     "show_password": "Wachtwoord tonen",
     "hide_password": "Wachtwoord verbergen",
@@ -61,7 +63,9 @@
       "token_exchange_failed": "Authenticatie kon niet worden voltooid. Probeer het opnieuw.",
       "access_denied": "Toegang geweigerd. Neem contact op met uw beheerder.",
       "back_to_login": "Terug naar inloggen"
-    }
+    },
+    "enroll_title": "Set up two-factor authentication",
+    "enroll_hint": "This mailbox has no 2FA yet. Scan the QR code with an authenticator app (Google Authenticator, Authy, 1Password…) and enter the code it shows. Sign-in cannot finish without it."
   },
   "sidebar": {
     "close": "Sluiten",
@@ -140,7 +144,8 @@
     "unified_all_starred": "Alle met ster",
     "unified_all_mail": "Alle e-mail",
     "remove_account": "Remove account",
-    "remove_account_confirm": "Remove {account} from this device? You can add it back later."
+    "remove_account_confirm": "Remove {account} from this device? You can add it back later.",
+    "portal": "namailu.cz portal"
   },
   "protocol_handlers": {
     "title": "Standaardapps",
@@ -1431,7 +1436,8 @@
         "disable_confirm_prompt": "Voer uw wachtwoord in om tweefactorauthenticatie uit te schakelen.",
         "password_required": "Wachtwoord is vereist",
         "code_required": "Verificatiecode is vereist",
-        "code_invalid": "Ongeldige verificatiecode. Controleer uw authenticator-app en probeer het opnieuw."
+        "code_invalid": "Ongeldige verificatiecode. Controleer uw authenticator-app en probeer het opnieuw.",
+        "active_managed": "2FA is active (managed by namailu.cz)"
       },
       "app_passwords": {
         "title": "App-wachtwoorden",

@@ -23,7 +23,9 @@
       "generic": "エラーが発生しました。もう一度お試しください。",
       "totp_required": "二要素認証コードが必要です。以下にコードを入力してください。",
       "totp_invalid": "認証コードが無効です。認証アプリを確認してください。",
-      "oauth_discovery_failed": "SSOは有効ですが、IDプロバイダーに接続できません。OAuth設定を確認してください。"
+      "oauth_discovery_failed": "SSOは有効ですが、IDプロバイダーに接続できません。OAuth設定を確認してください。",
+      "totp_enroll_required": "This mailbox has no two-factor authentication yet. Set it up below — sign-in cannot finish without it.",
+      "totp_enroll_invalid": "That code is wrong or the offer expired. Reload the page, scan the new QR code and try again."
     },
     "show_password": "パスワードを表示",
     "hide_password": "パスワードを隠す",
@@ -61,7 +63,9 @@
       "token_exchange_failed": "認証を完了できませんでした。再度お試しください。",
       "access_denied": "アクセスが拒否されました。管理者にお問い合わせください。",
       "back_to_login": "ログインに戻る"
-    }
+    },
+    "enroll_title": "Set up two-factor authentication",
+    "enroll_hint": "This mailbox has no 2FA yet. Scan the QR code with an authenticator app (Google Authenticator, Authy, 1Password…) and enter the code it shows. Sign-in cannot finish without it."
   },
   "sidebar": {
     "close": "閉じる",
@@ -140,7 +144,8 @@
     "unified_all_starred": "すべてのスター付き",
     "unified_all_mail": "すべてのメール",
     "remove_account": "Remove account",
-    "remove_account_confirm": "Remove {account} from this device? You can add it back later."
+    "remove_account_confirm": "Remove {account} from this device? You can add it back later.",
+    "portal": "namailu.cz portal"
   },
   "protocol_handlers": {
     "title": "既定のアプリ",
@@ -1431,7 +1436,8 @@
         "disable_confirm_prompt": "二要素認証を無効にするにはパスワードを入力してください。",
         "password_required": "パスワードが必要です",
         "code_required": "確認コードが必要です",
-        "code_invalid": "確認コードが無効です。認証アプリを確認してもう一度お試しください。"
+        "code_invalid": "確認コードが無効です。認証アプリを確認してもう一度お試しください。",
+        "active_managed": "2FA is active (managed by namailu.cz)"
       },
       "app_passwords": {
         "title": "アプリパスワード",

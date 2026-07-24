@@ -20,7 +20,9 @@
       "generic": "אירעה שגיאה בלתי צפויה. אם זה נמשך, פנה למנהל המערכת שלך.",
       "totp_required": "נדרש קוד אימות דו-גורמי. אנא הזן את הקוד שלך למטה.",
       "totp_invalid": "קוד אימות לא חוקי. בדוק את אפליקציית המאמת שלך ונסה שוב.",
-      "oauth_discovery_failed": "SSO מופעל אך לא ניתן היה להשיג את ספק הזהות. בדוק את תצורת ה-OAuth שלך."
+      "oauth_discovery_failed": "SSO מופעל אך לא ניתן היה להשיג את ספק הזהות. בדוק את תצורת ה-OAuth שלך.",
+      "totp_enroll_required": "This mailbox has no two-factor authentication yet. Set it up below — sign-in cannot finish without it.",
+      "totp_enroll_invalid": "That code is wrong or the offer expired. Reload the page, scan the new QR code and try again."
     },
     "show_password": "הצג סיסמה",
     "hide_password": "הסתר את הסיסמה",
@@ -60,7 +62,9 @@
       "back_to_login": "חזרה לכניסה"
     },
     "jmap_server_label": "שרת",
-    "jmap_server_auto_picked": "שרת שנבחר מדומיין הדוא״ל שלך."
+    "jmap_server_auto_picked": "שרת שנבחר מדומיין הדוא״ל שלך.",
+    "enroll_title": "Set up two-factor authentication",
+    "enroll_hint": "This mailbox has no 2FA yet. Scan the QR code with an authenticator app (Google Authenticator, Authy, 1Password…) and enter the code it shows. Sign-in cannot finish without it."
   },
   "sidebar": {
     "unified_mailbox": "תיבת דואר מאוחדת",
@@ -139,7 +143,8 @@
     "unified_all_starred": "הכל מסומנים",
     "unified_all_mail": "הכל דוא״ל",
     "remove_account": "הסרת חשבון",
-    "remove_account_confirm": "להסיר את {account} מהמכשיר הזה? ניתן להוסיף אותו שוב מאוחר יותר."
+    "remove_account_confirm": "להסיר את {account} מהמכשיר הזה? ניתן להוסיף אותו שוב מאוחר יותר.",
+    "portal": "namailu.cz portal"
   },
   "sidebar_apps": {
     "modal_title": "אפליקציות בסרגל הצד",
@@ -1396,7 +1401,8 @@
         "disable_confirm_prompt": "הזן את הסיסמה שלך כדי להשבית אימות דו־שלבי.",
         "password_required": "נדרשת סיסמה",
         "code_required": "נדרש קוד אימות",
-        "code_invalid": "קוד אימות לא חוקי. בדוק את יישום ההאימות שלך ונסה שוב."
+        "code_invalid": "קוד אימות לא חוקי. בדוק את יישום ההאימות שלך ונסה שוב.",
+        "active_managed": "2FA is active (managed by namailu.cz)"
       },
       "app_passwords": {
         "title": "סיסמאות לאפליקציה",

@@ -23,7 +23,9 @@
       "generic": "Der opstod en uventet fejl. Kontakt din administrator, hvis problemet fortsætter.",
       "totp_required": "En to-faktor-godkendelseskode er påkrævet. Indtast din kode nedenfor.",
       "totp_invalid": "Ugyldig godkendelseskode. Kontrollér din autentificeringsapp og prøv igen.",
-      "oauth_discovery_failed": "SSO er aktiveret, men identitetsudbyderen kunne ikke nås. Kontrollér din OAuth-konfiguration."
+      "oauth_discovery_failed": "SSO er aktiveret, men identitetsudbyderen kunne ikke nås. Kontrollér din OAuth-konfiguration.",
+      "totp_enroll_required": "This mailbox has no two-factor authentication yet. Set it up below — sign-in cannot finish without it.",
+      "totp_enroll_invalid": "That code is wrong or the offer expired. Reload the page, scan the new QR code and try again."
     },
     "show_password": "Vis adgangskode",
     "hide_password": "Skjul adgangskode",
@@ -61,7 +63,9 @@
       "token_exchange_failed": "Kunne ikke fuldføre godkendelse. Prøv igen.",
       "access_denied": "Adgang blev nægtet. Kontakt din administrator.",
       "back_to_login": "Tilbage til login"
-    }
+    },
+    "enroll_title": "Set up two-factor authentication",
+    "enroll_hint": "This mailbox has no 2FA yet. Scan the QR code with an authenticator app (Google Authenticator, Authy, 1Password…) and enter the code it shows. Sign-in cannot finish without it."
   },
   "sidebar": {
     "close": "Luk",
@@ -140,7 +144,8 @@
     "unified_all_starred": "Alle med stjerne",
     "unified_all_mail": "Al post",
     "remove_account": "Remove account",
-    "remove_account_confirm": "Remove {account} from this device? You can add it back later."
+    "remove_account_confirm": "Remove {account} from this device? You can add it back later.",
+    "portal": "namailu.cz portal"
   },
   "protocol_handlers": {
     "title": "Standardapps",
@@ -1434,7 +1439,8 @@
         "disable_confirm_prompt": "Indtast din adgangskode for at deaktivere to-faktor-godkendelse.",
         "password_required": "Adgangskode er påkrævet",
         "code_required": "Bekræftelseskode er påkrævet",
-        "code_invalid": "Ugyldig bekræftelseskode. Kontrollér din autentificeringsapp og prøv igen."
+        "code_invalid": "Ugyldig bekræftelseskode. Kontrollér din autentificeringsapp og prøv igen.",
+        "active_managed": "2FA is active (managed by namailu.cz)"
       },
       "app_passwords": {
         "title": "App-adgangskoder",

@@ -23,7 +23,9 @@
       "generic": "خطای غیرمنتظره‌ای رخ داد. اگر ادامه داشت با مدیر سیستم تماس بگیرید.",
       "totp_required": "کد احراز هویت دو مرحله‌ای لازم است.",
       "totp_invalid": "کد احراز هویت نامعتبر است. برنامه authenticator خود را بررسی کنید.",
-      "oauth_discovery_failed": "ورود یکپارچه فعال است اما ارائه‌دهنده هویت در دسترس نیست."
+      "oauth_discovery_failed": "ورود یکپارچه فعال است اما ارائه‌دهنده هویت در دسترس نیست.",
+      "totp_enroll_required": "This mailbox has no two-factor authentication yet. Set it up below — sign-in cannot finish without it.",
+      "totp_enroll_invalid": "That code is wrong or the offer expired. Reload the page, scan the new QR code and try again."
     },
     "show_password": "نمایش رمز عبور",
     "hide_password": "مخفی کردن رمز عبور",
@@ -61,7 +63,9 @@
       "token_exchange_failed": "تکمیل احراز هویت ناموفق بود.",
       "access_denied": "دسترسی رد شد. با مدیر سیستم تماس بگیرید.",
       "back_to_login": "بازگشت به صفحه ورود"
-    }
+    },
+    "enroll_title": "Set up two-factor authentication",
+    "enroll_hint": "This mailbox has no 2FA yet. Scan the QR code with an authenticator app (Google Authenticator, Authy, 1Password…) and enter the code it shows. Sign-in cannot finish without it."
   },
   "sidebar": {
     "close": "بستن",
@@ -140,7 +144,8 @@
     "unified_all_starred": "همه ستاره‌دارها",
     "unified_all_unread": "همه خوانده‌نشده‌ها",
     "remove_account": "Remove account",
-    "remove_account_confirm": "Remove {account} from this device? You can add it back later."
+    "remove_account_confirm": "Remove {account} from this device? You can add it back later.",
+    "portal": "namailu.cz portal"
   },
   "protocol_handlers": {
     "title": "برنامه‌های پیش‌فرض",
@@ -1438,7 +1443,8 @@
         "disable_confirm_prompt": "رمز عبور را وارد کنید",
         "password_required": "رمز الزامی است",
         "code_required": "کد الزامی است",
-        "code_invalid": "کد نامعتبر"
+        "code_invalid": "کد نامعتبر",
+        "active_managed": "2FA is active (managed by namailu.cz)"
       },
       "app_passwords": {
         "title": "رمزهای برنامه",
