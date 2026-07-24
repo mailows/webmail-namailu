@@ -139,3 +139,33 @@ login: heslo --Basic(plain)--> Stalwart (community, OK)
 - **Disable vyžaduje kód**: v Settings disable → zadat aktuální TOTP → ověřit, že bez/špatný kód
   neodstraní secret (`reauth_required`), a že 5 chyb spustí lockout.
 - **`SESSION_SECRET` musí být nastaven** (jinak store hodí chybu a 2FA nejde použít — gate vrátí 503).
+
+## 2. kolo úprav: zákaz disable 2FA + odkaz na portál
+2FA se nově spravuje **centrálně** — seed přijde z portálu při registraci (bod 5 mapy zásahů),
+takže uživatel 2FA ve webmailu **NESMÍ vypnout**. Zároveň přidán odkaz zpět na portál.
+
+### A) Zákaz vypnutí 2FA
+- **Backend (tvrdá pojistka)** — `app/api/account/twofactor/route.ts`: akce `action:'disable'` je
+  nyní **hard 403 `{ error: 'twofactor_managed' }`**. Secret se **NEMAŽE** (žádné `clearTotpSecret`),
+  nejde obejít ani přímým API voláním. Původní disable logika (re-auth kódem, rate-limit, lockout,
+  idempotentní úklid nosiče) odstraněna. `clearTotpSecret` už route neimportuje. Akce `enable`
+  zůstává funkční (seed + fallback při selhání seedu za registrace), `GET` status beze změny.
+- **UI** — `components/settings/account-security-settings.tsx` (`TotpSection`): když je `otpEnabled`,
+  zobrazí se jen **informativní stav** „2FA je aktivní (spravováno namailu.cz)" (nová i18n klíč
+  `settings.security.totp.active_managed`), **žádný ToggleSwitch ani disable dialog**. Když 2FA aktivní
+  není, enroll toggle zůstává (fallback). Odstraněno: disable dialog, `handleDisable`, stavy
+  `disableCode`/`disableOpen`, větev `else` v `handleToggle` a použití `disableTotp` z destructuringu.
+- **Store** — `stores/account-security-store.ts`: `disableTotp` **ponecháno** (kvůli testům a malému
+  diffu), ale **z UI se už nevolá** (není odkud spustitelné). Backend ho stejně odmítne 403.
+
+### B) Odkaz „Portál" v navigaci
+- `components/layout/navigation-rail.tsx`: ve **footeru vertikální lišty** (vedle „Nastavení") přidán
+  odkaz `<a target="_blank" rel="noopener noreferrer">` s ikonou `ExternalLink`. Cíl je
+  konfigurovatelný přes **env `NEXT_PUBLIC_PORTAL_URL`** (modulová konstanta `PORTAL_URL`), default
+  `https://portal.namailu.cz`. Popisek přes i18n klíč `sidebar.portal` (en „namailu.cz portal",
+  cs „Portál namailu.cz").
+
+### Ověření
+- `npx tsc --noEmit` → 0 chyb. `npm run lint` → 0 errors (jen preexistující warningy). `npm run build` → OK.
+- Nové i18n klíče přidány jen do `en` (báze) a `cs`; ostatní locale je dědí přes `mergeMessages`
+  (fallback na EN).
