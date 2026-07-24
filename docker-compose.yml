@@ -21,6 +21,10 @@ services:
       # Anonymous telemetry: instance id, consent state, login HMACs (TELEMETRY_DATA_DIR).
       # Persisting this preserves the admin's consent choice and stable instance id across upgrades.
       - bulwark-telemetry:/app/data/telemetry
+      # namailu fork: encrypted webmail-managed 2FA secrets, one file per account
+      # (TWOFACTOR_DATA_DIR). MUST be persistent and MUST be backed up - losing it
+      # locks every 2FA user out of the webmail.
+      - bulwark-twofactor:/app/data/twofactor
     healthcheck:
       test:
         [
@@ -42,3 +46,4 @@ volumes:
   bulwark-admin:
   bulwark-admin-state:
   bulwark-telemetry:
+  bulwark-twofactor:
