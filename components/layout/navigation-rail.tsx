@@ -626,11 +626,10 @@ export function NavigationRail({
         {/* namailu fork: link to the account portal. Routes through the
             server-side SSO handoff (/api/auth/portal-sso) so the signed-in
             mailbox is carried across as a short-lived HMAC token and the user
-            lands in the portal already authenticated. Opens in a new tab. */}
+            lands in the portal already authenticated. Navigates in the SAME tab
+            (the webmail session cookie survives, so going back keeps you signed in). */}
         <a
           href={withBasePath("/api/auth/portal-sso")}
-          target="_blank"
-          rel="noopener noreferrer"
           className="flex items-center justify-center w-10 h-10 rounded-md transition-colors text-muted-foreground hover:text-foreground hover:bg-muted"
           title={t("portal")}
         >
