@@ -6,6 +6,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import QRCode from "qrcode";
 import { useAuthStore } from "@/stores/auth-store";
 import { useAccountStore } from "@/stores/account-store";
 import { useThemeStore } from "@/stores/theme-store";
@@ -132,6 +133,8 @@ export default function LoginPage() {
   const mobileState = mobileRedirectUri ? rawMobileState : "";
   const isMobileHandoff = Boolean(mobileRedirectUri);
   const { login, loginDemo, isLoading, error, clearError, isAuthenticated } = useAuthStore();
+  // FORK: schránka bez 2FA (typicky ji založil admin domény) — gate místo session nabídne enroll.
+  const enrollOffer = useAuthStore((s) => s.enrollOffer);
   const { theme, setTheme, initializeTheme } = useThemeStore(useShallow((s) => ({ theme: s.theme, setTheme: s.setTheme, initializeTheme: s.initializeTheme })));
   const { appName, jmapServerUrl: configuredServerUrl, oauthEnabled, oauthOnly, oauthClientId: globalOauthClientId, oauthIssuerUrl: globalOauthIssuerUrl, oauthScopes, rememberMeEnabled, devMode, demoMode, loginLogoLightUrl, loginLogoDarkUrl, loginCompanyName, loginImprintUrl, loginPrivacyPolicyUrl, loginWebsiteUrl, loginLogoMaxHeight, loginLogoMaxWidth, loginShowHeading, loginShowSubtitle, loginShowTotp, loginShowVersion, isLoading: configLoading, error: configError, autoSsoEnabled, embeddedMode: _embeddedMode, allowCustomJmapEndpoint, jmapServers, jmapServerAutoPickByDomain } = useConfig();
   const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
@@ -162,6 +165,7 @@ export default function LoginPage() {
   const effectiveOauthIssuerUrl = selectedServer?.oauth?.issuerUrl || globalOauthIssuerUrl;
   const [totpCode, setTotpCode] = useState("");
   const [showTotpField, setShowTotpField] = useState(false);
+  const [enrollQr, setEnrollQr] = useState<string | null>(null);
   const [rememberMe, setRememberMe] = useState(false);
   const [sessionExpired, setSessionExpired] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -249,6 +253,22 @@ export default function LoginPage() {
       setTimeout(() => totpInputRef.current?.focus(), 100);
     }
   }, [error]);
+
+  // FORK: vynucený první enroll — ukaž QR z nabídky gate a rovnou odkryj pole na kód.
+  useEffect(() => {
+    if (!enrollOffer) {
+      setEnrollQr(null);
+      return;
+    }
+    setShowTotpField(true);
+    setTotpCode("");
+    let cancelled = false;
+    QRCode.toDataURL(enrollOffer.otpUrl, { width: 200, margin: 1 })
+      .then((url) => { if (!cancelled) setEnrollQr(url); })
+      .catch(() => { if (!cancelled) setEnrollQr(null); });   // bez obrázku zbyde secret k opsání
+    setTimeout(() => totpInputRef.current?.focus(), 100);
+    return () => { cancelled = true; };
+  }, [enrollOffer]);
 
   useEffect(() => {
     if (!serverUrl) return;
@@ -1174,6 +1194,26 @@ export default function LoginPage() {
                     ) : null
                   ) : (
                     <div className="space-y-1.5">
+                      {/* FORK: první přihlášení do schránky bez 2FA — nastavení je povinné,
+                          proto QR rovnou tady a session až po opsání kódu. */}
+                      {enrollOffer && (
+                        <div className="mb-3 rounded-xl border border-border/60 bg-muted/30 p-4 space-y-3">
+                          <p className="text-sm font-medium text-foreground">{t("enroll_title")}</p>
+                          <p className="text-xs text-muted-foreground leading-relaxed">{t("enroll_hint")}</p>
+                          {enrollQr && (
+                            <img
+                              src={enrollQr}
+                              alt={t("enroll_title")}
+                              className="mx-auto rounded-lg bg-white p-2"
+                              width={200}
+                              height={200}
+                            />
+                          )}
+                          <p className="text-[11px] text-muted-foreground text-center break-all font-mono">
+                            {new URL(enrollOffer.otpUrl).searchParams.get("secret")}
+                          </p>
+                        </div>
+                      )}
                       <label htmlFor="totp" className="block text-sm font-medium text-foreground">
                         {t("totp_label")}
                       </label>

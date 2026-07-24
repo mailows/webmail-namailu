@@ -366,3 +366,45 @@ potřeba). Odhlášení nemá uživatele připravit o 7denní důvěru zařízen
 - `stores/__tests__/auth-store-logout.test.ts` — upstream test „redirects full logout to the locale
   login page" přepsán na řetěz; testy expirace session (401) dál ověřují cestu na login s hláškou.
 - Protistrana: `tests/portal/test_logout_chain.py` v control-plane (5 invariantů).
+
+## 6. kolo: vynucený první enroll 2FA + server-to-server správa secretu (24.7.2026)
+
+**Díra:** TOTP se seedoval jen ve veřejné registraci. Schránku, kterou založí **admin vlastní
+domény** (portál nebo API), nikdo neseedoval → gate neměl co vyžadovat a `if (otpUrl)` propadlo
+rovnou na vydání session. Takový uživatel se tedy dostal dovnitř **na jeden faktor**.
+
+**Nově:** chybí-li secret, gate session **nevydá**, ale nabídne enroll:
+
+| krok | request | odpověď |
+|---|---|---|
+| 1 | `POST /api/auth/session` (jméno+heslo) | `401 { error: 'totp_enroll_required', otpUrl, enrollTicket }` |
+| 2 | totéž + `totp` + `enrollTicket` | `200` — secret uložen, session vydána |
+
+- **`lib/twofactor/enroll.ts` (NOVÉ)** — secret generuje SERVER a veze ho v `enrollTicket`:
+  payload šifrovaný `SESSION_SECRET`em (AES-256-GCM, stejný `encryptPayload` jako SSO), vázaný na
+  **účet i server**, s **10min expirací**. Klient si tedy nemůže podstrčit vlastní secret ani
+  ticket použít na cizí schránku. Mezi kroky se nikde nic neukládá — dokud uživatel neopíše kód,
+  2FA nevzniklo. Ticket se vydává až PO ověření hesla (stejná laťka jako běžný login).
+- **Gate** (`app/api/auth/session/route.ts`) — před uložením ještě jednou čte úložiště: kdyby secret
+  mezitím vznikl jinudy (seed z portálu, druhá záložka), enroll se zahodí a chce se kód z toho
+  existujícího. **Cizí 2FA se nikdy nepřepíše.** Špatný kód spadá do stejného rate-limitu jako
+  běžné TOTP pokusy (`totp_locked`).
+- **UI** — `stores/auth-store.ts` drží `enrollOffer`, login stránka z něj vykreslí QR (`qrcode`)
+  i secret k opsání. Chybové hlášky `error.totp_enroll_required` / `…_invalid` (cs + en fallback).
+
+### `app/api/admin/twofactor` (NOVÉ) — server-to-server pro control-plane
+Vynucený enroll rozbil původní seed z registrace (portál se schránkou přihlašoval, aby zavolal
+`/api/account/twofactor` — jenže login bez secretu už session nevydá). Portál proto místo toho volá:
+
+- `action: 'set'` — nasadí PŘEDEM ZNÁMÝ secret (jeden QR pro portál i webmail),
+- `action: 'reset'` — zahodí secret při **revokaci přístupu** adminem domény.
+
+Autentizace HMAC-SHA256 sdíleným `SSO_SHARED_SECRET` přes `${action}|${username}|${ts}|${nonce}`
++ okno 60 s; **bez secretu je endpoint vypnutý (503)**. Navíc je potřeba i platné heslo schránky —
+samotné prolomení podpisu tedy 2FA nepřepíše. Endpoint nikdy nevrací secret ani nic o něm.
+Vedlejší efekt: zmizel hack s ručním přeposíláním Secure cookies přes interní http.
+
+### Testy
+`lib/__tests__/twofactor-enroll.test.ts` (7): ticket nejde použít na jiný účet ani server, prošlý
+neprojde, podvržený vrátí null, secret je pokaždé jiný. E2E proti běžícímu forku ověřilo i to, že
+po enrollu login **vyžaduje kód** a po `reset` si uživatel musí 2FA nastavit znovu.

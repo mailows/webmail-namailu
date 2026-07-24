@@ -14,7 +14,8 @@ import {
   clearStalwartAuthContextInStore,
   setStalwartAuthContextInStore,
 } from '@/lib/stalwart/auth-context';
-import { readTotpSecretUrl, verifyTotpCode, secretFingerprint } from '@/lib/twofactor/store';
+import { readTotpSecretUrl, writeTotpSecretUrl, verifyTotpCode, secretFingerprint } from '@/lib/twofactor/store';
+import { issueEnrollTicket, redeemEnrollTicket } from '@/lib/twofactor/enroll';
 import { hasValidTotpTrust, issueTotpTrust } from '@/lib/twofactor/trust';
 import { isTotpLocked, recordTotpFailure, clearTotpFailures, totpRateLimitKey } from '@/lib/twofactor/rate-limit';
 import { configManager } from '@/lib/admin/config-manager';
@@ -52,6 +53,9 @@ export async function POST(request: NextRequest) {
       password,
       slot: bodySlot,
       totp,
+      // FORK: ticket z nabídky prvního enrollu (viz lib/twofactor/enroll.ts). Posílá se zpět
+      // spolu s opsaným kódem; bez něj gate enroll jen nabídne.
+      enrollTicket,
       // When false the caller does not want the long-lived session cookie
       // (equivalent to "remember me" being unchecked); the 2FA gate still runs.
       // Defaults to true so existing callers are unaffected.
@@ -115,9 +119,10 @@ export async function POST(request: NextRequest) {
     // (stored in its own mailbox, independent of Stalwart's Enterprise
     // AccountPassword). If so, a valid code is required — unless a valid
     // trusted-device cookie is already present for this exact account.
+    const creds = { serverUrl: normalizedServerUrl, authHeader, username };
     let otpUrl: string | null;
     try {
-      otpUrl = await readTotpSecretUrl({ serverUrl: normalizedServerUrl, authHeader, username });
+      otpUrl = await readTotpSecretUrl(creds);
     } catch (error) {
       // A genuine JMAP/transport failure: fail closed (no session) but keep it
       // retryable rather than locking the account out permanently.
@@ -154,6 +159,52 @@ export async function POST(request: NextRequest) {
         if (bodyRememberDevice !== false) {
           issueTotpTrust(cookieStore, slot, account, fingerprint);
         }
+      }
+    } else {
+      // ── FORK: schránka bez 2FA → vynucený první enroll ────────────────────
+      // Seed z portálu má jen veřejná registrace. Schránku založenou adminem vlastní domény
+      // nikdo neseeduje, takže bez tohohle by stačilo heslo — jeden faktor. Session proto
+      // nevydáme; nejdřív ať si uživatel nastaví TOTP.
+      const account = { username, serverUrl: normalizedServerUrl };
+      const ticket = typeof enrollTicket === 'string' ? enrollTicket.trim() : '';
+      const code = typeof totp === 'string' ? totp.trim() : '';
+
+      if (!ticket) {
+        const offer = issueEnrollTicket(account);
+        return NextResponse.json(
+          { error: 'totp_enroll_required', otpUrl: offer.otpUrl, enrollTicket: offer.ticket },
+          { status: 401 },
+        );
+      }
+
+      const rlKey = totpRateLimitKey(normalizedServerUrl, username);
+      if (isTotpLocked(rlKey)) {
+        return NextResponse.json({ error: 'totp_locked' }, { status: 429 });
+      }
+      const enrolled = redeemEnrollTicket(ticket, account, code);
+      if (!enrolled) {
+        recordTotpFailure(rlKey);
+        return NextResponse.json({ error: 'totp_enroll_invalid' }, { status: 401 });
+      }
+      clearTotpFailures(rlKey);
+
+      try {
+        // Mezitím mohl secret vzniknout jinudy (seed z portálu, druhá záložka). Cizí 2FA
+        // nikdy nepřepisuj — v tu chvíli platí ta existující a chceme z ní kód.
+        const meanwhile = await readTotpSecretUrl(creds);
+        if (meanwhile) {
+          return NextResponse.json({ error: 'totp_required' }, { status: 401 });
+        }
+        await writeTotpSecretUrl(creds, enrolled);
+      } catch (error) {
+        logger.error('2FA enroll: failed to store secret', {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+        return NextResponse.json({ error: 'totp_check_failed' }, { status: 503 });
+      }
+
+      if (bodyRememberDevice !== false) {
+        issueTotpTrust(cookieStore, slot, account, secretFingerprint(enrolled));
       }
     }
 

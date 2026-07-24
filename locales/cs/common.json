@@ -23,7 +23,9 @@
       "generic": "Došlo k neočekávané chybě. Pokud problém přetrvává, kontaktujte správce.",
       "totp_required": "Je vyžadován kód dvoufázového ověření. Zadejte kód níže.",
       "totp_invalid": "Neplatný ověřovací kód. Zkontrolujte svou ověřovací aplikaci a zkuste to znovu.",
-      "oauth_discovery_failed": "SSO je povoleno, ale nelze se připojit k poskytovateli identity. Zkontrolujte konfiguraci OAuth."
+      "oauth_discovery_failed": "SSO je povoleno, ale nelze se připojit k poskytovateli identity. Zkontrolujte konfiguraci OAuth.",
+      "totp_enroll_required": "Tato schránka nemá nastavené dvoufázové ověření. Nastavte si ho níže — bez něj přihlášení nedokončíte.",
+      "totp_enroll_invalid": "Kód nesedí, nebo vypršela platnost nabídky. Načtěte stránku znovu, naskenujte nový QR kód a zkuste to ještě jednou."
     },
     "show_password": "Zobrazit heslo",
     "hide_password": "Skrýt heslo",
@@ -61,7 +63,9 @@
       "token_exchange_failed": "Ověření se nepodařilo dokončit. Zkuste to znovu.",
       "access_denied": "Přístup odepřen. Kontaktujte správce.",
       "back_to_login": "Zpět na přihlášení"
-    }
+    },
+    "enroll_title": "Nastavte si dvoufázové ověření",
+    "enroll_hint": "Tato schránka zatím 2FA nemá. Naskenujte QR kód v ověřovací aplikaci (Google Authenticator, Authy, 1Password…) a opište kód, který vám ukáže. Bez toho se přihlášení nedokončí."
   },
   "sidebar": {
     "close": "Zavřít",

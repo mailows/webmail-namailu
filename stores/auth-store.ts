@@ -20,6 +20,8 @@ import type { Identity } from '@/lib/jmap/types';
 
 interface AuthState {
   isAuthenticated: boolean;
+  /** FORK: nabídka prvního enrollu 2FA (schránka bez secretu) — QR pro uživatele + ticket pro server. */
+  enrollOffer: { otpUrl: string; ticket: string } | null;
   isLoading: boolean;
   error: string | null;
   isRateLimited: boolean;
@@ -58,6 +60,10 @@ interface AuthState {
 const ERROR_PATTERNS: Array<{ key: string; matches: string[] }> = [
   { key: 'cors_blocked', matches: ['CORS_ERROR'] },
   { key: 'totp_required', matches: ['TOTP_REQUIRED'] },
+  // FORK: vynucený první enroll 2FA — musí být PŘED 'invalid_credentials', jinak by se
+  // 'TOTP_ENROLL_INVALID' chytlo na obecnou hlášku o špatných údajích.
+  { key: 'totp_enroll_required', matches: ['TOTP_ENROLL_REQUIRED'] },
+  { key: 'totp_enroll_invalid', matches: ['TOTP_ENROLL_INVALID'] },
   { key: 'invalid_credentials', matches: ['Invalid username or password', '401', 'Unauthorized'] },
   { key: 'connection_failed', matches: ['network', 'Failed to fetch', 'NetworkError', 'ECONNREFUSED', 'Load failed', 'cancelled'] },
   { key: 'server_error', matches: ['500', '502', '503', '504', 'Internal Server Error', 'Service Unavailable'] },
@@ -574,6 +580,7 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       isLoading: false,
       error: null,
+      enrollOffer: null,
       isRateLimited: false,
       rateLimitUntil: null,
       serverUrl: null,
@@ -617,14 +624,32 @@ export const useAuthStore = create<AuthState>()(
           const gateRes = await apiFetch(`/api/auth/session?slot=${cookieSlot}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ serverUrl, username, password, totp, slot: cookieSlot, persist: !!rememberMe }),
+            body: JSON.stringify({
+              serverUrl, username, password, totp, slot: cookieSlot, persist: !!rememberMe,
+              // FORK: druhý krok vynuceného enrollu — ticket z předchozí odpovědi gate.
+              enrollTicket: get().enrollOffer?.ticket,
+            }),
           });
           if (!gateRes.ok) {
             const gateBody = await gateRes.json().catch(() => ({} as { error?: string }));
             client.disconnect();
             if (gateBody?.error === 'totp_required') {
               // Reveal/keep the TOTP field on the login page.
+              set({ enrollOffer: null });   // FORK: secret mezitím vznikl → zpět na běžný kód
               throw new Error('TOTP_REQUIRED');
+            }
+            // FORK: schránka bez 2FA (typicky ji založil admin domény). Session nedostaneme,
+            // dokud si uživatel nenastaví TOTP — schovej si nabídku a nech stránku ukázat QR.
+            if (gateBody?.error === 'totp_enroll_required') {
+              const otpUrl = typeof gateBody.otpUrl === 'string' ? gateBody.otpUrl : '';
+              const ticket = typeof gateBody.enrollTicket === 'string' ? gateBody.enrollTicket : '';
+              if (otpUrl && ticket) set({ enrollOffer: { otpUrl, ticket } });
+              throw new Error('TOTP_ENROLL_REQUIRED');
+            }
+            if (gateBody?.error === 'totp_enroll_invalid') {
+              // Ticket vypršel nebo kód nesedí — zahoď nabídku, ať dostane čerstvé QR.
+              set({ enrollOffer: null });
+              throw new Error('TOTP_ENROLL_INVALID');
             }
             if (gateBody?.error === 'totp_invalid' || gateBody?.error === 'totp_locked') {
               // A code was submitted (field already shown). Surface as invalid so
@@ -702,6 +727,7 @@ export const useAuthStore = create<AuthState>()(
           set({
             isAuthenticated: true,
             isLoading: false,
+            enrollOffer: null,   // FORK: enroll doběhl (nebo nebyl potřeba) — nabídku zahoď
             serverUrl,
             username,
             client,
