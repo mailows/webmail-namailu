@@ -58,6 +58,26 @@ describe('auth-store logout redirects', () => {
     expect(fetchMock).toHaveBeenCalledWith('/api/auth/session?slot=0', { method: 'DELETE', keepalive: true });
   });
 
+  // FORK (namailu.cz): každá stránka má stráž `if (!isAuthenticated) redirectToLogin()`.
+  // Ta při odhlášení přebila přesun na landing a prohlížeč skončil na /cs/login (nahlášeno
+  // z provozu 24.7.2026). Záměrné odhlášení proto musí stráže umlčet.
+  it('page guards must not hijack a deliberate logout back to the login page', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+    vi.stubGlobal('fetch', fetchMock);
+    const replaceSpy = vi.spyOn(browserNavigation, 'replaceWindowLocation').mockImplementation(() => {});
+
+    window.history.pushState({}, '', '/cs/settings');
+    useAuthStore.setState({ isAuthenticated: true, authMode: 'basic' });
+
+    useAuthStore.getState().logout();
+    // Přesně to, co udělá stráž na stránce, jakmile uvidí isAuthenticated=false:
+    const { redirectToLogin } = await import('@/stores/auth-store');
+    redirectToLogin();
+
+    expect(replaceSpy).toHaveBeenCalledWith('https://portal.namailu.cz/logout-remote');
+    expect(replaceSpy).not.toHaveBeenCalledWith('/cs/login');
+  });
+
   it('marks session expiry, preserves the current path, and redirects to login when the refresh is rejected (401)', async () => {
     vi.useFakeTimers();
 

@@ -302,8 +302,17 @@ function saveRedirectAfterLogin(): void {
   }
 }
 
+/**
+ * FORK (namailu.cz): jednotlivé stránky mají stráž `if (!isAuthenticated) redirectToLogin()`.
+ * Při ZÁMĚRNÉM odhlášení ta stráž přebila přesun na landing a prohlížeč skončil na `/cs/login`
+ * (nahlášeno z provozu 24.7.2026 — `DELETE /api/auth/session` v logu byl, na `/logout-remote`
+ * se ale nikdy nešlo). Odhlášení proto tenhle příznak nastaví a stráže se od té chvíle drží zpátky.
+ */
+let deliberateLogoutInProgress = false;
+
 export function redirectToLogin(): void {
   if (typeof window === 'undefined') return;
+  if (deliberateLogoutInProgress) return;   // řízení má redirectToSingleLogout()
 
   const loginPath = getLocaleLoginPath();
   if (window.location.pathname === loginPath) return;
@@ -319,6 +328,7 @@ export function redirectToLogin(): void {
  * `redirectToLogin()` (uživatel má vidět login s hláškou, ne být vyhozen na landing).
  */
 export function redirectToSingleLogout(): void {
+  deliberateLogoutInProgress = true;
   if (typeof window === 'undefined') return;
 
   const portalUrl = (process.env.NEXT_PUBLIC_PORTAL_URL || 'https://portal.namailu.cz').replace(/\/+$/, '');
@@ -724,6 +734,7 @@ export const useAuthStore = create<AuthState>()(
             accountStore.updateAccount(accountId, { serverIdentifiers });
           }
 
+          deliberateLogoutInProgress = false;   // FORK: nové přihlášení = stráže zas platí
           set({
             isAuthenticated: true,
             isLoading: false,
@@ -1196,6 +1207,10 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: (opts?: { expired?: boolean }) => {
+        // Příznak co nejdřív: stráže na stránkách reagují na isAuthenticated=false, které
+        // nastaví performFullLogout() níž — kdyby se čekalo až na redirect, mohly by vyhrát.
+        // Vypršelá session je opak: tam stráže na login vést MAJÍ, takže příznak shodíme.
+        deliberateLogoutInProgress = !opts?.expired;
         const state = get();
         const wasDemoMode = state.isDemoMode;
         const wasOAuth = state.authMode === 'oauth';
@@ -1322,6 +1337,7 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logoutAll: () => {
+        deliberateLogoutInProgress = true;
         // Disconnect all clients
         for (const c of clients.values()) {
           c.disconnect();
