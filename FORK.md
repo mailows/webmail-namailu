@@ -331,3 +331,38 @@ Naopak **nikdy neshodí login**: selhání odloženého úklidu mailboxu (`legac
 - K doověření na test serveru: (a) starý účet s nosičem → login → nosič i složka `.namailu-2fa` zmizí
   a 2FA dál platí; (b) smazání čehokoliv ve schránce už 2FA nevypne; (c) nový enroll zapíše soubor
   do `/app/data/twofactor` a přežije `docker compose up --force-recreate`.
+
+## 5. kolo: jednotné odhlášení (portál ↔ webmail) → landing (24.7.2026)
+
+**Zadání:** „když dám logout tak to půjde z portálu i z webmailu na namailu.cz".
+
+**Proč to není jen změna cíle redirectu:** kdyby logout jen přesměroval na landing, druhá strana by
+zůstala **živá** — a z landingu vede na webmail proklik. Odhlášení na sdíleném počítači by tedy bylo
+na jeden klik vratné. Logout proto **řetězí obě strany** a teprve pak přistane na landingu:
+
+| kde uživatel klikne | řetěz |
+|---|---|
+| webmail „Odhlásit" | klient smaže webmailovou session (`DELETE /api/auth/session`) → `PORTAL_URL/logout-remote` (zabije portálovou session) → **landing** |
+| portál „Odhlásit" | portál revokuje svou session → `namailu.cz/api/auth/logout` (smaže webmailové cookies) → **landing** |
+
+### Zásahy ve forku
+- **`app/api/auth/logout/route.ts` (NOVÉ)** — `GET`, maže session cookies **všech slotů**
+  (`MAX_ACCOUNT_SLOTS`) + Stalwart ctx + refresh tokeny, pak `303` na `LANDING_URL`
+  (env, default `https://namailu.cz/`). Schválně `GET`, ne `DELETE`: musí to fungovat jako obyčejný
+  redirect z portálu (cizí origin). Cíl je **pevný z env, nikdy z URL** → žádný open redirect;
+  vynucený logout zvenčí je obtěžování, ne únik. Selhání mazání uživatele nenechá na chybě (→ landing).
+- **`stores/auth-store.ts`** — `redirectToSingleLogout()` (portál `/logout-remote`); `logout()` má nově
+  `opts?: { expired?: boolean }`. **Vypršelá session dál končí na `redirectToLogin()`** s hláškou —
+  jen záměrný klik jde řetězem. Volá se z `logout()` i `logoutAll()`.
+- **`app/(main)/[locale]/settings/page.tsx`** — `onClick={() => logout()}` (jinak by se do `opts`
+  podstrčil klikací event; TS to odhalil při buildu).
+
+### Co se ZÁMĚRNĚ nemaže
+**TOTP „trust" cookie** — je vázaná na otisk secretu a sama o sobě přístup nedává (heslo je pořád
+potřeba). Odhlášení nemá uživatele připravit o 7denní důvěru zařízení.
+
+### Testy
+- `lib/__tests__/logout-route.test.ts` — padnou **všechny sloty** (ne jen aktivní) + cíl ignoruje `?next=`.
+- `stores/__tests__/auth-store-logout.test.ts` — upstream test „redirects full logout to the locale
+  login page" přepsán na řetěz; testy expirace session (401) dál ověřují cestu na login s hláškou.
+- Protistrana: `tests/portal/test_logout_chain.py` v control-plane (5 invariantů).

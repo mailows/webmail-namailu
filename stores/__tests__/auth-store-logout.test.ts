@@ -41,7 +41,10 @@ describe('auth-store logout redirects', () => {
     vi.useRealTimers();
   });
 
-  it('redirects full logout to the locale login page', () => {
+  // FORK (namailu.cz): záměrné odhlášení nekončí na loginu webmailu, ale řetězem přes portál
+  // (/logout-remote → landing), aby nepřežila portálová session. Session-expiry testy níž
+  // dál ověřují, že NEplatná session pořád vede na login s hláškou — to se nezměnilo.
+  it('redirects full logout through the portal single-logout chain', () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
     vi.stubGlobal('fetch', fetchMock);
     const replaceSpy = vi.spyOn(browserNavigation, 'replaceWindowLocation').mockImplementation(() => {});
@@ -51,7 +54,7 @@ describe('auth-store logout redirects', () => {
 
     useAuthStore.getState().logout();
 
-    expect(replaceSpy).toHaveBeenCalledWith('/fr/login');
+    expect(replaceSpy).toHaveBeenCalledWith('https://portal.namailu.cz/logout-remote');
     expect(fetchMock).toHaveBeenCalledWith('/api/auth/session?slot=0', { method: 'DELETE', keepalive: true });
   });
 

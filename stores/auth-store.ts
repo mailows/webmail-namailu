@@ -42,7 +42,8 @@ interface AuthState {
   loginWithServerSso: (code: string, state: string) => Promise<boolean>;
   loginDemo: () => Promise<boolean>;
   refreshAccessToken: () => Promise<string | null>;
-  logout: () => void;
+  /** FORK: `expired` = session vypršela (vede na login s hláškou), jinak jde řetěz odhlášení přes portál. */
+  logout: (opts?: { expired?: boolean }) => void;
   logoutAll: () => void;
   removeAccount: (accountId: string) => void;
   switchAccount: (accountId: string) => Promise<void>;
@@ -301,6 +302,21 @@ export function redirectToLogin(): void {
   const loginPath = getLocaleLoginPath();
   if (window.location.pathname === loginPath) return;
   replaceWindowLocation(loginPath);
+}
+
+/**
+ * FORK (namailu.cz): záměrné odhlášení nekončí na loginu webmailu, ale projde portálovým
+ * `/logout-remote` (zabije i portálovou session) a ten pošle uživatele na landing.
+ * Bez toho by logout byl poloviční — portálová session by běžela dál.
+ *
+ * Pozor: používat JEN pro odhlášení kliknutím. Vypršelá/neplatná session dál patří na
+ * `redirectToLogin()` (uživatel má vidět login s hláškou, ne být vyhozen na landing).
+ */
+export function redirectToSingleLogout(): void {
+  if (typeof window === 'undefined') return;
+
+  const portalUrl = (process.env.NEXT_PUBLIC_PORTAL_URL || 'https://portal.namailu.cz').replace(/\/+$/, '');
+  replaceWindowLocation(`${portalUrl}/logout-remote`);
 }
 
 function markSessionExpired(): void {
@@ -1101,7 +1117,7 @@ export const useAuthStore = create<AuthState>()(
                 resetRefreshBackoff(accountId ?? undefined);
                 notifyParent('sso:session-expired');
                 markSessionExpired();
-                get().logout();
+                get().logout({ expired: true });   // FORK: na login s hláškou, ne řetěz odhlášení
                 return null;
               }
               if (shouldRetryRefresh(accountId ?? undefined)) {
@@ -1153,7 +1169,7 @@ export const useAuthStore = create<AuthState>()(
         return promise;
       },
 
-      logout: () => {
+      logout: (opts?: { expired?: boolean }) => {
         const state = get();
         const wasDemoMode = state.isDemoMode;
         const wasOAuth = state.authMode === 'oauth';
@@ -1248,8 +1264,10 @@ export const useAuthStore = create<AuthState>()(
           }
         }
 
-        // Redirect to login - this is synchronous and happens AFTER all state is cleared
-        redirectToLogin();
+        // FORK: jednotné odhlášení — přes portálový /logout-remote na landing (ne na login
+        // webmailu), ať nezůstane žít portálová session. Synchronní, až po vyčištění stavu.
+        // Vypršelá session je jiný případ: tam patří login s hláškou, ne vyhození na landing.
+        if (opts?.expired) redirectToLogin(); else redirectToSingleLogout();
       },
 
       // Remove a specific (typically non-active) account: tear down its client,
@@ -1299,7 +1317,7 @@ export const useAuthStore = create<AuthState>()(
         apiFetch('/api/auth/session?all=true', { method: 'DELETE', keepalive: true }).catch(() => {});
         apiFetch('/api/auth/token?all=true', { method: 'DELETE', keepalive: true }).catch(() => {});
 
-        redirectToLogin();
+        redirectToSingleLogout();   // FORK: viz logout() — odhlásit i portál, přistát na landingu
       },
 
       switchAccount: async (accountId: string) => {
