@@ -4,7 +4,6 @@ import { getStalwartCredentials } from '@/lib/stalwart/credentials';
 import {
   readTotpSecretUrl,
   writeTotpSecretUrl,
-  clearTotpSecret,
   verifyTotpCode,
   type TwoFactorCreds,
 } from '@/lib/twofactor/store';
@@ -24,7 +23,15 @@ import { isTotpLocked, recordTotpFailure, clearTotpFailures, totpRateLimitKey } 
  *
  *   GET  -> { enabled: boolean }
  *   POST { action: 'enable', otpUrl, otpCode } -> verify code, store secret
- *   POST { action: 'disable' }                 -> remove secret
+ *   POST { action: 'disable' }                 -> DISABLED (403): 2FA is managed
+ *                                                 centrally (portal seed); users
+ *                                                 must not be able to turn it off.
+ *
+ * namailu fork (2. kolo): disabling 2FA from the webmail is forbidden. The seed
+ * is provisioned centrally by the portal and the mailbox account must stay
+ * protected, so `action:'disable'` is a hard 403 that never clears the secret —
+ * it cannot be bypassed even by calling this API directly. `enable` stays live
+ * (needed for the seed and as a fallback if seeding fails at registration).
  */
 
 function credsFrom(context: { serverUrl: string; authHeader: string; username: string }): TwoFactorCreds {
@@ -108,31 +115,12 @@ export async function POST(request: NextRequest) {
     }
 
     if (body.action === 'disable') {
-      // Disabling 2FA is exactly the action an attacker with a stolen session
-      // would want, so it requires fresh proof: a valid code from the CURRENT
-      // secret. Fail closed if a secret is present but unreadable.
-      let existing: string | null;
-      try {
-        existing = await readTotpSecretUrl(creds);
-      } catch {
-        return NextResponse.json({ error: 'enrolled_unreadable' }, { status: 409 });
-      }
-      if (!existing) {
-        // Nothing enrolled — make sure no stray carrier remains, idempotently.
-        await clearTotpSecret(creds);
-        return NextResponse.json({ ok: true, enabled: false });
-      }
-      if (isTotpLocked(rlKey)) {
-        return NextResponse.json({ error: 'totp_locked' }, { status: 429 });
-      }
-      const otpCode = typeof body.otpCode === 'string' ? body.otpCode : '';
-      if (!otpCode || !verifyTotpCode(existing, otpCode)) {
-        if (otpCode) recordTotpFailure(rlKey);
-        return NextResponse.json({ error: 'reauth_required' }, { status: 401 });
-      }
-      clearTotpFailures(rlKey);
-      await clearTotpSecret(creds);
-      return NextResponse.json({ ok: true, enabled: false });
+      // Hard stop (namailu fork): 2FA is managed centrally (portal seed) and
+      // must not be switchable off from the webmail — not via the UI and not via
+      // a direct API call. Never clear the stored secret here. `enable` stays
+      // available (seed + registration fallback).
+      logger.warn('2FA disable rejected (centrally managed)', { username: creds.username });
+      return NextResponse.json({ error: 'twofactor_managed' }, { status: 403 });
     }
 
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 });

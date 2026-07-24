@@ -192,7 +192,11 @@ function generateTotp(accountLabel: string): { totp: OTPAuth.TOTP; url: string }
 
 function TotpSection() {
   const t = useTranslations('settings.security');
-  const { otpEnabled, enableTotp, disableTotp, isSaving, isLoadingAuth } = useAccountSecurityStore();
+  // namailu fork (2. kolo): 2FA is managed centrally (portal seed) and cannot be
+  // disabled from the webmail. When it is active we only show an informative
+  // status — no disable toggle/dialog. Enrollment stays available as a fallback
+  // when 2FA is not yet active (e.g. if the registration seed failed).
+  const { otpEnabled, enableTotp, isSaving, isLoadingAuth } = useAccountSecurityStore();
   const { client } = useAuthStore();
 
   const [setupUrl, setSetupUrl] = useState<string | null>(null);
@@ -200,9 +204,7 @@ function TotpSection() {
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [password, setPassword] = useState('');
   const [otpCode, setOtpCode] = useState('');
-  const [disableCode, setDisableCode] = useState('');
   const [setupError, setSetupError] = useState<string | null>(null);
-  const [disableOpen, setDisableOpen] = useState(false);
 
   useEffect(() => {
     if (!setupUrl) { setQrDataUrl(null); return; }
@@ -248,28 +250,12 @@ function TotpSection() {
     }
   };
 
-  const handleDisable = async () => {
-    // Disabling requires a fresh code from the current authenticator; the server
-    // re-verifies it (a stolen session must not be able to turn 2FA off).
-    if (!disableCode.trim()) { setSetupError(t('totp.code_required')); return; }
-    try {
-      await disableTotp(disableCode.trim());
-      setDisableOpen(false);
-      setDisableCode('');
-      setSetupError(null);
-      toast.success(t('totp.disabled'));
-    } catch (err) {
-      setSetupError(err instanceof Error ? err.message : t('totp.disable_error'));
-    }
-  };
-
+  // Enrollment only. Disabling 2FA is intentionally not offered here: it is
+  // managed centrally (portal seed) and the backend rejects `disable` with 403.
   const handleToggle = (enable: boolean) => {
     setSetupError(null);
     if (enable) {
       startSetup();
-    } else {
-      setDisableOpen(true);
-      setDisableCode('');
     }
   };
 
@@ -284,16 +270,24 @@ function TotpSection() {
   return (
     <div className="space-y-3">
       <SettingItem label={t('totp.label')} description={t('totp.description')}>
-        <div className="flex items-center gap-2">
-          <ToggleSwitch
-            checked={otpEnabled || !!setupUrl}
-            onChange={handleToggle}
-            disabled={isSaving}
-          />
-          <span className={cn('text-xs font-medium', otpEnabled ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground')}>
-            {otpEnabled ? t('totp.active') : t('totp.inactive')}
+        {otpEnabled ? (
+          // 2FA active and centrally managed — informative status only, no
+          // disable control (managed via the portal seed).
+          <span className="text-xs font-medium text-green-600 dark:text-green-400">
+            {t('totp.active_managed')}
           </span>
-        </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <ToggleSwitch
+              checked={!!setupUrl}
+              onChange={handleToggle}
+              disabled={isSaving}
+            />
+            <span className="text-xs font-medium text-muted-foreground">
+              {t('totp.inactive')}
+            </span>
+          </div>
+        )}
       </SettingItem>
 
       {setupUrl && (
@@ -326,30 +320,6 @@ function TotpSection() {
         </div>
       )}
 
-      {disableOpen && (
-        <div className="ms-4 p-3 bg-muted rounded-md space-y-2">
-          <p className="text-xs text-muted-foreground">{t('totp.disable_confirm_prompt')}</p>
-          <label className="text-xs text-muted-foreground mb-1 block">{t('totp.verification_code')}</label>
-          <Input
-            value={disableCode}
-            onChange={(e) => setDisableCode(e.target.value)}
-            inputMode="numeric"
-            maxLength={6}
-            autoComplete="one-time-code"
-            placeholder={t('totp.verification_code')}
-          />
-          {setupError && <p className="text-xs text-destructive">{setupError}</p>}
-          <div className="flex gap-2">
-            <Button size="sm" variant="destructive" onClick={handleDisable} disabled={isSaving || !disableCode.trim()}>
-              {isSaving ? <Loader2 className="w-4 h-4 me-1 animate-spin" /> : null}
-              {t('totp.disable')}
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => { setDisableOpen(false); setDisableCode(''); setSetupError(null); }}>
-              {t('app_passwords.cancel')}
-            </Button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

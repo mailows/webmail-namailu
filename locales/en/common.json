@@ -1426,6 +1426,7 @@
         "label": "TOTP Authentication",
         "description": "Add an extra layer of security with a time-based one-time password",
         "active": "Enabled",
+        "active_managed": "2FA is active (managed by namailu.cz)",
         "inactive": "Disabled",
         "enabled": "Two-factor authentication enabled",
         "disabled": "Two-factor authentication disabled",

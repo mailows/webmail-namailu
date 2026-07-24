@@ -1419,6 +1419,7 @@
         "label": "Ověřování TOTP",
         "description": "Přidejte další vrstvu zabezpečení pomocí jednorázového hesla na bázi času",
         "active": "Zapnuto",
+        "active_managed": "2FA je aktivní (spravováno namailu.cz)",
         "inactive": "Vypnuto",
         "enabled": "Dvoufázové ověření zapnuto",
         "disabled": "Dvoufázové ověření vypnuto",
