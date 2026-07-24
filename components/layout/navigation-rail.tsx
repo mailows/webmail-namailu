@@ -25,10 +25,6 @@ import { KeyboardShortcutsModal } from "@/components/keyboard-shortcuts-modal";
 import { apiFetch, getPathPrefix, withBasePath } from "@/lib/browser-navigation";
 import { Avatar } from "@/components/ui/avatar";
 
-// namailu fork: link back to the account portal. Configurable via env so the
-// same image can point at a different portal; falls back to the production URL.
-const PORTAL_URL = process.env.NEXT_PUBLIC_PORTAL_URL || "https://portal.namailu.cz";
-
 interface NavItem {
   id: string;
   icon: typeof Mail;
@@ -627,9 +623,12 @@ export function NavigationRail({
           <Settings className="w-[18px] h-[18px]" />
         </Link>
 
-        {/* namailu fork: link to the account portal (opens in a new tab) */}
+        {/* namailu fork: link to the account portal. Routes through the
+            server-side SSO handoff (/api/auth/portal-sso) so the signed-in
+            mailbox is carried across as a short-lived HMAC token and the user
+            lands in the portal already authenticated. Opens in a new tab. */}
         <a
-          href={PORTAL_URL}
+          href={withBasePath("/api/auth/portal-sso")}
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center justify-center w-10 h-10 rounded-md transition-colors text-muted-foreground hover:text-foreground hover:bg-muted"

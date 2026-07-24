@@ -160,12 +160,52 @@ takže uživatel 2FA ve webmailu **NESMÍ vypnout**. Zároveň přidán odkaz zp
 
 ### B) Odkaz „Portál" v navigaci
 - `components/layout/navigation-rail.tsx`: ve **footeru vertikální lišty** (vedle „Nastavení") přidán
-  odkaz `<a target="_blank" rel="noopener noreferrer">` s ikonou `ExternalLink`. Cíl je
-  konfigurovatelný přes **env `NEXT_PUBLIC_PORTAL_URL`** (modulová konstanta `PORTAL_URL`), default
-  `https://portal.namailu.cz`. Popisek přes i18n klíč `sidebar.portal` (en „namailu.cz portal",
-  cs „Portál namailu.cz").
+  odkaz `<a target="_blank" rel="noopener noreferrer">` s ikonou `ExternalLink`. Popisek přes i18n klíč
+  `sidebar.portal` (en „namailu.cz portal", cs „Portál namailu.cz").
+- **3. kolo:** odkaz nově míří na server-side SSO handoff `withBasePath("/api/auth/portal-sso")` (viz
+  sekce níže), ne přímo na `NEXT_PUBLIC_PORTAL_URL` — uživatel se tak do portálu dostane rovnou
+  přihlášený. Modulová konstanta `PORTAL_URL` z tohoto souboru odstraněna (env se čte v route).
 
 ### Ověření
 - `npx tsc --noEmit` → 0 chyb. `npm run lint` → 0 errors (jen preexistující warningy). `npm run build` → OK.
 - Nové i18n klíče přidány jen do `en` (báze) a `cs`; ostatní locale je dědí přes `mergeMessages`
   (fallback na EN).
+
+## SSO handoff na portál (webmail → portál auto-login)
+Uživatel přihlášený ve webmailu klikne „Portál" a dostane se do portálu **bez dalšího loginu**.
+Webmail je zdroj identity: přečte přihlášenou schránku ze session a vydá **krátkodobý podepsaný
+token**, se kterým přesměruje na portálový `/sso`. Portál (druhá strana — control-plane) token ověří.
+
+### Endpoint
+- **`app/api/auth/portal-sso/route.ts`** — `GET`, `runtime = 'nodejs'` (kvůli `crypto`).
+- Identita ze session: `getStalwartCredentials(request)` (`lib/stalwart/credentials.ts`) → `context.username`,
+  úplně stejně jako `app/api/account/twofactor/route.ts`. Základ je httpOnly Basic-auth kontext v cookie
+  (per-slot), heslo se v tokenu **nikdy neobjeví**.
+- Není přihlášen (`context === null`) → **302 na `PORTAL_URL`** (portál home, bez tokenu).
+- `SSO_SHARED_SECRET` chybí → **302 na `PORTAL_URL`** (bez tokenu) + `logger.warn` — nikdy se nevydá
+  neplatný token.
+
+### Formát tokenu (portál ověřuje PŘESNĚ takto)
+- Portálová SSO URL: env **`NEXT_PUBLIC_PORTAL_URL`** (default `https://portal.namailu.cz`, trailing
+  slash se ořízne) + `/sso`.
+- Query parametry (vše URL-encode):
+  - `u`     = username (adresa schránky, **lowercase**)
+  - `ts`    = unix **sekundy** (teď), jako string
+  - `nonce` = **16 hex znaků** (`crypto.randomBytes(8).toString('hex')`)
+  - `sig`   = **HMAC-SHA256 hex**
+- Podpis: `sig = hmac_sha256_hex(key = SSO_SHARED_SECRET, msg = ` `${u}|${ts}|${nonce}` `)`
+  - kód: `createHmac('sha256', secret).update(`\``${u}|${ts}|${nonce}`\``).digest('hex')`
+  - zpráva je přesně tři pole spojená `|` v pořadí **u, ts, nonce** (bez `sig`).
+- Výsledný redirect (302): `{PORTAL_URL}/sso?u=..&ts=..&nonce=..&sig=..`.
+
+### Klíč a bezpečnost
+- **`SSO_SHARED_SECRET`** — sdílené tajemství, **jen server-side** (žádný `NEXT_PUBLIC_`, nikdy do
+  klientského bundlu). Čte se pouze v route.
+- Token nese **jen username**, žádné heslo.
+- **Krátká platnost**: portál si hlídá `ts` (~60 s) a `nonce` proti replay (portál si drží použité nonce).
+- Odkaz v navigaci (`components/layout/navigation-rail.tsx`) míří na `withBasePath("/api/auth/portal-sso")`,
+  zůstává `target="_blank" rel="noopener noreferrer"`.
+
+### Ověření
+- `npx tsc --noEmit` → 0 chyb. `npm run lint` → 0 errors (jen preexistující warningy).
+  `npm run build` → OK, route `ƒ /api/auth/portal-sso` zaregistrovaná jako dynamická.
