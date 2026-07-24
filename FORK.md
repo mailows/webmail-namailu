@@ -209,3 +209,32 @@ token**, se kterým přesměruje na portálový `/sso`. Portál (druhá strana �
 ### Ověření
 - `npx tsc --noEmit` → 0 chyb. `npm run lint` → 0 errors (jen preexistující warningy).
   `npm run build` → OK, route `ƒ /api/auth/portal-sso` zaregistrovaná jako dynamická.
+
+## Rozhodnutí: SSO přes handoff, NE sdílené doménové cookies (24.7.2026)
+
+**Zvoleno:** webmail→portál SSO **handoffem** (podepsaný krátkodobý token, viz sekce výše).
+**Zamítnuto:** nastavovat při loginu **obě session cookies naráz** (portálová jako `Domain=.namailu.cz`).
+
+### Proč — životnosti se nedají rozumně srovnat
+| | absolutní | idle |
+|---|---|---|
+| Portál | **12 h** (`SESSION_ABSOLUTE_H`) | **60 min** (`SESSION_IDLE_MIN`, server-side `last_seen_at`) |
+| Webmail | **30 dní** (`SESSION_COOKIE_MAX_AGE`) | žádný (self-contained šifrovaná cookie) |
+
+Rozdíl je záměrný: portál je administrační plocha (krátká session = správně), webmail je mailový
+klient (30 dní je normál). Portálová session navíc žije **server-side** — aktivita ve webmailu ji
+NEobnoví, takže by **po 60 minutách idle-vypršela**, i když webmail běží dál. „Obě cookies při
+loginu" by se tedy rozešlo během hodiny.
+
+Srovnání životností by znamenalo: prodloužit portál na 30 dní (oslabí admin plochu ❌), zkrátit
+webmail na 12 h (obtěžuje uživatele ❌), nebo keep-alive ping webmail→portál (cross-origin cinkání navíc).
+
+### Proč handoff vyhrává
+- **Self-healing:** když portálová session mezitím vyprší, klik „Portál" **tiše vyrobí novou** — uživatel to nepozná.
+- **Nevynucuje kompromis** v životnostech; obě strany si drží svou správnou politiku.
+- **Cookies zůstávají izolované** — portálová jen na `portal.namailu.cz`; webmailová (nese ZAŠIFROVANÉ HESLO) se nikam jinam neposílá.
+- I kdyby se obě cookies nastavovaly při loginu, **handoff by byl stejně potřeba** (jinak přechod po hodině přestane fungovat) → přidalo by to jen ušetřený redirect za cenu doménové cookie.
+
+### Kdyby se v budoucnu chtěl i směr portál→webmail bez re-loginu
+Doménová (`.namailu.cz`) **jen PORTÁLOVÁ** cookie — ta heslo nenese; webmailovou nechat izolovanou.
+K tomu keep-alive nebo obdobný handoff opačným směrem. Zatím NEimplementováno (viz roadmap).
