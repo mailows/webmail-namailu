@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { Mail, Calendar, BookUser, HardDrive, Settings, Keyboard, Plus, Shield, LogOut, Check } from "lucide-react";
+import { Mail, Calendar, BookUser, HardDrive, Settings, Keyboard, Plus, Shield, LogOut, Check, ExternalLink } from "lucide-react";
 import { AccountSwitcher } from "./account-switcher";
 import { icons as lucideIcons, type LucideIcon } from "lucide-react";
 import { useConfig } from "@/hooks/use-config";
@@ -24,6 +24,10 @@ import { PluginSlot } from "@/components/plugins/plugin-slot";
 import { KeyboardShortcutsModal } from "@/components/keyboard-shortcuts-modal";
 import { apiFetch, getPathPrefix, withBasePath } from "@/lib/browser-navigation";
 import { Avatar } from "@/components/ui/avatar";
+
+// namailu fork: link back to the account portal. Configurable via env so the
+// same image can point at a different portal; falls back to the production URL.
+const PORTAL_URL = process.env.NEXT_PUBLIC_PORTAL_URL || "https://portal.namailu.cz";
 
 interface NavItem {
   id: string;
@@ -622,6 +626,17 @@ export function NavigationRail({
         >
           <Settings className="w-[18px] h-[18px]" />
         </Link>
+
+        {/* namailu fork: link to the account portal (opens in a new tab) */}
+        <a
+          href={PORTAL_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-center w-10 h-10 rounded-md transition-colors text-muted-foreground hover:text-foreground hover:bg-muted"
+          title={t("portal")}
+        >
+          <ExternalLink className="w-[18px] h-[18px]" />
+        </a>
 
         <div className="w-8 border-t" style={{ borderColor: 'rgba(128, 128, 128, 0.3)' }} />
 
