@@ -3,6 +3,11 @@ import * as OTPAuth from 'otpauth';
 import { getSessionSecret } from '@/lib/auth/session-secret';
 import { fetchJmapSession, postJmap, rebaseApiUrl, type JmapSessionDocument } from '@/lib/stalwart/jmap-api';
 import { logger } from '@/lib/logger';
+import {
+  deleteTwoFactorRecord,
+  readTwoFactorRecord,
+  writeTwoFactorRecord,
+} from '@/lib/twofactor/secret-store';
 
 /**
  * Self-contained TOTP secret storage for the namailu fork.
@@ -10,52 +15,52 @@ import { logger } from '@/lib/logger';
  * Bulwark upstream delegates 2FA to Stalwart's `x:AccountPassword` (`otpAuth`),
  * which is a Stalwart *Enterprise* feature: on a community licence enabling it
  * returns 402 and locks the mailbox. This module keeps the whole 2FA story
- * inside the webmail instead — the TOTP secret lives in the user's own mailbox
- * over plain RFC 8621 JMAP (community, free) and Bulwark verifies codes itself
- * with `otpauth`. Stalwart only ever sees the plain password.
+ * inside the webmail instead — Bulwark holds the TOTP secret itself and verifies
+ * codes with `otpauth`. Stalwart only ever sees the plain password.
  *
- * ── Carrier decision: hidden Email vs JMAP blob ───────────────────────────
- * We store the secret as a single **hidden Email** in a dedicated, unsubscribed
- * mailbox — NOT as a JMAP `blob`. Rationale:
- *   1. Durability. Per RFC 8620 §6, an uploaded blob that is not referenced by
- *      a persisted object is transient and MAY be garbage-collected by the
- *      server (Stalwart does GC unreferenced blobs). An Email is a first-class,
- *      durable object that survives indefinitely.
- *   2. Discoverability. An Email is found deterministically on any later login
- *      via `Email/query` (filter by our dedicated mailbox). A blob only has an
- *      opaque blobId that we would have to persist *somewhere else* anyway —
- *      a chicken-and-egg problem the Email avoids.
- *   3. Community JMAP. `Mailbox/*` and `Email/*` are standard mail methods
- *      (`urn:ietf:params:jmap:mail`), available on the free licence. No `x:`
- *      namespace, no AccountPassword, no 402.
+ * ── Carrier decision: server-side file, NOT the user's mailbox ────────────
+ * The secret lives in webmail's own data directory (lib/twofactor/secret-store.ts,
+ * `/app/data/twofactor/<sha256(accountId)>.json`), which the user cannot reach.
  *
- * ── Encryption ────────────────────────────────────────────────────────────
+ * It used to live in the user's mailbox as a hidden Email in a dedicated
+ * `.namailu-2fa` folder. That was a security hole: the carrier was visible and
+ * DELETABLE by the account owner (webmail UI, IMAP, JMAP), and deleting it
+ * turned 2FA off — reproduced end to end: login without a code returned 401
+ * `totp_required` before the deletion and 200 after it. It therefore bypassed
+ * the hard 403 on the `disable` endpoint, which exists precisely because 2FA is
+ * managed centrally. Nothing the mailbox owner can write to is an acceptable
+ * carrier for an authentication factor, so the mailbox carrier is gone; the
+ * legacy path below only survives long enough to migrate existing users.
+ *
+ * ── Migration of existing enrollments ─────────────────────────────────────
+ * On read, when there is no server-side record we look once for the legacy
+ * mailbox carrier. If it decrypts, we copy the ciphertext to the server-side
+ * store, delete the carrier Email AND the `.namailu-2fa` folder, and return the
+ * secret — so the odd message disappears from the user's mailbox on their next
+ * login. If the carrier is present but undecryptable, or JMAP fails while we
+ * are looking, we throw (fail closed): we cannot tell "no 2FA" from "2FA we
+ * cannot read", and only the former may be allowed through.
+ *
+ * ── Encryption (unchanged) ────────────────────────────────────────────────
  * The `otpauth://` URL (which embeds the shared secret) is encrypted with
  * AES-256-GCM under a key derived from the SERVER's SESSION_SECRET bound to the
- * username. The key deliberately does NOT derive from the account password:
- * deriving from the password would let anyone who already has the password
- * decrypt the secret and mint codes, so 2FA would add nothing over a stolen
- * password. Because only the webmail server holds SESSION_SECRET, the secret is
- * unreadable outside the server, and TOTP verification therefore happens
- * server-side (see the login gate in app/api/auth/session/route.ts). Reading the
- * carrier Email at all still requires an authenticated JMAP session, so the
- * secret is never exposed to an unauthenticated caller either.
+ * canonical JMAP account id. The key deliberately does NOT derive from the
+ * account password: deriving from the password would let anyone who already has
+ * the password decrypt the secret and mint codes, so 2FA would add nothing over
+ * a stolen password. Because only the webmail server holds SESSION_SECRET, the
+ * secret is unreadable outside the server, and TOTP verification therefore
+ * happens server-side (see the login gate in app/api/auth/session/route.ts).
+ * The secret (plaintext or ciphertext) is never sent to a client.
  */
 
 const CRYPTO_ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 12;
 const TAG_LENGTH = 16;
 
-/** Dedicated, unsubscribed mailbox that holds the single secret-bearing Email. */
+/** LEGACY: dedicated, unsubscribed mailbox that held the secret-bearing Email. */
 const STORE_MAILBOX_NAME = '.namailu-2fa';
-/** Custom keyword flag on the carrier Email, for a precise `hasKeyword` filter. */
-const MARKER_KEYWORD = '$namailu2fa';
-/** Subject prefix; the base64 ciphertext is appended after the colon. */
+/** LEGACY: subject prefix; the base64 ciphertext followed the colon. */
 const SUBJECT_PREFIX = 'namailu-2fa-totp:';
-/** Static human note in the body so a curious mailbox browser leaves it alone. */
-const BODY_NOTE =
-  'This message stores your encrypted two-factor (TOTP) secret for webmail. ' +
-  'Do not delete it or you will lose two-factor access.';
 
 const MAIL_USING = ['urn:ietf:params:jmap:core', 'urn:ietf:params:jmap:mail'];
 
@@ -202,31 +207,7 @@ async function findStoreMailboxId(creds: TwoFactorCreds, ctx: MailContext): Prom
   return found?.id ?? null;
 }
 
-async function findOrCreateStoreMailboxId(creds: TwoFactorCreds, ctx: MailContext): Promise<string> {
-  const existing = await findStoreMailboxId(creds, ctx);
-  if (existing) return existing;
-
-  const createId = 'namailu2fa';
-  const responses = await jmapCall(creds, ctx.apiUrl, [
-    ['Mailbox/set', {
-      accountId: ctx.accountId,
-      create: { [createId]: { name: STORE_MAILBOX_NAME, isSubscribed: false } },
-    }, '0'],
-  ]);
-  const setResult = resultOf(responses, 'Mailbox/set');
-  const created = (setResult?.created as Record<string, { id?: string }> | undefined)?.[createId];
-  if (created?.id) return created.id;
-
-  // A concurrent enrollment may have created it between our lookup and create.
-  const notCreated = (setResult?.notCreated as Record<string, unknown> | undefined)?.[createId];
-  if (notCreated) {
-    const retry = await findStoreMailboxId(creds, ctx);
-    if (retry) return retry;
-  }
-  throw new Error('Failed to create 2FA store mailbox');
-}
-
-/** Ids of every carrier Email currently in the store mailbox. */
+/** LEGACY: ids of every carrier Email currently in the store mailbox. */
 async function findSecretEmailIds(
   creds: TwoFactorCreds,
   ctx: MailContext,
@@ -243,61 +224,184 @@ async function findSecretEmailIds(
   return ids;
 }
 
+/**
+ * LEGACY CLEANUP: delete the carrier Email(s) and the whole `.namailu-2fa`
+ * folder from the user's mailbox. Idempotent — a missing folder is a no-op.
+ * Throws on JMAP failure so callers can remember to retry.
+ */
+async function purgeLegacyMailbox(creds: TwoFactorCreds, ctx: MailContext): Promise<void> {
+  const mailboxId = await findStoreMailboxId(creds, ctx);
+  if (!mailboxId) return;
+
+  const ids = await findSecretEmailIds(creds, ctx, mailboxId);
+  if (ids.length > 0) {
+    await jmapCall(creds, ctx.apiUrl, [
+      ['Email/set', { accountId: ctx.accountId, destroy: ids }, '0'],
+    ]);
+  }
+  // `onDestroyRemoveEmails` also sweeps anything the query above missed.
+  await jmapCall(creds, ctx.apiUrl, [
+    ['Mailbox/set', {
+      accountId: ctx.accountId,
+      destroy: [mailboxId],
+      onDestroyRemoveEmails: true,
+    }, '0'],
+  ]);
+  logger.info('Removed legacy in-mailbox 2FA carrier');
+}
+
+// ── Server-side record ───────────────────────────────────────────────────────
+
+/**
+ * Decrypt a stored ciphertext, failing CLOSED. A record exists, so every
+ * failure path here must throw — never return null.
+ */
+function decryptStoredCiphertext(accountId: string, ciphertext: string): string {
+  // Distinguish a config error (SESSION_SECRET missing) from a decryption
+  // failure, but neither may be mistaken for "no 2FA".
+  if (!getSessionSecret()) {
+    throw new Error('2FA secret present but SESSION_SECRET is not configured — refusing to bypass 2FA');
+  }
+  try {
+    return decryptSecretUrl(accountId, ciphertext);
+  } catch (error) {
+    throw new Error(
+      `2FA secret present but could not be decrypted (failing closed): ${
+        error instanceof Error ? error.message : 'unknown error'
+      }`,
+    );
+  }
+}
+
+/**
+ * Migrate an account that still has the legacy in-mailbox carrier.
+ *
+ * Returns the secret URL when one was migrated, null when this account
+ * genuinely has no 2FA. Throws when a carrier exists but cannot be produced, or
+ * when JMAP fails while we look — we must not report "no 2FA" on a maybe.
+ *
+ * Idempotent: after a successful run the carrier and its folder are gone, and
+ * the next read is served from the server-side record without touching JMAP
+ * beyond the session fetch that yields the accountId.
+ */
+async function migrateLegacyMailboxSecret(
+  creds: TwoFactorCreds,
+  ctx: MailContext,
+): Promise<string | null> {
+  const mailboxId = await findStoreMailboxId(creds, ctx);
+  if (!mailboxId) return null;
+
+  const ids = await findSecretEmailIds(creds, ctx, mailboxId);
+  let carriers: string[] = [];
+  if (ids.length > 0) {
+    const responses = await jmapCall(creds, ctx.apiUrl, [
+      ['Email/get', { accountId: ctx.accountId, ids, properties: ['id', 'subject'] }, '0'],
+    ]);
+    const emails = (resultOf(responses, 'Email/get')?.list ?? []) as Array<{ subject?: string }>;
+    carriers = emails
+      .map((e) => e.subject ?? '')
+      .filter((s) => s.startsWith(SUBJECT_PREFIX));
+  }
+
+  // The folder is ours alone: no carrier inside it means this account genuinely
+  // has no 2FA, so tidy the leftover folder away and report "no secret".
+  if (carriers.length === 0) {
+    try {
+      await purgeLegacyMailbox(creds, ctx);
+    } catch (error) {
+      logger.warn('Failed to remove empty legacy 2FA mailbox', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+    return null;
+  }
+
+  // A carrier IS present: produce it or fail closed.
+  let otpUrl: string | null = null;
+  let ciphertext = '';
+  let lastError: unknown = null;
+  for (const subject of carriers) {
+    const candidate = subject.slice(SUBJECT_PREFIX.length);
+    try {
+      otpUrl = decryptStoredCiphertext(ctx.accountId, candidate);
+      ciphertext = candidate;
+      break;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  if (!otpUrl) {
+    throw lastError instanceof Error
+      ? lastError
+      : new Error('2FA secret present but could not be decrypted (failing closed)');
+  }
+
+  // Persist server-side first; only then remove the mailbox copy, so a failure
+  // in between can never lose the secret (2FA stays on, migration retries).
+  try {
+    await writeTwoFactorRecord(ctx.accountId, ciphertext, { legacyCleanupPending: true });
+  } catch (error) {
+    logger.error('2FA migration: failed to persist secret server-side, keeping mailbox carrier', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+    return otpUrl;
+  }
+
+  try {
+    await purgeLegacyMailbox(creds, ctx);
+    await writeTwoFactorRecord(ctx.accountId, ciphertext, { legacyCleanupPending: false });
+    logger.info('Migrated 2FA secret from mailbox carrier to server-side store');
+  } catch (error) {
+    // Cleanup is retried on the next read (legacyCleanupPending stays set).
+    logger.warn('2FA migration: secret stored server-side but mailbox cleanup failed', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+  return otpUrl;
+}
+
 // ── Public API ───────────────────────────────────────────────────────────────
 
 /**
  * Read and decrypt the stored `otpauth://` URL for this account.
  *
- * Returns null ONLY when there is genuinely no 2FA secret (no store mailbox, no
- * carrier email). It FAILS CLOSED — throws — in every case where a secret is (or
- * may be) present but cannot be produced, so a caller (the login gate) can never
- * mistake an unreadable-but-present secret for "2FA disabled" and let the user
- * in without a code:
- *   - JMAP/transport failure (getMailContext / jmapCall throw),
- *   - a carrier email with our SUBJECT_PREFIX exists but SESSION_SECRET is not
- *     configured (checked BEFORE any decryption), or
- *   - a carrier exists but decryption fails (wrong key, tampered ciphertext).
+ * Returns null ONLY when there is genuinely no 2FA secret (no server-side
+ * record AND no legacy mailbox carrier). It FAILS CLOSED — throws — in every
+ * case where a secret is (or may be) present but cannot be produced, so a
+ * caller (the login gate) can never mistake an unreadable-but-present secret
+ * for "2FA disabled" and let the user in without a code:
+ *   - JMAP/transport failure while resolving the accountId or while checking
+ *     for a legacy carrier (getMailContext / jmapCall throw),
+ *   - a record file exists but is unreadable/corrupt (EACCES, bad JSON, …),
+ *   - a secret is present but SESSION_SECRET is not configured (checked BEFORE
+ *     any decryption), or
+ *   - a secret is present but decryption fails (wrong key, tampered ciphertext).
  */
 export async function readTotpSecretUrl(creds: TwoFactorCreds): Promise<string | null> {
   const ctx = await getMailContext(creds);
-  const mailboxId = await findStoreMailboxId(creds, ctx);
-  if (!mailboxId) return null;
 
-  const ids = await findSecretEmailIds(creds, ctx, mailboxId);
-  if (ids.length === 0) return null;
-
-  const responses = await jmapCall(creds, ctx.apiUrl, [
-    ['Email/get', { accountId: ctx.accountId, ids, properties: ['id', 'subject'] }, '0'],
-  ]);
-  const emails = (resultOf(responses, 'Email/get')?.list ?? []) as Array<{ subject?: string }>;
-  const carriers = emails
-    .map((e) => e.subject ?? '')
-    .filter((s) => s.startsWith(SUBJECT_PREFIX));
-
-  // No carrier with our marker → genuinely no 2FA. (SESSION_SECRET irrelevant:
-  // there is nothing to decrypt.)
-  if (carriers.length === 0) return null;
-
-  // A carrier IS present: from here on we MUST be able to decrypt it or fail
-  // closed. Distinguish a config error (SESSION_SECRET missing) from a
-  // decryption failure, but neither may return null.
-  if (!getSessionSecret()) {
-    throw new Error('2FA secret present but SESSION_SECRET is not configured — refusing to bypass 2FA');
+  // Throws when a record exists but cannot be read → fail closed.
+  const record = await readTwoFactorRecord(ctx.accountId);
+  if (!record) {
+    return migrateLegacyMailboxSecret(creds, ctx);
   }
 
-  let lastError: unknown = null;
-  for (const subject of carriers) {
+  const otpUrl = decryptStoredCiphertext(ctx.accountId, record.ciphertext);
+
+  // A previous migration/enrollment could not reach JMAP to remove the mailbox
+  // carrier — retry now. The secret is already safe server-side, so a failure
+  // here must never break the login.
+  if (record.legacyCleanupPending) {
     try {
-      return decryptSecretUrl(ctx.accountId, subject.slice(SUBJECT_PREFIX.length));
+      await purgeLegacyMailbox(creds, ctx);
+      await writeTwoFactorRecord(ctx.accountId, record.ciphertext, { legacyCleanupPending: false });
     } catch (error) {
-      lastError = error;
+      logger.warn('Deferred legacy 2FA mailbox cleanup failed, will retry', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
     }
   }
-  throw new Error(
-    `2FA secret present but could not be decrypted (failing closed): ${
-      lastError instanceof Error ? lastError.message : 'unknown error'
-    }`,
-  );
+  return otpUrl;
 }
 
 /** True when a usable TOTP secret is stored for this account. */
@@ -306,55 +410,50 @@ export async function hasTotpSecret(creds: TwoFactorCreds): Promise<boolean> {
 }
 
 /**
- * Encrypt and persist the `otpauth://` URL as the single carrier Email,
- * replacing any previous one. Idempotent: old carrier emails are destroyed in
- * the same `Email/set`.
+ * Encrypt and persist the `otpauth://` URL in the server-side store, replacing
+ * any previous secret. Throws when it cannot be persisted — the caller must not
+ * report a successful enrollment for a secret we did not store.
+ *
+ * Also sweeps away a legacy in-mailbox carrier (an account enrolled before the
+ * move to server-side storage), so a stale carrier can never resurface as an
+ * outdated secret. The record is written FIRST, so a JMAP failure during the
+ * sweep cannot lose the new secret; the cleanup is then retried on the next read.
  */
 export async function writeTotpSecretUrl(creds: TwoFactorCreds, otpUrl: string): Promise<void> {
   if (!otpUrl.startsWith('otpauth://')) {
     throw new Error('Invalid otpauth URL');
   }
   const ctx = await getMailContext(creds);
-  const mailboxId = await findOrCreateStoreMailboxId(creds, ctx);
-  const staleIds = await findSecretEmailIds(creds, ctx, mailboxId);
-
   const ciphertext = encryptSecretUrl(ctx.accountId, otpUrl);
-  const createId = 'secret';
-  const emailData: Record<string, unknown> = {
-    mailboxIds: { [mailboxId]: true },
-    keywords: { [MARKER_KEYWORD]: true, $seen: true },
-    subject: SUBJECT_PREFIX + ciphertext,
-    bodyValues: { '1': { value: BODY_NOTE } },
-    textBody: [{ partId: '1', type: 'text/plain' }],
-  };
 
-  const setArgs: Record<string, unknown> = {
-    accountId: ctx.accountId,
-    create: { [createId]: emailData },
-  };
-  if (staleIds.length > 0) setArgs.destroy = staleIds;
-
-  const responses = await jmapCall(creds, ctx.apiUrl, [['Email/set', setArgs, '0']]);
-  const setResult = resultOf(responses, 'Email/set');
-  const notCreated = (setResult?.notCreated as Record<string, { description?: string; type?: string }> | undefined)?.[createId];
-  if (notCreated) {
-    throw new Error(notCreated.description || notCreated.type || 'Failed to store 2FA secret');
-  }
-  const created = (setResult?.created as Record<string, { id?: string }> | undefined)?.[createId];
-  if (!created?.id) {
-    throw new Error('Failed to store 2FA secret: server returned no id');
+  await writeTwoFactorRecord(ctx.accountId, ciphertext, { legacyCleanupPending: true });
+  try {
+    await purgeLegacyMailbox(creds, ctx);
+    await writeTwoFactorRecord(ctx.accountId, ciphertext, { legacyCleanupPending: false });
+  } catch (error) {
+    logger.warn('2FA secret stored, but legacy mailbox cleanup failed (will retry on next read)', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
   }
 }
 
-/** Remove every carrier Email, disabling webmail-managed 2FA for this account. */
+/**
+ * Remove the stored secret, disabling webmail-managed 2FA for this account.
+ * Deletes the server-side record and any legacy in-mailbox carrier.
+ *
+ * NOTE: the webmail no longer exposes this (the `disable` action is a hard 403 —
+ * 2FA is managed centrally); it stays part of the module API for administrative
+ * use and for re-enrollment tooling.
+ */
 export async function clearTotpSecret(creds: TwoFactorCreds): Promise<void> {
   const ctx = await getMailContext(creds);
-  const mailboxId = await findStoreMailboxId(creds, ctx);
-  if (!mailboxId) return;
-  const ids = await findSecretEmailIds(creds, ctx, mailboxId);
-  if (ids.length === 0) return;
-  await jmapCall(creds, ctx.apiUrl, [
-    ['Email/set', { accountId: ctx.accountId, destroy: ids }, '0'],
-  ]);
+  await deleteTwoFactorRecord(ctx.accountId);
+  try {
+    await purgeLegacyMailbox(creds, ctx);
+  } catch (error) {
+    logger.warn('Legacy 2FA mailbox cleanup failed while clearing secret', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
   logger.info('Cleared webmail-managed 2FA secret');
 }
