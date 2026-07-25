@@ -26,11 +26,20 @@ const LANDING_URL = process.env.LANDING_URL || 'https://namailu.cz/';
 export async function GET(_request: NextRequest) {
   try {
     const cookieStore = await cookies();
+    // Mažou se jen sloty, které prohlížeč SKUTEČNĚ má. `MAX_ACCOUNT_SLOTS` je 50, takže
+    // mazání naslepo znamenalo ~200 `Set-Cookie` hlaviček — nginx takovou odpověď odmítne
+    // (`upstream sent too big header`) a uživatel místo odhlášení dostane 502. Nahlášeno
+    // z provozu 25.7.2026.
+    const present = new Set(cookieStore.getAll().map((c) => c.name));
     for (let i = 0; i < MAX_ACCOUNT_SLOTS; i++) {
-      cookieStore.delete(sessionCookieName(i));
+      const names = [sessionCookieName(i), refreshTokenCookieName(i),
+                     refreshTokenServerCookieName(i)];
+      const used = names.some((n) => present.has(n));
+      if (!used && i > 0) continue;      // slot 0 čistíme vždy (ctx cookie může mít jiný název)
+      for (const n of names) {
+        if (present.has(n)) cookieStore.delete(n);
+      }
       clearStalwartAuthContextInStore(cookieStore, i);
-      cookieStore.delete(refreshTokenCookieName(i));
-      cookieStore.delete(refreshTokenServerCookieName(i));
     }
   } catch (error) {
     // Neúspěch mazání nesmí uživatele nechat viset na chybové stránce — pošli ho na landing tak jako tak.
