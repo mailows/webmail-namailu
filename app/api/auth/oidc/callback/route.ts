@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { isRpEnabled } from '@/lib/oidc/rp-config';
+import { isRpEnabled, publicOrigin } from '@/lib/oidc/rp-config';
 import { exchangeCode, TokenRejected } from '@/lib/oidc/token';
 import { verifyAccessToken } from '@/lib/oidc/verify';
 import { jmapServerUrl, resumePath } from '@/lib/oidc/rp-runtime';
@@ -88,8 +88,11 @@ export async function GET(request: NextRequest) {
 
   // Redirect na resume stránku, ne rovnou do aplikace: SPA si tam vyzvedne access token
   // z `/api/auth/oidc/session` a teprve pak se přepne do přihlášeného stavu.
+  // Origin bereme z konfigurace (publicOrigin = https://namailu.cz), NE z request.nextUrl —
+  // ten za reverzní proxy může nabýt interní bind adresy (0.0.0.0:3000) a redirect pak vedl
+  // do prázdna. viz F3.
   const response = NextResponse.redirect(
-    new URL(resumePath(pending.next), request.nextUrl.origin),
+    new URL(resumePath(pending.next), publicOrigin()),
     302,
   );
   if (tokens.refresh_token) {
