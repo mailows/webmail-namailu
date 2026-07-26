@@ -20,6 +20,22 @@ import contract from '@/oidc-rp.json';
 
 export const OIDC_CLIENT_ID = contract.client_id;
 
+/**
+ * Feature flag režimu Relying Party. **Výchozí stav je vypnuto** a tohle je jediné
+ * místo, kde se to rozhoduje — kdokoli další se ptá téhle funkce, nikdo nečte
+ * `process.env.OIDC_RP_ENABLED` sám.
+ *
+ * Čte se při každém volání, ne při importu: přepnutí je pak otázka proměnné
+ * v compose a restartu, ne nového buildu, a testy si můžou stav přepínat.
+ *
+ * Bere jen přesné `true`. Překlep (`1`, `yes`, `True `) znamená vypnuto —
+ * u přepínače, který mění přihlašování celého webmailu, je tichý „skoro zapnuto"
+ * horší než hlasité nic.
+ */
+export function isRpEnabled(): boolean {
+  return process.env.OIDC_RP_ENABLED === 'true';
+}
+
 /** Cesta callbacku. Musí odpovídat umístění route handleru v App Routeru. */
 export const OIDC_CALLBACK_PATH = contract.callback_path;
 

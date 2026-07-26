@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { isRpEnabled } from '@/lib/oidc/rp-config';
 
 /**
  * Callback OIDC Relying Party (id.namailu.cz → webmail).
@@ -12,6 +13,13 @@ import { NextRequest, NextResponse } from 'next/server';
  * (server-side, PKCE) přibude v KROKU 3, až bude hotový feature flag.
  */
 export async function GET(request: NextRequest) {
+  // S vypnutým flagem tudy nesmí projít nic. Odpověď je ale pořád aplikační
+  // (JSON s naším klíčem), aby šlo zvenčí ověřit, že registrovaný redirect_uri
+  // míří na živou aplikaci, a ne na 404 od reverzní proxy.
+  if (!isRpEnabled()) {
+    return NextResponse.json({ error: 'rp_disabled' }, { status: 404 });
+  }
+
   const params = request.nextUrl.searchParams;
   const error = params.get('error');
   if (error) {
