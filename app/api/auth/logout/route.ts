@@ -1,23 +1,22 @@
 /**
  * FORK (namailu.cz): jednotné odhlášení — druhá polovina řetězu.
  *
- * Portál na tenhle endpoint posílá uživatele po kliknutí na „Odhlásit": smažeme VŠECHNY
- * webmailové session cookies (všechny sloty) a pošleme ho na landing. Bez toho by logout
- * z portálu byl poloviční — webmailová session (30 dní) by přežila a z landingu vede na
- * webmail jeden proklik, takže „odhlášená" schránka by byla na jeden klik zpět otevřená.
+ * Smaže VŠECHNY webmailové session cookies (legacy sloty + RP oidc_id/oidc_rt) a redirectne:
+ *  - uživatelské odhlášení (bez from_idp) → IdP /logout (RP režim), ten orchestrueje plné SLO
+ *    (idp_session + portál v DB + redirect-chain sem s from_idp=1).
+ *  - from_idp=1 (návrat z IdP) → landing.
  *
- * GET (ne DELETE) schválně: musí to fungovat jako obyčejný redirect z cizího originu.
- * Jediný účinek je zahození vlastní session, cíl je pevný z env → žádný open redirect.
- * Vynucené odhlášení zvenčí (CSRF) je obtěžování, ne únik dat.
+ * GET (ne DELETE) schválně: musí fungovat jako redirect z cizího originu. Cíl pevný z env,
+ * žádný open redirect. Vynucené odhlášení zvenčí (CSRF) je obtěžování, ne únik.
  *
- * TOTP „trust" cookie se ZÁMĚRNĚ nemaže — je vázaná na otisk secretu a sama o sobě přístup
- * nedává (heslo je pořád potřeba). Odhlášení nemá uživatele připravit o 7denní důvěru zařízení.
+ * ⚠️ Cookies se MAŽÍ na `response.cookies`, ne na `cookies()` z next/headers — mutace ze
+ * `cookies()` store se na vrácený NextResponse.redirect NEPROJEVÍ (odpověď pak neměla
+ * Set-Cookie a RP session přežila). Nahlášeno z provozu 26.7.2026.
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { logger } from '@/lib/logger';
 import { sessionCookieName } from '@/lib/auth/session-cookie';
-import { clearStalwartAuthContextInStore } from '@/lib/stalwart/auth-context';
 import { refreshTokenCookieName, refreshTokenServerCookieName } from '@/lib/oauth/tokens';
 import { MAX_ACCOUNT_SLOTS } from '@/lib/account-utils';
 import { isRpEnabled, OIDC_ISSUER } from '@/lib/oidc/rp-config';
@@ -27,43 +26,34 @@ const LANDING_URL = process.env.LANDING_URL || 'https://namailu.cz/';
 
 export async function GET(request: NextRequest) {
   const fromIdp = request.nextUrl.searchParams.get('from_idp') === '1';
+  // Response se buildí PŘED mazáním — cookies mažeme na ní, ať Set-Cookie dorazí.
+  const target = fromIdp
+    ? LANDING_URL
+    : (isRpEnabled() ? `${OIDC_ISSUER}/logout` : LANDING_URL);
+  const response = NextResponse.redirect(target, fromIdp ? 303 : 302);
+  response.headers.set('Cache-Control', 'no-store');
   try {
     const cookieStore = await cookies();
-    // Mažou se jen sloty, které prohlížeč SKUTEČNĚ má. `MAX_ACCOUNT_SLOTS` je 50, takže
-    // mazání naslepo znamenalo ~200 `Set-Cookie` hlaviček — nginx takovou odpověď odmítne
-    // (`upstream sent too big header`) a uživatel místo odhlášení dostane 502. Nahlášeno
-    // z provozu 25.7.2026.
+    // Jen sloty, které prohlížeč SKUTEČNĚ má (jinak ~200 Set-Cookie → nginx 502).
     const present = new Set(cookieStore.getAll().map((c) => c.name));
     for (let i = 0; i < MAX_ACCOUNT_SLOTS; i++) {
       const names = [sessionCookieName(i), refreshTokenCookieName(i),
                      refreshTokenServerCookieName(i)];
       const used = names.some((n) => present.has(n));
-      if (!used && i > 0) continue;      // slot 0 čistíme vždy (ctx cookie může mít jiný název)
+      if (!used && i > 0) continue;      // slot 0 čistíme vždy
       for (const n of names) {
-        if (present.has(n)) cookieStore.delete(n);
+        if (present.has(n)) response.cookies.delete(n);
       }
-      clearStalwartAuthContextInStore(cookieStore, i);
     }
-    // RP režim: session žije v OIDC cookies (oidc_id, oidc_rt), ne v legacy slotech.
-    // Bez toho by je /api/auth/logout nemažal a uživatel by po reloadu byl zpět přihlášen.
+    // RP režim: session žije v oidc_id + oidc_rt. Bez jejich smazání by přežila logout.
     for (const n of [OIDC_IDENTITY_COOKIE, OIDC_REFRESH_COOKIE, OIDC_PENDING_COOKIE]) {
-      if (present.has(n)) cookieStore.delete(n);
+      if (present.has(n)) response.cookies.delete(n);
     }
   } catch (error) {
-    // Neúspěch mazání nesmí uživatele nechat viset na chybové stránce — pošli ho na landing tak jako tak.
+    // Neúspěch mazání nesmí uživatele nechat viset — pošleme ho dál tak jako tak.
     logger.error('Logout chain: cookie clear failed', {
       error: error instanceof Error ? error.message : 'Unknown error',
     });
   }
-  // Konec redirect-chain z IdP (from_idp=1): cookies už můžou být smazané, jen dojdeme
-  // na landing. Jinak je to uživatelské odhlášení — v RP režimu pošleme browser na IdP,
-  // který orchestruje plné SLO (idp_session + portál v DB + redirect-chain sem s from_idp=1).
-  // Server-side isRpEnabled (čte env spolehlivě), ne klientový process.env v browseru.
-  if (fromIdp) {
-    return NextResponse.redirect(LANDING_URL, 303);
-  }
-  if (isRpEnabled()) {
-    return NextResponse.redirect(`${OIDC_ISSUER}/logout`, 302);
-  }
-  return NextResponse.redirect(LANDING_URL, 303);
+  return response;
 }
