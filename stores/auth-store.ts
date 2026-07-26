@@ -335,24 +335,12 @@ export function redirectToSingleLogout(): void {
   deliberateLogoutInProgress = true;
   if (typeof window === 'undefined') return;
 
-  const portalUrl = (process.env.NEXT_PUBLIC_PORTAL_URL || 'https://portal.namailu.cz').replace(/\/+$/, '');
-
-  // FÁZE 3: v RP režimu odhlašuje IdP, ne portálový most. Pořadí drží `oidcLogout()` —
-  // nejdřív umře lokální session, teprve pak se prohlížeč pošle dál. Když IdP nebo náš
-  // server selže, skončí uživatel na landingu; přihlášený nezůstane ani v jednom případě.
-  //
-  // Rozhoduje se ze SYNCHRONNÍ cache konfigurace: odhlášení musí odejít hned a čekání na
-  // `/api/config` by mu vložilo do cesty síťové kolo. Prázdná cache = chování jako dřív.
-  if (isRpModeActiveSync()) {
-    // RP režim: odhlášení orchestruje IdP přes reliable redirect-chain. Top-level redirect
-    // na id.namailu.cz/logout: IdP zabije idp_session + portálové session (DB, co-located)
-    // a pošle browser dál na webmail logout, který smaže Lax cookie. Vše odhlášeno,
-    // bez cross-site DELETE tance (který nechodil).
-    replaceWindowLocation(`${OIDC_ISSUER}/logout`);
-    return;
-  }
-
-  replaceWindowLocation(`${portalUrl}/logout-remote`);
+  // RP je jediný produkční režim webmailu, takže odhlášení orchestrueje IdP bez
+  // větvení na klientu. (isRpEnabled/isRpModeActiveSync v prohlížeči nedělá dobrotu:
+  // process.env.OIDC_RP_ENABLED tam neexistuje a cachedConfig má race s načtením.)
+  // Top-level redirect na id.namailu.cz/logout: IdP zabije idp_session + portálové
+  // session (DB) a redirect-chainem pošle browser na webmail logout, co smaže Lax cookie.
+  replaceWindowLocation(`${OIDC_ISSUER}/logout`);
 }
 
 function markSessionExpired(): void {

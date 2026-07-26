@@ -6,7 +6,6 @@
  * tím prvním.
  */
 import { MAX_ACCOUNT_SLOTS } from '@/lib/account-utils';
-import { isRpEnabled } from '@/lib/oidc/rp-config';
 
 /** Pevný odkaz do portálu. V RP režimu je jediná platná hodnota (SSO to ošetří). */
 const PORTAL_URL = (process.env.NEXT_PUBLIC_PORTAL_URL || 'https://portal.namailu.cz').replace(/\/+$/, '');
@@ -18,18 +17,16 @@ function slotQuery(slot: number | null | undefined): string {
 }
 
 export function portalHandoffUrl(slot: number | null | undefined): string {
-  // RP režim: žádný handoff most (/api/auth/portal-sso je mrtvý). SSO přes idp_session
-  // to vyřeší — stačí běžný odkaz na portál, /login tam redirectne na IdP, které session
-  // už zná, takže žádné znovuzadávání hesla.
-  if (isRpEnabled()) return PORTAL_URL;
-  return `/api/auth/portal-sso${slotQuery(slot)}`;
+  // RP je jediný produkční režim: žádný handoff most, SSO přes idp_session to vyřeší.
+  // (isRpEnabled v prohlížeči nefunguje — process.env tam není — proto nepodmíněně.)
+  return PORTAL_URL;
 }
 
 export function portalAvailableUrl(slot: number | null | undefined): string {
   return `/api/auth/portal-available${slotQuery(slot)}`;
 }
 
-/** V RP režimu je portál vždy dostupný (stejný IdP). Jinak se ptáme mostu. */
+/** RP je jediný režim → portál je vždy dostupný (stejný IdP). */
 export function portalAlwaysVisible(): boolean {
-  return isRpEnabled();
+  return true;
 }
