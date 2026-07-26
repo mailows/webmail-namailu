@@ -16,7 +16,6 @@ import { generateAccountId } from '@/lib/account-utils';
 import { replaceWindowLocation, getPathPrefix, getLocaleFromPath, apiFetch } from '@/lib/browser-navigation';
 import { notifyParent } from '@/lib/iframe-bridge';
 import { fetchAccessToken, isRpModeActiveSync, landingUrl, markRpSession, oidcLogout, OIDC_SESSION_ENDPOINT } from '@/lib/oidc/rp-client';
-import { OIDC_ISSUER } from '@/lib/oidc/rp-config';
 import { snapshotAccount, restoreAccount, clearAllStores, evictAccount, evictAll } from '@/lib/account-state-manager';
 import type { Identity } from '@/lib/jmap/types';
 
@@ -335,12 +334,10 @@ export function redirectToSingleLogout(): void {
   deliberateLogoutInProgress = true;
   if (typeof window === 'undefined') return;
 
-  // RP je jediný produkční režim webmailu, takže odhlášení orchestrueje IdP bez
-  // větvení na klientu. (isRpEnabled/isRpModeActiveSync v prohlížeči nedělá dobrotu:
-  // process.env.OIDC_RP_ENABLED tam neexistuje a cachedConfig má race s načtením.)
-  // Top-level redirect na id.namailu.cz/logout: IdP zabije idp_session + portálové
-  // session (DB) a redirect-chainem pošle browser na webmail logout, co smaže Lax cookie.
-  replaceWindowLocation(`${OIDC_ISSUER}/logout`);
+  // Server-side /api/auth/logout v RP režimu redirectuje na IdP (reliable — isRpEnabled
+  // na serveru čte env, na rozdíl od process.env v browseru). IdP pak redirect-chainem
+  // zavolá /api/auth/logout?from_idp=1 (jen smazat cookies + landing, ne zpět na IdP).
+  replaceWindowLocation('/api/auth/logout');
 }
 
 function markSessionExpired(): void {

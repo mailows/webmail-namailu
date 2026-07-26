@@ -20,10 +20,12 @@ import { sessionCookieName } from '@/lib/auth/session-cookie';
 import { clearStalwartAuthContextInStore } from '@/lib/stalwart/auth-context';
 import { refreshTokenCookieName, refreshTokenServerCookieName } from '@/lib/oauth/tokens';
 import { MAX_ACCOUNT_SLOTS } from '@/lib/account-utils';
+import { isRpEnabled, OIDC_ISSUER } from '@/lib/oidc/rp-config';
 
 const LANDING_URL = process.env.LANDING_URL || 'https://namailu.cz/';
 
-export async function GET(_request: NextRequest) {
+export async function GET(request: NextRequest) {
+  const fromIdp = request.nextUrl.searchParams.get('from_idp') === '1';
   try {
     const cookieStore = await cookies();
     // Mažou se jen sloty, které prohlížeč SKUTEČNĚ má. `MAX_ACCOUNT_SLOTS` je 50, takže
@@ -46,6 +48,16 @@ export async function GET(_request: NextRequest) {
     logger.error('Logout chain: cookie clear failed', {
       error: error instanceof Error ? error.message : 'Unknown error',
     });
+  }
+  // Konec redirect-chain z IdP (from_idp=1): cookies už můžou být smazané, jen dojdeme
+  // na landing. Jinak je to uživatelské odhlášení — v RP režimu pošleme browser na IdP,
+  // který orchestruje plné SLO (idp_session + portál v DB + redirect-chain sem s from_idp=1).
+  // Server-side isRpEnabled (čte env spolehlivě), ne klientový process.env v browseru.
+  if (fromIdp) {
+    return NextResponse.redirect(LANDING_URL, 303);
+  }
+  if (isRpEnabled()) {
+    return NextResponse.redirect(`${OIDC_ISSUER}/logout`, 302);
   }
   return NextResponse.redirect(LANDING_URL, 303);
 }
