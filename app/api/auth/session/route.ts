@@ -25,11 +25,25 @@ import { recordLogin } from '@/lib/telemetry/login-tracker';
 import { parseJmapServers, resolveTrustedJmapUrl } from '@/lib/admin/jmap-servers';
 import { MAX_ACCOUNT_SLOTS } from '@/lib/account-utils';
 
-function sessionCookieOptions() {
-  return {
-    ...getCookieOptions(),
-    maxAge: SESSION_COOKIE_MAX_AGE,
-  };
+/**
+ * FORK: „zapamatovat si mě" rozhoduje o DÉLCE session, ne o její existenci.
+ *
+ * Upstream při nezaškrtnutém políčku nezapisoval cookie vůbec, takže session nepřežila
+ * ani načtení stránky — odskok do portálu a zpět uživatele vyhodil na login. Dvě různé
+ * věci se tím slily do jednoho zaškrtávátka.
+ *
+ * Nově:
+ *   `persist = false` → session cookie BEZ expirace: platí, dokud uživatel nezavře prohlížeč;
+ *   `persist = true`  → 30 dní, tedy i přes restart prohlížeče.
+ *
+ * Je to i bezpečnější v praxi: dokud byla jediná použitelná volba „pamatovat 30 dní",
+ * zaškrtávali ji lidé jen proto, aby je webmail nevyhazoval.
+ */
+function sessionCookieOptions(persist: boolean) {
+  const base = getCookieOptions();
+  if (persist) return { ...base, maxAge: SESSION_COOKIE_MAX_AGE };
+  const { maxAge: _dropped, ...withoutExpiry } = base;
+  return withoutExpiry;
 }
 
 function getSlot(request: NextRequest): number {
@@ -218,10 +232,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (persist) {
-      const token = encryptSession(normalizedServerUrl, username, password);
-      cookieStore.set(cookieName, token, sessionCookieOptions());
-    }
+    const token = encryptSession(normalizedServerUrl, username, password);
+    cookieStore.set(cookieName, token, sessionCookieOptions(persist));
     setStalwartAuthContextInStore(cookieStore, slot, {
       serverUrl: normalizedServerUrl,
       username,

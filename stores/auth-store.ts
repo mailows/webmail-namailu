@@ -1506,7 +1506,7 @@ export const useAuthStore = create<AuthState>()(
                   targetAccount.cookieSlot,
                 );
               }
-            } else if (targetAccount.authMode === 'basic' && targetAccount.rememberMe) {
+            } else if (targetAccount.authMode === 'basic') {
               const res = await apiFetch(`/api/auth/session?slot=${targetAccount.cookieSlot}`, { method: 'PUT' });
               if (res.ok) {
                 const { serverUrl, username, password } = await res.json();
@@ -1740,14 +1740,11 @@ export const useAuthStore = create<AuthState>()(
           for (const account of accounts) {
             if (clients.has(account.id)) continue; // Already connected
 
-            // Basic auth without rememberMe leaves nothing to restore - the
-            // user logged in without persisting credentials. Evict silently
-            // so the login screen is shown without flagging a fake error.
-            if (account.authMode === 'basic' && !account.rememberMe) {
-              evictAccount(account.id);
-              accountStore.removeAccount(account.id);
-              continue;
-            }
+            // FORK: dřív se tu účet bez „zapamatovat si mě" rovnou zahodil. Jenže
+            // od té doby session cookie existuje i bez něj (jen bez expirace, viz
+            // /api/auth/session) — takže o tom, jestli je co obnovit, rozhoduje
+            // SERVER, ne příznak v localStorage. Když cookie chybí (zavřený
+            // prohlížeč), vrátí PUT 401 a účet se uklidí o pár řádků níž.
 
             try {
               if (account.authMode === 'oauth') {
