@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, AlertCircle } from "lucide-react";
 import { useAuthStore } from "@/stores/auth-store";
 import { toRouterPath } from "@/lib/browser-navigation";
+import { locales } from "@/i18n/routing";
 
 /**
  * Návrat z IdP (fáze 3).
@@ -29,7 +30,12 @@ function ResumeInner() {
     started.current = true;
 
     const next = searchParams.get("next") || "/";
-    const safeNext = next.startsWith("/") && !next.startsWith("//") ? next : "/";
+    // `next` přijde z login flow jako window.location.pathname — tedy S LOCALE prefixem
+    // (např. /cs). next-intl router přidá locale sám, takže ho tady stripneme, jinak by
+    // vzniklo /cs/cs. Stejně to funguje pro /cs/calendar → /calendar.
+    const localeRe = new RegExp(`^/(${locales.join("|")})(?=/|$)`);
+    const stripped = next.replace(localeRe, "") || "/";
+    const safeNext = stripped.startsWith("/") && !stripped.startsWith("//") ? stripped : "/";
 
     loginWithOidc()
       .then((ok) => {
