@@ -1,0 +1,7 @@
+{
+  "_comment": "Kontrakt mezi webmailem (OIDC Relying Party) a IdP na id.namailu.cz. JEDINÝ zdroj pravdy o redirect_uri; control plane si tenhle soubor SYNCHRONIZUJE (scripts/sync_oidc_contract.sh v repu server-runbook) a registruje z něj klienta. Neopisovat ručně nikam jinam.",
+  "client_id": "webmail",
+  "origin": "https://namailu.cz",
+  "callback_path": "/api/auth/oidc/callback",
+  "redirect_uri": "https://namailu.cz/api/auth/oidc/callback"
+}
