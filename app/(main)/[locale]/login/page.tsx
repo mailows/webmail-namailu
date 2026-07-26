@@ -13,6 +13,7 @@ import { useThemeStore } from "@/stores/theme-store";
 import { useShallow } from "zustand/react/shallow";
 import { useConfig } from "@/hooks/use-config";
 import { apiFetch, getPathPrefix, toRouterPath, withBasePath } from "@/lib/browser-navigation";
+import { startOidcLogin } from "@/lib/oidc/rp-client";
 import { cn } from "@/lib/utils";
 import { AlertCircle, Loader2, X, Info, Eye, EyeOff, LogIn, Sun, Moon, Monitor, Check, Shield, Play, Copy } from "lucide-react";
 import { type OAuthMetadata } from "@/lib/oauth/discovery";
@@ -136,7 +137,7 @@ export default function LoginPage() {
   // FORK: schránka bez 2FA (typicky ji založil admin domény) — gate místo session nabídne enroll.
   const enrollOffer = useAuthStore((s) => s.enrollOffer);
   const { theme, setTheme, initializeTheme } = useThemeStore(useShallow((s) => ({ theme: s.theme, setTheme: s.setTheme, initializeTheme: s.initializeTheme })));
-  const { appName, jmapServerUrl: configuredServerUrl, oauthEnabled, oauthOnly, oauthClientId: globalOauthClientId, oauthIssuerUrl: globalOauthIssuerUrl, oauthScopes, rememberMeEnabled, devMode, demoMode, loginLogoLightUrl, loginLogoDarkUrl, loginCompanyName, loginImprintUrl, loginPrivacyPolicyUrl, loginWebsiteUrl, loginLogoMaxHeight, loginLogoMaxWidth, loginShowHeading, loginShowSubtitle, loginShowTotp, loginShowVersion, isLoading: configLoading, error: configError, autoSsoEnabled, embeddedMode: _embeddedMode, allowCustomJmapEndpoint, jmapServers, jmapServerAutoPickByDomain } = useConfig();
+  const { appName, jmapServerUrl: configuredServerUrl, oidcRpEnabled, oauthEnabled, oauthOnly, oauthClientId: globalOauthClientId, oauthIssuerUrl: globalOauthIssuerUrl, oauthScopes, rememberMeEnabled, devMode, demoMode, loginLogoLightUrl, loginLogoDarkUrl, loginCompanyName, loginImprintUrl, loginPrivacyPolicyUrl, loginWebsiteUrl, loginLogoMaxHeight, loginLogoMaxWidth, loginShowHeading, loginShowSubtitle, loginShowTotp, loginShowVersion, isLoading: configLoading, error: configError, autoSsoEnabled, embeddedMode: _embeddedMode, allowCustomJmapEndpoint, jmapServers, jmapServerAutoPickByDomain } = useConfig();
   const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
 
   // Login logo sizing: when a max height/width is configured, drop the fixed
@@ -194,6 +195,24 @@ export default function LoginPage() {
   useEffect(() => {
     initializeTheme();
   }, [initializeTheme]);
+
+  // FÁZE 3: v RP režimu se ve webmailu nepřihlašuje nikdo. Přihlašovací formulář ani
+  // krok s TOTP se nezobrazí — místo toho jde uživatel rovnou na IdP (top-level 302
+  // z našeho /api/auth/oidc/start, které drží PKCE verifier na serveru).
+  //
+  // `next` nese cestu, na kterou uživatel původně mířil, aby se po přihlášení vrátil
+  // tam, a ne na kořen.
+  useEffect(() => {
+    if (configLoading || !oidcRpEnabled || isAuthenticated) return;
+    let next = "/";
+    try {
+      const saved = sessionStorage.getItem("redirect_after_login");
+      if (saved && saved.startsWith("/") && !saved.startsWith("//")) next = saved;
+    } catch {
+      /* privátní režim: prostě se vrátíme na kořen */
+    }
+    startOidcLogin(next);
+  }, [configLoading, oidcRpEnabled, isAuthenticated]);
 
   useEffect(() => {
     if (serverUrl) {
@@ -458,7 +477,8 @@ export default function LoginPage() {
     setShowThemeMenu(false);
   }, [setTheme]);
 
-  if (configLoading) {
+  // V RP režimu se formulář nevykreslí vůbec — jen než odskok na IdP odejde.
+  if (configLoading || (oidcRpEnabled && !isAuthenticated)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted/30">
         <div className="w-full max-w-sm mx-auto px-4 text-center" role="status">

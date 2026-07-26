@@ -1,10 +1,10 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { isRpEnabled } from '@/lib/oidc/rp-config';
 import { GET } from '@/app/api/auth/oidc/callback/route';
-import type { NextRequest } from 'next/server';
+import { makeRequest } from './oidc-test-utils';
 
-function callbackRequest(query: string): NextRequest {
-  return { nextUrl: new URL(`https://namailu.cz/api/auth/oidc/callback${query}`) } as NextRequest;
+function callbackRequest(query: string) {
+  return makeRequest(`https://namailu.cz/api/auth/oidc/callback${query}`);
 }
 
 describe('feature flag režimu Relying Party', () => {
@@ -62,6 +62,7 @@ describe('callback se zapnutým flagem', () => {
     process.env.OIDC_RP_ENABLED = 'true';
     const res = await GET(callbackRequest(''));
     expect(res.status).toBe(400);
+    // Bez `code`/`state` se nedostane ani k pending cookie.
     await expect(res.json()).resolves.toEqual({ error: 'invalid_request' });
   });
 

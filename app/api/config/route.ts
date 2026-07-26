@@ -4,6 +4,7 @@ import { configManager } from '@/lib/admin/config-manager';
 import { parseJmapServers, redactJmapServers } from '@/lib/admin/jmap-servers';
 import { hasSessionSecret } from '@/lib/auth/session-secret';
 import { getOauthScopes } from '@/lib/oauth/tokens';
+import { isRpEnabled } from '@/lib/oidc/rp-config';
 import {
   matchDomainBranding,
   parseDomainBranding,
@@ -58,6 +59,9 @@ export async function GET(request: NextRequest) {
       jmapServerUrl,
       oauthEnabled,
       oauthOnly,
+      // FORK: režim OIDC Relying Party. Hodnota jde ze serverové isRpEnabled(), aby
+      // prohlížeč nemohl mít jiný názor než server.
+      oidcRpEnabled: isRpEnabled(),
       oauthClientId: configManager.get<string>('oauthClientId', ''),
       oauthIssuerUrl: configManager.get<string>('oauthIssuerUrl', ''),
       oauthScopes: getOauthScopes(),

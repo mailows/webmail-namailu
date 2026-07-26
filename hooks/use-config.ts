@@ -10,6 +10,8 @@ interface ConfigData {
   jmapServerUrl: string;
   oauthEnabled: boolean;
   oauthOnly: boolean;
+  /** FORK: režim OIDC Relying Party (fáze 3). Jediný zdroj pro prohlížeč. */
+  oidcRpEnabled: boolean;
   oauthClientId: string;
   oauthIssuerUrl: string;
   oauthScopes: string;
@@ -48,6 +50,14 @@ interface AppConfig extends ConfigData {
 
 let configCache: ConfigData | null = null;
 let configPromise: Promise<ConfigData> | null = null;
+
+/**
+ * Poslední načtená konfigurace, bez čekání. Používá se tam, kde se rozhoduje synchronně
+ * (odhlášení) — `null` znamená „ještě nevíme" a volající se má zachovat jako dřív.
+ */
+export function cachedConfig(): ConfigData | null {
+  return configCache;
+}
 
 export async function fetchConfig(): Promise<ConfigData> {
   // Return cached config if available
@@ -94,6 +104,7 @@ export function useConfig(): AppConfig {
     appName: configCache?.appName || 'Webmail',
     jmapServerUrl: configCache?.jmapServerUrl || '',
     oauthEnabled: configCache?.oauthEnabled || false,
+    oidcRpEnabled: configCache?.oidcRpEnabled || false,
     oauthOnly: configCache?.oauthOnly || false,
     oauthClientId: configCache?.oauthClientId || '',
     oauthIssuerUrl: configCache?.oauthIssuerUrl || '',
@@ -135,6 +146,7 @@ export function useConfig(): AppConfig {
         appName: configCache.appName,
         jmapServerUrl: configCache.jmapServerUrl,
         oauthEnabled: configCache.oauthEnabled,
+        oidcRpEnabled: configCache.oidcRpEnabled,
         oauthOnly: configCache.oauthOnly,
         oauthClientId: configCache.oauthClientId,
         oauthIssuerUrl: configCache.oauthIssuerUrl,
@@ -177,6 +189,7 @@ export function useConfig(): AppConfig {
           appName: data.appName,
           jmapServerUrl: data.jmapServerUrl,
           oauthEnabled: data.oauthEnabled,
+          oidcRpEnabled: data.oidcRpEnabled === true,
           oauthOnly: data.oauthOnly,
           oauthClientId: data.oauthClientId,
           oauthIssuerUrl: data.oauthIssuerUrl,

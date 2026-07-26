@@ -18,6 +18,7 @@ import { createHmac, timingSafeEqual } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 
 import { logger } from '@/lib/logger';
+import { bridgeIsDead } from '@/lib/oidc/bridges';
 import { writeTotpSecretUrl, clearTotpSecret } from '@/lib/twofactor/store';
 
 const MAX_AGE_S = 60;
@@ -33,6 +34,12 @@ function serverUrl(): string {
 }
 
 export async function POST(request: NextRequest) {
+  // MOST 1/5 (fáze 3): v RP režimu je 2FA výhradně věcí portálu — seedovat secret sem
+  // nemá kdo a nemá proč. 404, ne 403: endpoint pro RP režim prostě neexistuje.
+  if (bridgeIsDead('totp-seed')) {
+    return NextResponse.json({ error: 'bridge_disabled' }, { status: 404 });
+  }
+
   const shared = process.env.SSO_SHARED_SECRET || '';
   if (!shared) {
     logger.warn('admin 2FA: SSO_SHARED_SECRET není nastavený — endpoint je vypnutý');

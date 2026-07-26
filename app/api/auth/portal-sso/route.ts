@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createHmac, randomBytes } from 'crypto';
 import { logger } from '@/lib/logger';
 import { getStalwartCredentials } from '@/lib/stalwart/credentials';
+import { bridgeIsDead } from '@/lib/oidc/bridges';
 
 /**
  * Portal SSO handoff (namailu fork).
@@ -35,6 +36,12 @@ export const runtime = 'nodejs';
 const PORTAL_URL = (process.env.NEXT_PUBLIC_PORTAL_URL || 'https://portal.namailu.cz').replace(/\/+$/, '');
 
 export async function GET(request: NextRequest) {
+  // MOST 3/5 (fáze 3): přechod do portálu už není podepsaný handoff, ale běžné
+  // přihlášení proti témuž IdP.
+  if (bridgeIsDead('portal-handoff')) {
+    return NextResponse.json({ error: 'bridge_disabled' }, { status: 404 });
+  }
+
   const portalHome = PORTAL_URL;
 
   const context = await getStalwartCredentials(request);

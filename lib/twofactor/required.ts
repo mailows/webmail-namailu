@@ -23,6 +23,7 @@
 import { createHmac, randomBytes } from 'crypto';
 
 import { logger } from '@/lib/logger';
+import { bridgeIsDead } from '@/lib/oidc/bridges';
 
 const CACHE_TTL_MS = 10 * 60 * 1000;
 
@@ -53,6 +54,9 @@ function portalUrl(): string {
 }
 
 async function fetchPolicy(username: string): Promise<boolean | null | undefined> {
+  // MOST 5/5 (fáze 3): v RP režimu 2FA vynucuje portál při přihlášení, takže tenhle
+  // dotaz nemá koho ovlivnit — a hlavně se nesmí poslat.
+  if (bridgeIsDead('twofactor-policy')) return undefined;
   const shared = process.env.SSO_SHARED_SECRET || '';
   if (!shared) {
     // Bez secretu je endpoint na druhé straně vypnutý. Hádat odpověď je horší než nevědět.

@@ -20,6 +20,18 @@ import contract from '@/oidc-rp.json';
 
 export const OIDC_CLIENT_ID = contract.client_id;
 
+/** Issuer našeho IdP. Musí sedět na `iss` v tokenu i na `issuer` v discovery. */
+export const OIDC_ISSUER = contract.issuer;
+
+/**
+ * `aud` v access tokenu je **`stalwart`**, ne `webmail` — token se vydává pro mailserver
+ * a webmail ho jen nese. Ověřujeme ho proto na tuhle hodnotu; kdyby se kontroloval na
+ * client_id, neprošel by ani platný token.
+ */
+export const OIDC_ACCESS_TOKEN_AUDIENCE = contract.access_token_audience;
+
+export const OIDC_SCOPE = contract.scope;
+
 /**
  * Feature flag režimu Relying Party. **Výchozí stav je vypnuto** a tohle je jediné
  * místo, kde se to rozhoduje — kdokoli další se ptá téhle funkce, nikdo nečte

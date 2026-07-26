@@ -50,8 +50,13 @@ describe('kontrakt redirect_uri', () => {
 
   it('kontrakt drží tvar, na který spoléhá control plane', () => {
     expect(Object.keys(contract).sort()).toEqual(
-      ['_comment', 'callback_path', 'client_id', 'origin', 'redirect_uri'].sort()
+      ['_comment', 'access_token_audience', 'callback_path', 'client_id', 'issuer',
+       'origin', 'redirect_uri', 'scope'].sort()
     );
+    expect(contract.issuer).toBe('https://id.namailu.cz');
+    // `aud` tokenu je mailserver, ne webmail — kdyby se to opravilo „na klienta",
+    // přestal by procházet i platný token.
+    expect(contract.access_token_audience).toBe('stalwart');
     expect(contract.client_id).toBe('webmail');
   });
 });

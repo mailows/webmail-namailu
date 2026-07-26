@@ -12,8 +12,15 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { getStalwartCredentials } from '@/lib/stalwart/credentials';
 import { portalAccountExists } from '@/lib/portal/account-check';
+import { bridgeIsDead } from '@/lib/oidc/bridges';
 
 export async function GET(request: NextRequest) {
+  // MOST 2/5 (fáze 3): v RP režimu je účet jeden a odkaz do portálu se řídí IdP, ne
+  // dotazem přes sdílený secret.
+  if (bridgeIsDead('portal-account')) {
+    return NextResponse.json({ available: false }, { status: 404 });
+  }
+
   const context = await getStalwartCredentials(request);
   if (!context) {
     return NextResponse.json({ available: false }, { status: 401 });

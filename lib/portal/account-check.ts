@@ -16,6 +16,7 @@
 import { createHmac, randomBytes } from 'crypto';
 
 import { logger } from '@/lib/logger';
+import { bridgeIsDead } from '@/lib/oidc/bridges';
 
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const cache = new Map<string, { value: boolean; at: number }>();
@@ -35,6 +36,10 @@ function portalUrl(): string {
  */
 export async function portalAccountExists(username: string): Promise<boolean> {
   if (!username) return false;
+
+  // MOST 2/5 (fáze 3): s RP režimem se portál neptáme vůbec — žádný odchozí dotaz,
+  // žádný sdílený secret na drátě. Odkaz do portálu se v tom režimu řeší jinudy.
+  if (bridgeIsDead('portal-account')) return false;
 
   const hit = cache.get(username);
   if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.value;

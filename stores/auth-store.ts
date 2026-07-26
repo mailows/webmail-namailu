@@ -15,6 +15,7 @@ import { debug } from '@/lib/debug';
 import { generateAccountId } from '@/lib/account-utils';
 import { replaceWindowLocation, getPathPrefix, getLocaleFromPath, apiFetch } from '@/lib/browser-navigation';
 import { notifyParent } from '@/lib/iframe-bridge';
+import { fetchAccessToken, isRpModeActiveSync, landingUrl, markRpSession, oidcLogout, OIDC_SESSION_ENDPOINT } from '@/lib/oidc/rp-client';
 import { snapshotAccount, restoreAccount, clearAllStores, evictAccount, evictAll } from '@/lib/account-state-manager';
 import type { Identity } from '@/lib/jmap/types';
 
@@ -42,6 +43,8 @@ interface AuthState {
   login: (serverUrl: string, username: string, password: string, totp?: string, rememberMe?: boolean) => Promise<boolean>;
   loginWithOAuth: (serverUrl: string, code: string, codeVerifier: string, redirectUri: string, serverId?: string) => Promise<boolean>;
   loginWithServerSso: (code: string, state: string) => Promise<boolean>;
+  /** FORK fáze 3: přihlášení z RP session (po návratu z IdP i po reloadu stránky). */
+  loginWithOidc: () => Promise<boolean>;
   loginDemo: () => Promise<boolean>;
   refreshAccessToken: () => Promise<string | null>;
   /** FORK: `expired` = session vypršela (vede na login s hláškou), jinak jde řetěz odhlášení přes portál. */
@@ -332,6 +335,18 @@ export function redirectToSingleLogout(): void {
   if (typeof window === 'undefined') return;
 
   const portalUrl = (process.env.NEXT_PUBLIC_PORTAL_URL || 'https://portal.namailu.cz').replace(/\/+$/, '');
+
+  // FÁZE 3: v RP režimu odhlašuje IdP, ne portálový most. Pořadí drží `oidcLogout()` —
+  // nejdřív umře lokální session, teprve pak se prohlížeč pošle dál. Když IdP nebo náš
+  // server selže, skončí uživatel na landingu; přihlášený nezůstane ani v jednom případě.
+  //
+  // Rozhoduje se ze SYNCHRONNÍ cache konfigurace: odhlášení musí odejít hned a čekání na
+  // `/api/config` by mu vložilo do cesty síťové kolo. Prázdná cache = chování jako dřív.
+  if (isRpModeActiveSync()) {
+    void oidcLogout(landingUrl());
+    return;
+  }
+
   replaceWindowLocation(`${portalUrl}/logout-remote`);
 }
 
@@ -582,6 +597,105 @@ function performFullLogout(set: (state: Partial<AuthState>) => void): void {
   // doesn't re-write stale values.
   try { localStorage.removeItem('auth-storage'); } catch { /* noop */ }
   try { localStorage.removeItem('account-storage'); } catch { /* noop */ }
+}
+
+/**
+ * Společný závěr přihlášení Bearer tokenem.
+ *
+ * Sdílí ho server-side SSO (starý most, po cutoveru zmizí) a RP režim (fáze 3). Dokud
+ * to byly dvě kopie, znamenala každá oprava dvě místa — a jedno se vždycky zapomnělo.
+ *
+ * `notifyEmbedder` je kvůli tomu, že RP cesta **žádný postMessage neposílá**: běží jako
+ * top-level navigace, ne v cizím rámu.
+ */
+async function finishBearerLogin(
+  set: (state: Partial<AuthState>) => void,
+  get: () => AuthState,
+  opts: { serverUrl: string; accessToken: string; expiresIn: number; slot: number; notifyEmbedder: boolean },
+): Promise<boolean> {
+  const { serverUrl, accessToken, expiresIn, slot, notifyEmbedder } = opts;
+  const accountStore = useAccountStore.getState();
+
+  const refreshFn = get().refreshAccessToken;
+  const client = JMAPClient.withBearer(serverUrl, accessToken, '', () => refreshFn());
+  await client.connect();
+
+  const jmapUsername = client.getUsername();
+  const { identities, primaryIdentity } = loadIdentities(await client.getIdentities(), jmapUsername);
+  // For SSO/OIDC, the JMAP session account name may be the
+  // preferred_username claim rather than the real email address.
+  // Prefer the email from the primary identity when available.
+  const username = primaryIdentity?.email || jmapUsername;
+  initializeFeatureStores(client);
+
+  const accountId = generateAccountId(username, serverUrl);
+
+  const prevAccountId = get().activeAccountId;
+  if (prevAccountId && prevAccountId !== accountId) {
+    snapshotAccount(prevAccountId);
+    clearAllStores();
+  }
+
+  clients.set(accountId, client);
+  bindClientStatusHandlers(client, set, get, accountId);
+
+  accountStore.addAccount({
+    label: primaryIdentity?.name || username,
+    serverUrl: serverUrl,
+    username,
+    authMode: 'oauth',
+    rememberMe: true,
+    displayName: primaryIdentity?.name || username,
+    email: primaryIdentity?.email || username,
+    lastLoginAt: Date.now(),
+    isConnected: true,
+    hasError: false,
+    isDefault: accountStore.accounts.length === 0,
+  });
+  // The refresh-token cookie was written to `slot` by /api/auth/sso/complete.
+  // Force the stored cookieSlot to match - see loginWithOAuth above for the
+  // re-add and concurrent-tab cases this guards against.
+  accountStore.updateAccount(accountId, { cookieSlot: slot });
+  accountStore.setActiveAccount(accountId);
+
+  await syncStalwartAuthContext(serverUrl, username, client.getAuthHeader(), slot);
+
+  set({
+    isAuthenticated: true,
+    isLoading: false,
+    serverUrl: serverUrl,
+    username,
+    client,
+    ...getClientRateLimitState(client),
+    identities,
+    primaryIdentity,
+    authMode: 'oauth',
+    accessToken: accessToken,
+    tokenExpiresAt: Date.now() + expiresIn * 1000,
+    connectionLost: false,
+    error: null,
+    activeAccountId: accountId,
+  });
+
+  import('@/stores/email-store').then(({ useEmailStore }) => {
+    useEmailStore.getState().prefetchInitialData(client).catch((err) => {
+      debug.error('Initial data prefetch failed:', err);
+    });
+  }).catch(() => {});
+
+  scheduleRefresh(expiresIn, get().refreshAccessToken, accountId);
+
+  if (notifyEmbedder) notifyParent('sso:auth-success', { username });
+
+  fetchConfig().then(cfg => {
+    if (!cfg.settingsSyncEnabled) return;
+    useSettingsStore.getState().loadFromServer(username, serverUrl).finally(() => {
+      useSettingsStore.getState().enableSync(username, serverUrl);
+      applyPreferredIdentity(accountId);
+    });
+  }).catch(() => {});
+
+  return true;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -1034,86 +1148,13 @@ export const useAuthStore = create<AuthState>()(
             throw new Error('Server URL not configured');
           }
 
-          const refreshFn = get().refreshAccessToken;
-          const client = JMAPClient.withBearer(ssoServerUrl, access_token, '', () => refreshFn());
-          await client.connect();
-
-          const jmapUsername = client.getUsername();
-          const { identities, primaryIdentity } = loadIdentities(await client.getIdentities(), jmapUsername);
-          // For SSO/OIDC, the JMAP session account name may be the
-          // preferred_username claim rather than the real email address.
-          // Prefer the email from the primary identity when available.
-          const username = primaryIdentity?.email || jmapUsername;
-          initializeFeatureStores(client);
-
-          const accountId = generateAccountId(username, ssoServerUrl);
-
-          const prevAccountId = get().activeAccountId;
-          if (prevAccountId && prevAccountId !== accountId) {
-            snapshotAccount(prevAccountId);
-            clearAllStores();
-          }
-
-          clients.set(accountId, client);
-          bindClientStatusHandlers(client, set, get, accountId);
-
-          accountStore.addAccount({
-            label: primaryIdentity?.name || username,
+          return finishBearerLogin(set, get, {
             serverUrl: ssoServerUrl,
-            username,
-            authMode: 'oauth',
-            rememberMe: true,
-            displayName: primaryIdentity?.name || username,
-            email: primaryIdentity?.email || username,
-            lastLoginAt: Date.now(),
-            isConnected: true,
-            hasError: false,
-            isDefault: accountStore.accounts.length === 0,
-          });
-          // The refresh-token cookie was written to `slot` by /api/auth/sso/complete.
-          // Force the stored cookieSlot to match - see loginWithOAuth above for the
-          // re-add and concurrent-tab cases this guards against.
-          accountStore.updateAccount(accountId, { cookieSlot: slot });
-          accountStore.setActiveAccount(accountId);
-
-          await syncStalwartAuthContext(ssoServerUrl, username, client.getAuthHeader(), slot);
-
-          set({
-            isAuthenticated: true,
-            isLoading: false,
-            serverUrl: ssoServerUrl,
-            username,
-            client,
-            ...getClientRateLimitState(client),
-            identities,
-            primaryIdentity,
-            authMode: 'oauth',
             accessToken: access_token,
-            tokenExpiresAt: Date.now() + expires_in * 1000,
-            connectionLost: false,
-            error: null,
-            activeAccountId: accountId,
+            expiresIn: expires_in,
+            slot,
+            notifyEmbedder: true,
           });
-
-          import('@/stores/email-store').then(({ useEmailStore }) => {
-            useEmailStore.getState().prefetchInitialData(client).catch((err) => {
-              debug.error('Initial data prefetch failed:', err);
-            });
-          }).catch(() => {});
-
-          scheduleRefresh(expires_in, get().refreshAccessToken, accountId);
-
-          notifyParent('sso:auth-success', { username });
-
-          fetchConfig().then(cfg => {
-            if (!cfg.settingsSyncEnabled) return;
-            useSettingsStore.getState().loadFromServer(username, ssoServerUrl).finally(() => {
-              useSettingsStore.getState().enableSync(username, ssoServerUrl);
-              applyPreferredIdentity(accountId);
-            });
-          }).catch(() => {});
-
-          return true;
         } catch (error) {
           debug.error('Server SSO login error:', error);
           const errorMsg = error instanceof Error ? error.message : 'generic';
@@ -1124,6 +1165,56 @@ export const useAuthStore = create<AuthState>()(
             isAuthenticated: false,
             isRateLimited: false,
             rateLimitUntil: null,
+            client: null,
+          });
+          return false;
+        }
+      },
+
+      /**
+       * FORK fáze 3: přihlášení z RP session.
+       *
+       * Nedostává ani kód, ani token — ty zná jen server. Vyzvedne si čerstvý access
+       * token ze `/api/auth/oidc/session` (autorizuje httpOnly refresh cookie) a dál je
+       * to obyčejné Bearer přihlášení. Token zůstává v paměti store; do `localStorage`
+       * se nepersistuje (viz `partialize` níž).
+       */
+      loginWithOidc: async () => {
+        set({ isLoading: true, error: null, isRateLimited: false, rateLimitUntil: null });
+        try {
+          const res = await apiFetch(OIDC_SESSION_ENDPOINT, { method: 'GET', credentials: 'include' });
+          if (!res.ok) {
+            const body = await res.json().catch(() => ({ error: 'oidc_session_failed' }));
+            throw new Error(body.error || 'oidc_session_failed');
+          }
+          const { serverUrl, username, access_token, expires_in } = await res.json();
+          if (!serverUrl) throw new Error('Server URL not configured');
+          // Od téhle chvíle obnova tokenu ví, kam patří, i kdyby konfigurace ještě nedošla.
+          markRpSession();
+
+          // Slot 0: RP režim nemá „+ Přidat účet" přes IdP — jedna session, jedna schránka.
+          // Kdyby to jednou mělo být víc účtů, půjde to sem, ne do cookies napříč flow.
+          const ok = await finishBearerLogin(set, get, {
+            serverUrl,
+            accessToken: access_token,
+            expiresIn: expires_in,
+            slot: 0,
+            notifyEmbedder: false,
+          });
+          if (ok && username) {
+            // Adresa z tokenu je autorita; JMAP session name může být preferred_username.
+            const account = useAccountStore.getState().getAccountById(get().activeAccountId ?? '');
+            if (account && !account.email) {
+              useAccountStore.getState().updateAccount(account.id, { email: username });
+            }
+          }
+          return ok;
+        } catch (error) {
+          debug.error('OIDC login error:', error);
+          set({
+            isLoading: false,
+            error: error instanceof Error ? error.message : 'generic',
+            isAuthenticated: false,
             client: null,
           });
           return false;
@@ -1143,7 +1234,9 @@ export const useAuthStore = create<AuthState>()(
 
         const promise = (async () => {
           try {
-            const res = await apiFetch(`/api/auth/token?slot=${slot}`, { method: 'PUT' });
+            // V RP režimu jde obnova na naši session (single-flight je na serveru);
+            // jinak na upstreamový /api/auth/token. Tvar odpovědi je stejný.
+            const res = await fetchAccessToken(slot);
 
             if (!res.ok) {
               // Only a definitive 401 ends the session. Anything else (5xx
@@ -1397,7 +1490,7 @@ export const useAuthStore = create<AuthState>()(
           // Client not connected - try to restore
           try {
             if (targetAccount.authMode === 'oauth') {
-              const res = await apiFetch(`/api/auth/token?slot=${targetAccount.cookieSlot}`, { method: 'PUT' });
+              const res = await fetchAccessToken(targetAccount.cookieSlot);
               if (res.ok) {
                 const { access_token, expires_in } = await res.json();
                 const refreshFn = get().refreshAccessToken;
