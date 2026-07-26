@@ -2,16 +2,12 @@
  * FORK (namailu.cz): jednotné odhlášení — druhá polovina řetězu.
  *
  * Smaže VŠECHNY webmailové session cookies (legacy sloty + RP oidc_id/oidc_rt) a redirectne:
- *  - uživatelské odhlášení (bez from_idp) → IdP /logout (RP režim), ten orchestrueje plné SLO
- *    (idp_session + portál v DB + redirect-chain sem s from_idp=1).
+ *  - uživatelské odhlášení (bez from_idp) → IdP /logout (RP režim), ten orchestrueje plné SLO.
  *  - from_idp=1 (návrat z IdP) → landing.
  *
- * GET (ne DELETE) schválně: musí fungovat jako redirect z cizího originu. Cíl pevný z env,
- * žádný open redirect. Vynucené odhlášení zvenčí (CSRF) je obtěžování, ne únik.
- *
- * ⚠️ Cookies se MAŽÍ na `response.cookies`, ne na `cookies()` z next/headers — mutace ze
- * `cookies()` store se na vrácený NextResponse.redirect NEPROJEVÍ (odpověď pak neměla
- * Set-Cookie a RP session přežila). Nahlášeno z provozu 26.7.2026.
+ * ⚠️ Cookies mažeme RUČNÍMI Set-Cookie hlavičkami (response.headers.append), ne přes
+ * cookies()/response.cookies API — v Next.js (node:24) se ty mutace na NextResponse.redirect
+ * neprojevovaly (odpověď neměla Set-Cookie, RP session přežila logout). Nahlášeno 26.7.2026.
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
@@ -26,15 +22,22 @@ const LANDING_URL = process.env.LANDING_URL || 'https://namailu.cz/';
 
 export async function GET(request: NextRequest) {
   const fromIdp = request.nextUrl.searchParams.get('from_idp') === '1';
-  // Response se buildí PŘED mazáním — cookies mažeme na ní, ať Set-Cookie dorazí.
   const target = fromIdp
     ? LANDING_URL
     : (isRpEnabled() ? `${OIDC_ISSUER}/logout` : LANDING_URL);
   const response = NextResponse.redirect(target, fromIdp ? 303 : 302);
   response.headers.set('Cache-Control', 'no-store');
+
+  // Ruční Set-Cookie s explicitním smazáním — garantuje hlavičku v odpovědi.
+  const kill = (name: string) => {
+    response.headers.append(
+      'Set-Cookie',
+      `${name}=; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/; HttpOnly; Secure; SameSite=Lax`,
+    );
+  };
+
   try {
     const cookieStore = await cookies();
-    // Jen sloty, které prohlížeč SKUTEČNĚ má (jinak ~200 Set-Cookie → nginx 502).
     const present = new Set(cookieStore.getAll().map((c) => c.name));
     for (let i = 0; i < MAX_ACCOUNT_SLOTS; i++) {
       const names = [sessionCookieName(i), refreshTokenCookieName(i),
@@ -42,18 +45,17 @@ export async function GET(request: NextRequest) {
       const used = names.some((n) => present.has(n));
       if (!used && i > 0) continue;      // slot 0 čistíme vždy
       for (const n of names) {
-        if (present.has(n)) response.cookies.delete(n);
+        if (present.has(n)) kill(n);
       }
     }
-    // RP režim: session žije v oidc_id + oidc_rt. Bez jejich smazání by přežila logout.
-    for (const n of [OIDC_IDENTITY_COOKIE, OIDC_REFRESH_COOKIE, OIDC_PENDING_COOKIE]) {
-      if (present.has(n)) response.cookies.delete(n);
-    }
   } catch (error) {
-    // Neúspěch mazání nesmí uživatele nechat viset — pošleme ho dál tak jako tak.
-    logger.error('Logout chain: cookie clear failed', {
+    logger.error('Logout chain: legacy cookie read failed', {
       error: error instanceof Error ? error.message : 'Unknown error',
     });
   }
+  // RP session — vždy (3 hlavičky, ne závisí na tom, jestli getAll() něco vidí).
+  kill(OIDC_IDENTITY_COOKIE);
+  kill(OIDC_REFRESH_COOKIE);
+  kill(OIDC_PENDING_COOKIE);
   return response;
 }
