@@ -767,7 +767,7 @@ export function NavigationRail({
                 role="menu"
               >
                 <button
-                  onClick={() => { setLogoutMenuOpen(false); logout(); }}
+                  onClick={() => { setLogoutMenuOpen(false); window.location.assign('/api/auth/logout'); }}
                   className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-foreground hover:bg-muted transition-colors"
                   role="menuitem"
                 >
@@ -776,7 +776,7 @@ export function NavigationRail({
                 </button>
                 {accounts.length > 1 && (
                   <button
-                    onClick={() => { setLogoutMenuOpen(false); logoutAll(); }}
+                    onClick={() => { setLogoutMenuOpen(false); window.location.assign('/api/auth/logout'); }}
                     className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-destructive hover:bg-muted transition-colors"
                     role="menuitem"
                   >
