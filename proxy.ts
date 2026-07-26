@@ -169,6 +169,19 @@ export async function proxy(request: NextRequest) {
   }
 
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+
+  // HSTS. Doplněno ve fázi 3 (namailu.cz): měřením hlaviček reálné odpovědi se ukázalo,
+  // že webmail ho neposílá — reverzní proxy ho na tomhle vhostu nepřidává a aplikace ho
+  // neměla. U režimu, kde access token žije v paměti prohlížeče, na tom záleží: bez HSTS
+  // stačí jedno http:// kolo k tomu, aby session cestovala v otevřené podobě.
+  //
+  // Jen na https požadavcích: přes http je hlavička ignorovaná a v lokálním vývoji
+  // (http://localhost) by jen zbytečně zamykala doménu.
+  const forwardedProto = request.headers.get("x-forwarded-proto")?.split(",")[0].trim();
+  const isHttps = forwardedProto === "https" || request.nextUrl.protocol === "https:";
+  if (isHttps) {
+    response.headers.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains");
+  }
   response.headers.set("X-XSS-Protection", "0");
   response.headers.set(
     "Permissions-Policy",
