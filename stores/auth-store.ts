@@ -13,7 +13,7 @@ import { useAccountStore } from './account-store';
 import { fetchConfig } from '@/hooks/use-config';
 import { debug } from '@/lib/debug';
 import { generateAccountId } from '@/lib/account-utils';
-import { replaceWindowLocation, getPathPrefix, getLocaleFromPath, apiFetch } from '@/lib/browser-navigation';
+import { replaceWindowLocation, getPathPrefix, getLocaleFromPath, apiFetch, stripLocalePrefix } from '@/lib/browser-navigation';
 import { notifyParent } from '@/lib/iframe-bridge';
 import { fetchAccessToken, isRpModeActiveSync, landingUrl, markRpSession, oidcLogout, OIDC_SESSION_ENDPOINT } from '@/lib/oidc/rp-client';
 import { snapshotAccount, restoreAccount, clearAllStores, evictAccount, evictAll } from '@/lib/account-state-manager';
@@ -294,12 +294,15 @@ function saveRedirectAfterLogin(): void {
   if (typeof window === 'undefined') return;
 
   try {
+    const fullPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
     const loginPath = getLocaleLoginPath();
-    const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
 
-    if (currentPath !== loginPath) {
-      sessionStorage.setItem('redirect_after_login', currentPath);
-    }
+    // Don't store the login page itself as a redirect target.
+    if (fullPath === loginPath) return;
+
+    // Strip locale prefix: next-intl's router adds it back, so storing a
+    // locale-prefixed path (e.g. /cs/calendar) would double to /cs/cs/calendar.
+    sessionStorage.setItem('redirect_after_login', stripLocalePrefix(fullPath));
   } catch {
     /* noop */
   }

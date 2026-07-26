@@ -1,11 +1,11 @@
 "use client";
 
 import { Suspense, useEffect, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "@/i18n/navigation";
+import { useSearchParams } from "next/navigation";
 import { Loader2, AlertCircle } from "lucide-react";
 import { useAuthStore } from "@/stores/auth-store";
-import { toRouterPath } from "@/lib/browser-navigation";
-import { locales } from "@/i18n/routing";
+import { stripLocalePrefix, toRouterPath } from "@/lib/browser-navigation";
 
 /**
  * Návrat z IdP (fáze 3).
@@ -29,13 +29,11 @@ function ResumeInner() {
     if (started.current) return;
     started.current = true;
 
-    const next = searchParams.get("next") || "/";
-    // `next` přijde z login flow jako window.location.pathname — tedy S LOCALE prefixem
-    // (např. /cs). next-intl router přidá locale sám, takže ho tady stripneme, jinak by
-    // vzniklo /cs/cs. Stejně to funguje pro /cs/calendar → /calendar.
-    const localeRe = new RegExp(`^/(${locales.join("|")})(?=/|$)`);
-    const stripped = next.replace(localeRe, "") || "/";
-    const safeNext = stripped.startsWith("/") && !stripped.startsWith("//") ? stripped : "/";
+    const rawNext = searchParams.get("next") || "/";
+    // next-intl router přidá locale prefix sám, takže `next` musí být locale-relativní.
+    // Po root fixu (stripLocalePrefix při ukládání redirect_after_login) by už měl být
+    // bez locale, ale pro jistotu (staré pending cookies, přímé linky) stripneme znovu.
+    const safeNext = stripLocalePrefix(rawNext);
 
     loginWithOidc()
       .then((ok) => {

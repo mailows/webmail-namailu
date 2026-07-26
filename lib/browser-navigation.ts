@@ -117,6 +117,23 @@ export function toRouterPath(path: string): string {
 }
 
 /**
+ * Removes the leading locale segment from a path (e.g. `/cs/calendar` → `/calendar`,
+ * `/cs` → `/`). Idempotent: paths without a locale prefix pass through unchanged.
+ *
+ * Under `localePrefix: 'always'`, `window.location.pathname` always includes the
+ * locale (e.g. `/cs`). But next-intl's router adds the locale itself, so any path
+ * stored for later redirect (`redirect_after_login`, OIDC `next`) must be
+ * locale-relative — otherwise the prefix doubles to `/cs/cs`.
+ */
+export function stripLocalePrefix(path: string): string {
+  if (!path || !path.startsWith('/')) return path;
+  const localeRe = new RegExp(`^/(${locales.join('|')})(?=/|\\?|#|$)`);
+  const stripped = path.replace(localeRe, '');
+  if (!stripped || stripped[0] !== '/') return '/' + stripped;
+  return stripped;
+}
+
+/**
  * Extracts the locale from the current URL, skipping any mount prefix.
  * Falls back to 'en' when no known locale segment is found.
  */

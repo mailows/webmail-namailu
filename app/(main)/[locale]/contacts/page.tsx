@@ -22,6 +22,7 @@ import { useContactStore, getContactDisplayName, getContactPrimaryEmail } from "
 import { savePendingMailto } from "@/lib/protocol-handlers/session";
 import { formatRecipient, formatRecipientEntry, type Recipient } from "@/lib/email-composer-utils";
 import { useAuthStore, redirectToLogin } from "@/stores/auth-store";
+import { stripLocalePrefix } from "@/lib/browser-navigation";
 import { useEmailStore } from "@/stores/email-store";
 import { usePolicyStore } from "@/stores/policy-store";
 import { toast } from "@/stores/toast-store";
@@ -150,7 +151,7 @@ export default function ContactsPage() {
 
   useEffect(() => {
     if (initialCheckDone && !isAuthenticated && !authLoading) {
-      try { sessionStorage.setItem('redirect_after_login', window.location.pathname); } catch { /* ignore */ }
+      try { sessionStorage.setItem('redirect_after_login', stripLocalePrefix(window.location.pathname)); } catch { /* ignore */ }
       redirectToLogin();
     }
   }, [initialCheckDone, isAuthenticated, authLoading]);

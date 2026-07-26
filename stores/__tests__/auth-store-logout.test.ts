@@ -114,7 +114,7 @@ describe('auth-store logout redirects', () => {
     await vi.runAllTimersAsync();
 
     expect(sessionStorage.getItem('session_expired')).toBe('true');
-    expect(sessionStorage.getItem('redirect_after_login')).toBe('/en/calendar?view=day');
+    expect(sessionStorage.getItem('redirect_after_login')).toBe('/calendar?view=day');
     expect(replaceSpy).toHaveBeenCalledWith('/en/login');
   });
 

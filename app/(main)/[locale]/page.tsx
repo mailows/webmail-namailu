@@ -20,6 +20,7 @@ import { KeyboardShortcutsModal } from "@/components/keyboard-shortcuts-modal";
 import { useEmailStore, buildUnifiedAccountClients } from "@/stores/email-store";
 import { toast } from "@/stores/toast-store";
 import { useAuthStore, redirectToLogin } from "@/stores/auth-store";
+import { stripLocalePrefix } from "@/lib/browser-navigation";
 import { useSettingsStore } from "@/stores/settings-store";
 import { useContactStore } from "@/stores/contact-store";
 import { useIdentityStore } from "@/stores/identity-store";
@@ -870,7 +871,7 @@ export default function Home() {
   // Redirect to login if not authenticated
   useEffect(() => {
     if (initialCheckDone && !isAuthenticated && !authLoading) {
-      try { sessionStorage.setItem('redirect_after_login', window.location.pathname); } catch { /* ignore */ }
+      try { sessionStorage.setItem('redirect_after_login', stripLocalePrefix(window.location.pathname)); } catch { /* ignore */ }
       redirectToLogin();
     }
   }, [initialCheckDone, isAuthenticated, authLoading]);
