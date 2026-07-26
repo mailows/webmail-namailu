@@ -21,6 +21,7 @@ import { clearStalwartAuthContextInStore } from '@/lib/stalwart/auth-context';
 import { refreshTokenCookieName, refreshTokenServerCookieName } from '@/lib/oauth/tokens';
 import { MAX_ACCOUNT_SLOTS } from '@/lib/account-utils';
 import { isRpEnabled, OIDC_ISSUER } from '@/lib/oidc/rp-config';
+import { OIDC_IDENTITY_COOKIE, OIDC_PENDING_COOKIE, OIDC_REFRESH_COOKIE } from '@/lib/oidc/cookies';
 
 const LANDING_URL = process.env.LANDING_URL || 'https://namailu.cz/';
 
@@ -42,6 +43,11 @@ export async function GET(request: NextRequest) {
         if (present.has(n)) cookieStore.delete(n);
       }
       clearStalwartAuthContextInStore(cookieStore, i);
+    }
+    // RP režim: session žije v OIDC cookies (oidc_id, oidc_rt), ne v legacy slotech.
+    // Bez toho by je /api/auth/logout nemažal a uživatel by po reloadu byl zpět přihlášen.
+    for (const n of [OIDC_IDENTITY_COOKIE, OIDC_REFRESH_COOKIE, OIDC_PENDING_COOKIE]) {
+      if (present.has(n)) cookieStore.delete(n);
     }
   } catch (error) {
     // Neúspěch mazání nesmí uživatele nechat viset na chybové stránce — pošli ho na landing tak jako tak.
