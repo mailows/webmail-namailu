@@ -766,23 +766,25 @@ export function NavigationRail({
                 className="w-56 rounded-lg border border-border bg-background text-foreground shadow-lg z-50 overflow-hidden"
                 role="menu"
               >
-                <button
-                  onClick={() => { setLogoutMenuOpen(false); window.location.assign('https://id.namailu.cz/logout'); }}
+                <a
+                  href="https://id.namailu.cz/logout"
+                  onClick={() => setLogoutMenuOpen(false)}
                   className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-foreground hover:bg-muted transition-colors"
                   role="menuitem"
                 >
                   <LogOut className="w-4 h-4" />
                   {t("sign_out")}
-                </button>
+                </a>
                 {accounts.length > 1 && (
-                  <button
-                    onClick={() => { setLogoutMenuOpen(false); window.location.assign('https://id.namailu.cz/logout'); }}
+                  <a
+                    href="https://id.namailu.cz/logout"
+                    onClick={() => setLogoutMenuOpen(false)}
                     className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-destructive hover:bg-muted transition-colors"
                     role="menuitem"
                   >
                     <LogOut className="w-4 h-4" />
                     {t("sign_out_all")}
-                  </button>
+                  </a>
                 )}
               </div>,
               document.body
