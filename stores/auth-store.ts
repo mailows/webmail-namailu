@@ -16,6 +16,7 @@ import { generateAccountId } from '@/lib/account-utils';
 import { replaceWindowLocation, getPathPrefix, getLocaleFromPath, apiFetch } from '@/lib/browser-navigation';
 import { notifyParent } from '@/lib/iframe-bridge';
 import { fetchAccessToken, isRpModeActiveSync, landingUrl, markRpSession, oidcLogout, OIDC_SESSION_ENDPOINT } from '@/lib/oidc/rp-client';
+import { OIDC_ISSUER } from '@/lib/oidc/rp-config';
 import { snapshotAccount, restoreAccount, clearAllStores, evictAccount, evictAll } from '@/lib/account-state-manager';
 import type { Identity } from '@/lib/jmap/types';
 
@@ -343,7 +344,11 @@ export function redirectToSingleLogout(): void {
   // Rozhoduje se ze SYNCHRONNÍ cache konfigurace: odhlášení musí odejít hned a čekání na
   // `/api/config` by mu vložilo do cesty síťové kolo. Prázdná cache = chování jako dřív.
   if (isRpModeActiveSync()) {
-    void oidcLogout(landingUrl());
+    // RP režim: odhlášení orchestruje IdP přes reliable redirect-chain. Top-level redirect
+    // na id.namailu.cz/logout: IdP zabije idp_session + portálové session (DB, co-located)
+    // a pošle browser dál na webmail logout, který smaže Lax cookie. Vše odhlášeno,
+    // bez cross-site DELETE tance (který nechodil).
+    replaceWindowLocation(`${OIDC_ISSUER}/logout`);
     return;
   }
 

@@ -23,7 +23,7 @@ import { cn, formatFileSize } from "@/lib/utils";
 import { PluginSlot } from "@/components/plugins/plugin-slot";
 import { KeyboardShortcutsModal } from "@/components/keyboard-shortcuts-modal";
 import { apiFetch, getPathPrefix, withBasePath } from "@/lib/browser-navigation";
-import { portalAvailableUrl, portalHandoffUrl } from "@/lib/portal/handoff-url";
+import { portalAvailableUrl, portalAlwaysVisible, portalHandoffUrl } from "@/lib/portal/handoff-url";
 import { Avatar } from "@/components/ui/avatar";
 
 interface NavItem {
@@ -213,6 +213,11 @@ export function NavigationRail({
   const activeSlot = useAccountStore((s) =>
     s.accounts.find((a) => a.id === s.activeAccountId)?.cookieSlot ?? null);
   useEffect(() => {
+    // RP režim: portál je dostupný vždy (stejný IdP, SSO), most se neptá (a je mrtvý).
+    if (portalAlwaysVisible()) {
+      setPortalAvailable(true);
+      return;
+    }
     let cancelled = false;
     apiFetch(portalAvailableUrl(activeSlot))
       .then((res) => (res.ok ? res.json() : { available: false }))
