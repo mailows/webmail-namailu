@@ -102,4 +102,21 @@ describe('logout route (single logout chain)', () => {
     expect(res.status).toBe(303);
     expect(deleted).toEqual(expect.arrayContaining(['oidc_rt', 'oidc_id', 'oidc_pending']));
   });
+
+  it('revokes by refresh token server-side without putting the token in a URL', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => ({ ok: true, status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const { GET } = await import('@/app/api/auth/logout/route');
+    await GET({
+      nextUrl: { searchParams: new URLSearchParams() },
+      cookies: { get: (name: string) => name === 'oidc_rt' ? { value: 'secret-refresh' } : undefined },
+    } as never);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('https://id.namailu.cz/logout/revoke');
+    expect(String(url)).not.toContain('secret-refresh');
+    expect(String(init?.body)).toContain('refresh_token=secret-refresh');
+    vi.unstubAllGlobals();
+  });
 });

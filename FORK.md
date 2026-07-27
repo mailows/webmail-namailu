@@ -446,4 +446,5 @@ Nížejší historické kapitoly popisují vývoj forku; nejsou aktuálním prov
   produkčního compose. OIDC není vypínatelná větev.
 - Landing je na samostatném originu `https://www.namailu.cz/`; apex patří jen webmailu.
 - Logout má pevný řetěz webmail → IdP → webmail cleanup → `www`, bez uživatelského
-  `post_logout_redirect_uri`.
+  `post_logout_redirect_uri`. Před redirectem se httpOnly refresh token použije
+  server-to-server na `/logout/revoke`, takže SLO funguje i po expiraci `idp_session`.

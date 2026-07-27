@@ -20,6 +20,33 @@ function legacyTotpTrustCookieName(slot: number): string {
 }
 
 export async function GET(request: NextRequest) {
+  // Server-to-server revokace sváže logout s uživatelem i po vypršení idp_session.
+  // Refresh token zůstává v httpOnly cookie/body; nikdy nejde do URL ani JavaScriptu.
+  const refreshToken = request.cookies?.get(OIDC_REFRESH_COOKIE)?.value;
+  if (refreshToken) {
+    try {
+      const body = new URLSearchParams({
+        client_id: 'webmail',
+        refresh_token: refreshToken,
+      });
+      const revoke = await fetch(`${OIDC_ISSUER}/logout/revoke`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body,
+        cache: 'no-store',
+        signal: AbortSignal.timeout(3000),
+      });
+      if (!revoke.ok) {
+        logger.warn('Logout chain: IdP odmítl server-side revokaci', { status: revoke.status });
+      }
+    } catch (error) {
+      // Lokální logout a top-level IdP cleanup musí pokračovat i při výpadku IdP.
+      logger.warn('Logout chain: server-side revokace IdP selhala', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+
   const fromIdp = request.nextUrl.searchParams.get('from_idp') === '1';
   const response = NextResponse.redirect(
     fromIdp ? LANDING_URL : `${OIDC_ISSUER}/logout`,
