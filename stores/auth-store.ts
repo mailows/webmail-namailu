@@ -15,7 +15,7 @@ import { debug } from '@/lib/debug';
 import { generateAccountId } from '@/lib/account-utils';
 import { replaceWindowLocation, getPathPrefix, getLocaleFromPath, apiFetch, stripLocalePrefix } from '@/lib/browser-navigation';
 import { notifyParent } from '@/lib/iframe-bridge';
-import { fetchAccessToken, isRpModeActiveSync, landingUrl, markRpSession, oidcLogout, OIDC_SESSION_ENDPOINT } from '@/lib/oidc/rp-client';
+import { fetchAccessToken, markRpSession, OIDC_SESSION_ENDPOINT } from '@/lib/oidc/rp-client';
 import { snapshotAccount, restoreAccount, clearAllStores, evictAccount, evictAll } from '@/lib/account-state-manager';
 import type { Identity } from '@/lib/jmap/types';
 
@@ -316,6 +316,11 @@ function saveRedirectAfterLogin(): void {
  */
 let deliberateLogoutInProgress = false;
 
+/** Test isolation for the module-level navigation latch. */
+export function resetLogoutNavigationForTests(): void {
+  deliberateLogoutInProgress = false;
+}
+
 export function redirectToLogin(): void {
   if (typeof window === 'undefined') return;
   if (deliberateLogoutInProgress) return;   // řízení má redirectToSingleLogout()
@@ -326,9 +331,9 @@ export function redirectToLogin(): void {
 }
 
 /**
- * FORK (namailu.cz): záměrné odhlášení nekončí na loginu webmailu, ale projde portálovým
- * `/logout-remote` (zabije i portálovou session) a ten pošle uživatele na landing.
- * Bez toho by logout byl poloviční — portálová session by běžela dál.
+ * FORK (namailu.cz): záměrné odhlášení jde přes webmailový logout endpoint a následně
+ * přes centrální IdP. IdP revokuje svoji session i portálové session a vrátí uživatele
+ * přes webmailový cleanup na samostatný landing origin.
  *
  * Pozor: používat JEN pro odhlášení kliknutím. Vypršelá/neplatná session dál patří na
  * `redirectToLogin()` (uživatel má vidět login s hláškou, ne být vyhozen na landing).
@@ -588,6 +593,12 @@ function performFullLogout(set: (state: Partial<AuthState>) => void): void {
 
   // Remove persisted state AFTER the final set() so the persist middleware
   // doesn't re-write stale values.
+  try { localStorage.removeItem('auth-storage'); } catch { /* noop */ }
+  try { localStorage.removeItem('account-storage'); } catch { /* noop */ }
+}
+
+/** Clear persisted account data without publishing an unauthenticated React state. */
+function clearPersistedAuthState(): void {
   try { localStorage.removeItem('auth-storage'); } catch { /* noop */ }
   try { localStorage.removeItem('account-storage'); } catch { /* noop */ }
 }
@@ -1231,6 +1242,11 @@ export const useAuthStore = create<AuthState>()(
             // jinak na upstreamový /api/auth/token. Tvar odpovědi je stejný.
             const res = await fetchAccessToken(slot);
 
+            // A logout can happen while the refresh request is in flight.  Do
+            // not let its late response re-arm a retry timer or restore a
+            // token after the browser has already been sent to SLO.
+            if (deliberateLogoutInProgress) return null;
+
             if (!res.ok) {
               // Only a definitive 401 ends the session. Anything else (5xx
               // while the server restarts, proxy errors) is an outage - keep
@@ -1276,7 +1292,7 @@ export const useAuthStore = create<AuthState>()(
             // Network failure (offline, Wi-Fi switch, server unreachable) -
             // not a rejection. Keep the session and retry with backoff.
             debug.error('Token refresh failed, retrying with backoff:', error);
-            if (shouldRetryRefresh(accountId ?? undefined)) {
+            if (!deliberateLogoutInProgress && shouldRetryRefresh(accountId ?? undefined)) {
               scheduleRefresh(nextRefreshRetrySeconds(accountId ?? undefined), get().refreshAccessToken, accountId ?? undefined);
             }
             return null;
@@ -1362,12 +1378,24 @@ export const useAuthStore = create<AuthState>()(
               }).catch((err) => debug.error('Failed to load identities after switch:', err));
             }
           } else {
-            // Client not in memory - clear everything and redirect.
-            // Trying to async-restore during logout caused the original bug.
+            // A persisted account without a live client is not an account we
+            // can switch to.  This happens after a reload and was the exact
+            // escape hatch that bypassed SLO: we only deleted the old slot,
+            // navigated to /cs/login, and the still-valid IdP session signed
+            // the user right back in.  A deliberate logout must instead take
+            // the same full server-side logout route as the last account.
             debug.error(`Cannot restore next account ${nextAccount.id}, performing full logout`);
             evictAccount(nextAccount.id);
             accountStore.removeAccount(nextAccount.id);
+            if (!opts?.expired) {
+              notifyParent('sso:logout');
+              clearPersistedAuthState();
+              redirectToSingleLogout();
+              return;
+            }
             performFullLogout(set);
+            redirectToLogin();
+            return;
           }
 
           // Background cookie cleanup for the removed account
@@ -1378,23 +1406,28 @@ export const useAuthStore = create<AuthState>()(
           return;
         }
 
-        // No accounts remaining (or demo mode) - full logout + redirect
+        // A deliberate full logout must start a document navigation *before*
+        // changing React auth state.  Page guards watch isAuthenticated and can
+        // otherwise send the browser to /cs/login in the gap before the logout
+        // navigation gets processed.  The server endpoint clears every legacy
+        // and RP cookie, so no client-side DELETE is needed on this hard exit.
+        if (!opts?.expired) {
+          notifyParent('sso:logout');
+          clearPersistedAuthState();
+          redirectToSingleLogout();
+          return;
+        }
+
+        // An expired session is deliberately different: retain the current
+        // path and show the webmail login flow with the expiry message.
         performFullLogout(set);
-
-        notifyParent('sso:logout');
-
-        // Background cookie/token cleanup - keepalive ensures completion during navigation
         if (!wasDemoMode) {
           apiFetch(`/api/auth/session?slot=${slot}`, { method: 'DELETE', keepalive: true }).catch(() => {});
           if (wasOAuth) {
             apiFetch(`/api/auth/token?slot=${slot}`, { method: 'DELETE', keepalive: true }).catch(() => {});
           }
         }
-
-        // FORK: jednotné odhlášení — přes portálový /logout-remote na landing (ne na login
-        // webmailu), ať nezůstane žít portálová session. Synchronní, až po vyčištění stavu.
-        // Vypršelá session je jiný případ: tam patří login s hláškou, ne vyhození na landing.
-        if (opts?.expired) redirectToLogin(); else redirectToSingleLogout();
+        redirectToLogin();
       },
 
       // Remove a specific (typically non-active) account: tear down its client,
@@ -1424,28 +1457,15 @@ export const useAuthStore = create<AuthState>()(
 
       logoutAll: () => {
         deliberateLogoutInProgress = true;
-        // Disconnect all clients
-        for (const c of clients.values()) {
-          c.disconnect();
-        }
+        // Start the hard navigation before state mutations for the same reason
+        // as logout(): guards must never win the race and land on /cs/login.
+        // /api/auth/logout clears all account slots on the server.
+        for (const client of clients.values()) client.disconnect();
         clients.clear();
         clearAllRefreshTimers();
         evictAll();
-
-        performFullLogout(set);
-
-        // Clear all accounts from registry
-        const accountStore = useAccountStore.getState();
-        const allAccounts = [...accountStore.accounts];
-        for (const account of allAccounts) {
-          accountStore.removeAccount(account.id);
-        }
-
-        // Background cookie/token cleanup
-        apiFetch('/api/auth/session?all=true', { method: 'DELETE', keepalive: true }).catch(() => {});
-        apiFetch('/api/auth/token?all=true', { method: 'DELETE', keepalive: true }).catch(() => {});
-
-        redirectToSingleLogout();   // FORK: viz logout() — odhlásit i portál, přistát na landingu
+        clearPersistedAuthState();
+        redirectToSingleLogout();
       },
 
       switchAccount: async (accountId: string) => {

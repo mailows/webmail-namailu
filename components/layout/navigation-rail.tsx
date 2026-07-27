@@ -23,7 +23,7 @@ import { cn, formatFileSize } from "@/lib/utils";
 import { PluginSlot } from "@/components/plugins/plugin-slot";
 import { KeyboardShortcutsModal } from "@/components/keyboard-shortcuts-modal";
 import { apiFetch, getPathPrefix, withBasePath } from "@/lib/browser-navigation";
-import { portalAvailableUrl, portalAlwaysVisible, portalHandoffUrl } from "@/lib/portal/handoff-url";
+import { portalHandoffUrl } from "@/lib/portal/handoff-url";
 import { Avatar } from "@/components/ui/avatar";
 
 interface NavItem {
@@ -205,26 +205,8 @@ export function NavigationRail({
   const visibleSidebarApps = sidebarAppsEnabled ? sidebarApps : [];
   const inboxUnread = mailboxes.find(m => m.role === "inbox")?.unreadEmails || 0;
   const [isStalwartAdmin, setIsStalwartAdmin] = useState(false);
-  // FORK: odkaz „Portál" jen pro toho, kdo v control-plane opravdu má účet (viz níž u odkazu).
-  // Dokud neodpoví (nebo když portál nejede), odkaz nezobrazujeme — slepý odkaz je horší.
-  const [portalAvailable, setPortalAvailable] = useState(false);
-  // Slot PRÁVĚ AKTIVNÍHO účtu. Bez něj by server vzal první nalezený (slot 0), takže po
-  // přepnutí na druhý účet by odkaz vedl do portálu pod tím prvním.
   const activeSlot = useAccountStore((s) =>
     s.accounts.find((a) => a.id === s.activeAccountId)?.cookieSlot ?? null);
-  useEffect(() => {
-    // RP režim: portál je dostupný vždy (stejný IdP, SSO), most se neptá (a je mrtvý).
-    if (portalAlwaysVisible()) {
-      setPortalAvailable(true);
-      return;
-    }
-    let cancelled = false;
-    apiFetch(portalAvailableUrl(activeSlot))
-      .then((res) => (res.ok ? res.json() : { available: false }))
-      .then((data) => { if (!cancelled) setPortalAvailable(data?.available === true); })
-      .catch(() => { if (!cancelled) setPortalAvailable(false); });
-    return () => { cancelled = true; };
-  }, [activeSlot]);
   const hasUpdate = useUpdateStore(selectHasUpdate);
   const updateSeverity = useUpdateStore((s) => s.status?.severity);
   const startUpdatePolling = useUpdateStore((s) => s.startPolling);
@@ -644,24 +626,14 @@ export function NavigationRail({
           <Settings className="w-[18px] h-[18px]" />
         </Link>
 
-        {/* namailu fork: link to the account portal. Routes through the
-            server-side SSO handoff (/api/auth/portal-sso) so the signed-in
-            mailbox is carried across as a short-lived HMAC token and the user
-            lands in the portal already authenticated. Navigates in the SAME tab
-            (the webmail session cookie survives, so going back keeps you signed in).
-
-            Shown only to users who actually HAVE a portal account: a mailbox on a
-            customer domain is created by the domain admin and has none, so the
-            handoff would just dump them on the portal login. */}
-        {portalAvailable && (
-          <a
-            href={withBasePath(portalHandoffUrl(activeSlot))}
-            className="flex items-center justify-center w-10 h-10 rounded-md transition-colors text-muted-foreground hover:text-foreground hover:bg-muted"
-            title={t("portal")}
-          >
-            <ExternalLink className="w-[18px] h-[18px]" />
-          </a>
-        )}
+        {/* Standardní OIDC SSO: žádný handoff token ani dotaz na portál. */}
+        <a
+          href={withBasePath(portalHandoffUrl(activeSlot))}
+          className="flex items-center justify-center w-10 h-10 rounded-md transition-colors text-muted-foreground hover:text-foreground hover:bg-muted"
+          title={t("portal")}
+        >
+          <ExternalLink className="w-[18px] h-[18px]" />
+        </a>
 
         <div className="w-8 border-t" style={{ borderColor: 'rgba(128, 128, 128, 0.3)' }} />
 

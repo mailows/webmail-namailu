@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { isRpEnabled } from '@/lib/oidc/rp-config';
 import { refreshTokens, TokenRejected } from '@/lib/oidc/token';
 import { verifyAccessToken } from '@/lib/oidc/verify';
 import { getDiscovery } from '@/lib/oidc/discovery';
@@ -38,10 +37,6 @@ function killLocalSession(res: NextResponse): NextResponse {
 }
 
 export async function GET(request: NextRequest) {
-  if (!isRpEnabled()) {
-    return noStore(NextResponse.json({ error: 'rp_disabled' }, { status: 404 }));
-  }
-
   const identity = openIdentity(request.cookies.get(OIDC_IDENTITY_COOKIE)?.value);
   const refreshToken = request.cookies.get(OIDC_REFRESH_COOKIE)?.value;
   if (!identity || !refreshToken) {
@@ -88,11 +83,7 @@ export async function GET(request: NextRequest) {
   return noStore(res);
 }
 
-export async function DELETE(request: NextRequest) {
-  if (!isRpEnabled()) {
-    return noStore(NextResponse.json({ error: 'rp_disabled' }, { status: 404 }));
-  }
-
+export async function DELETE(_request: NextRequest) {
   // POŘADÍ JE ZÁVAZNÉ a drží ho tvar kódu, ne dobrá vůle:
   //  (a) `killLocalSession` se volá na KAŽDÉ návratové cestě a nemůže selhat —
   //      mazání cookies je zápis do odpovědi, ne volání po síti;
@@ -107,10 +98,7 @@ export async function DELETE(request: NextRequest) {
   try {
     const { end_session_endpoint } = await getDiscovery();
     if (end_session_endpoint) {
-      const url = new URL(end_session_endpoint);
-      const post = request.nextUrl.searchParams.get('post_logout_redirect_uri');
-      if (post) url.searchParams.set('post_logout_redirect_uri', post);
-      idpLogoutUrl = url.toString();
+      idpLogoutUrl = new URL(end_session_endpoint).toString();
     }
   } catch (error) {
     logger.warn('OIDC logout: IdP nedosažitelné, lokální odhlášení proběhlo', {

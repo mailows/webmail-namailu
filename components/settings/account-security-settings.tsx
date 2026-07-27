@@ -4,11 +4,10 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import QRCode from 'qrcode';
-import * as OTPAuth from 'otpauth';
-import { Shield, Key, Smartphone, Lock, Trash2, Plus, Eye, EyeOff, Copy, Check, Loader2, Monitor, Terminal, QrCode } from 'lucide-react';
+import { Key, Smartphone, Lock, Trash2, Plus, Eye, EyeOff, Copy, Check, Loader2, Monitor, Terminal, QrCode } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { SettingsSection, SettingItem, ToggleSwitch } from './settings-section';
+import { SettingsSection, SettingItem } from './settings-section';
 import { useAccountSecurityStore, type AppPasswordInfo, type ApiKeyInfo, type AppCredentialInput } from '@/stores/account-security-store';
 import { useAuthStore } from '@/stores/auth-store';
 import { useAccountStore } from '@/stores/account-store';
@@ -175,152 +174,6 @@ function DisplayNameSection() {
         </Button>
       </div>
     </SettingItem>
-  );
-}
-
-function generateTotp(accountLabel: string): { totp: OTPAuth.TOTP; url: string } {
-  const totp = new OTPAuth.TOTP({
-    issuer: 'Stalwart',
-    label: accountLabel || 'account',
-    algorithm: 'SHA1',
-    digits: 6,
-    period: 30,
-    secret: new OTPAuth.Secret({ size: 20 }),
-  });
-  return { totp, url: totp.toString() };
-}
-
-function TotpSection() {
-  const t = useTranslations('settings.security');
-  // namailu fork (2. kolo): 2FA is managed centrally (portal seed) and cannot be
-  // disabled from the webmail. When it is active we only show an informative
-  // status — no disable toggle/dialog. Enrollment stays available as a fallback
-  // when 2FA is not yet active (e.g. if the registration seed failed).
-  const { otpEnabled, enableTotp, isSaving, isLoadingAuth } = useAccountSecurityStore();
-  const { client } = useAuthStore();
-
-  const [setupUrl, setSetupUrl] = useState<string | null>(null);
-  const [setupTotp, setSetupTotp] = useState<OTPAuth.TOTP | null>(null);
-  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
-  const [password, setPassword] = useState('');
-  const [otpCode, setOtpCode] = useState('');
-  const [setupError, setSetupError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!setupUrl) { setQrDataUrl(null); return; }
-    let cancelled = false;
-    QRCode.toDataURL(setupUrl, { width: 220, margin: 1 })
-      .then((url) => { if (!cancelled) setQrDataUrl(url); })
-      .catch(() => { /* ignore */ });
-    return () => { cancelled = true; };
-  }, [setupUrl]);
-
-  const startSetup = () => {
-    const { totp, url } = generateTotp(client?.getUsername() ?? 'account');
-    setSetupTotp(totp);
-    setSetupUrl(url);
-    setPassword('');
-    setOtpCode('');
-    setSetupError(null);
-  };
-
-  const cancelSetup = () => {
-    setSetupTotp(null);
-    setSetupUrl(null);
-    setPassword('');
-    setOtpCode('');
-    setSetupError(null);
-  };
-
-  const confirmSetup = async () => {
-    if (!setupTotp || !setupUrl) return;
-    if (!password) { setSetupError(t('totp.password_required')); return; }
-    if (!otpCode.trim()) { setSetupError(t('totp.code_required')); return; }
-    if (setupTotp.validate({ token: otpCode.trim(), window: 1 }) === null) {
-      setSetupError(t('totp.code_invalid'));
-      return;
-    }
-
-    try {
-      await enableTotp(password, setupUrl, otpCode.trim());
-      cancelSetup();
-      toast.success(t('totp.enabled'));
-    } catch (err) {
-      setSetupError(err instanceof Error ? err.message : t('totp.enable_error'));
-    }
-  };
-
-  // Enrollment only. Disabling 2FA is intentionally not offered here: it is
-  // managed centrally (portal seed) and the backend rejects `disable` with 403.
-  const handleToggle = (enable: boolean) => {
-    setSetupError(null);
-    if (enable) {
-      startSetup();
-    }
-  };
-
-  if (isLoadingAuth) {
-    return (
-      <SettingItem label={t('totp.label')} description={t('totp.description')}>
-        <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-      </SettingItem>
-    );
-  }
-
-  return (
-    <div className="space-y-3">
-      <SettingItem label={t('totp.label')} description={t('totp.description')}>
-        {otpEnabled ? (
-          // 2FA active and centrally managed — informative status only, no
-          // disable control (managed via the portal seed).
-          <span className="text-xs font-medium text-green-600 dark:text-green-400">
-            {t('totp.active_managed')}
-          </span>
-        ) : (
-          <div className="flex items-center gap-2">
-            <ToggleSwitch
-              checked={!!setupUrl}
-              onChange={handleToggle}
-              disabled={isSaving}
-            />
-            <span className="text-xs font-medium text-muted-foreground">
-              {t('totp.inactive')}
-            </span>
-          </div>
-        )}
-      </SettingItem>
-
-      {setupUrl && (
-        <div className="ms-4 p-3 bg-muted rounded-md space-y-3">
-          <p className="text-xs text-muted-foreground">{t('totp.setup_instructions')}</p>
-          {qrDataUrl && (
-            <div className="flex justify-center">
-              <img src={qrDataUrl} alt="TOTP QR code" className="rounded bg-white p-2" />
-            </div>
-          )}
-          <div className="flex items-center gap-2">
-            <code className="text-xs bg-background px-2 py-1 rounded border border-border flex-1 truncate">{setupUrl}</code>
-          </div>
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">{t('password.current')}</label>
-            <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
-          </div>
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">{t('totp.verification_code')}</label>
-            <Input value={otpCode} onChange={(e) => setOtpCode(e.target.value)} inputMode="numeric" maxLength={6} />
-          </div>
-          {setupError && <p className="text-xs text-destructive">{setupError}</p>}
-          <div className="flex gap-2">
-            <Button size="sm" onClick={confirmSetup} disabled={isSaving || !password || !otpCode}>
-              {isSaving ? <Loader2 className="w-4 h-4 me-1 animate-spin" /> : null}
-              {t('totp.confirm')}
-            </Button>
-            <Button size="sm" variant="ghost" onClick={cancelSetup}>{t('app_passwords.cancel')}</Button>
-          </div>
-        </div>
-      )}
-
-    </div>
   );
 }
 
@@ -821,14 +674,6 @@ export function AccountSecuritySettings() {
             <PasswordChangeSection />
             <div className="border-t border-border" />
             <DisplayNameSection />
-            <div className="border-t border-border" />
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <Shield className="w-4 h-4 text-muted-foreground" />
-                <h4 className="text-sm font-medium text-foreground">{t('totp.section_title')}</h4>
-              </div>
-              <TotpSection />
-            </div>
             <div className="border-t border-border" />
           </>
         )}

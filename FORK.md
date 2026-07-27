@@ -431,3 +431,19 @@ Testy: `lib/__tests__/portal-account-check.test.ts` (5) + `tests/portal/test_sso
 v control-plane, vč. obou směrů doménové separace podpisu. Při té příležitosti doplněny chybějící
 klíče překladů ze 2.–3. kola (`sidebar.portal`, `settings.security.totp.active_managed`) do všech
 jazyků — `translations.test.ts` byl kvůli nim červený.
+# Produkční identity cutover — 27. 7. 2026
+
+Aktuální produkční režim je výhradně OIDC RP proti `https://id.namailu.cz`.
+Nížejší historické kapitoly popisují vývoj forku; nejsou aktuálním provozním kontraktem.
+
+- Vlastní portálové mosty `/api/auth/portal-sso` a `/api/auth/portal-available` byly
+  fyzicky odstraněny spolu s jejich moduly.
+- Webmailový TOTP seed/enrollment most (`/api/admin/twofactor`,
+  `/api/account/twofactor`, `lib/twofactor/*`) byl fyzicky odstraněn. 2FA vlastní IdP.
+- Legacy password session už nelze vytvořit ani přečíst: POST/GET/PUT
+  `/api/auth/session` vrací 404. DELETE pouze idempotentně čistí staré cookies.
+- `OIDC_RP_ENABLED`, `SSO_SHARED_SECRET` a `PORTAL_INTERNAL_URL` nejsou součástí
+  produkčního compose. OIDC není vypínatelná větev.
+- Landing je na samostatném originu `https://www.namailu.cz/`; apex patří jen webmailu.
+- Logout má pevný řetěz webmail → IdP → webmail cleanup → `www`, bez uživatelského
+  `post_logout_redirect_uri`.

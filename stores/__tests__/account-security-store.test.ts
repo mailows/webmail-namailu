@@ -20,21 +20,10 @@ vi.mock('@/stores/auth-store', () => ({
   },
 }));
 
-// TOTP is webmail-managed now (not Stalwart AccountPassword): the store reads
-// status and toggles enrollment through /api/account/twofactor via apiFetch.
-vi.mock('@/lib/browser-navigation', () => ({
-  apiFetch: vi.fn(async () => ({ ok: true, json: async () => ({ enabled: false }) })),
-}));
-vi.mock('@/lib/auth/active-account-slot', () => ({
-  getActiveAccountSlotHeaders: () => ({}),
-}));
-
 import { useAccountSecurityStore } from '../account-security-store';
 import { stalwartJmap } from '@/lib/stalwart/jmap-passthrough';
-import { apiFetch } from '@/lib/browser-navigation';
 
 const mockedJmap = stalwartJmap as unknown as ReturnType<typeof vi.fn>;
-const mockedApiFetch = apiFetch as unknown as ReturnType<typeof vi.fn>;
 
 function resetStore() {
   useAccountSecurityStore.getState().clearState();
@@ -43,8 +32,6 @@ function resetStore() {
 describe('account-security-store', () => {
   beforeEach(() => {
     mockedJmap.mockReset();
-    mockedApiFetch.mockReset();
-    mockedApiFetch.mockResolvedValue({ ok: true, json: async () => ({ enabled: false }) });
     resetStore();
   });
 
@@ -58,8 +45,7 @@ describe('account-security-store', () => {
   });
 
   describe('fetchAuthInfo', () => {
-    it('reports TOTP enabled when the webmail 2FA store says enabled', async () => {
-      mockedApiFetch.mockResolvedValue({ ok: true, json: async () => ({ enabled: true }) });
+    it('returns empty credential lists when no credentials exist', async () => {
       mockedJmap.mockResolvedValueOnce([
         ['x:AppPassword/query', { ids: [] }, '1'],
         ['x:ApiKey/query', { ids: [] }, '2'],
@@ -67,22 +53,8 @@ describe('account-security-store', () => {
 
       await useAccountSecurityStore.getState().fetchAuthInfo();
 
-      expect(mockedApiFetch).toHaveBeenCalledWith('/api/account/twofactor', expect.anything());
-      expect(useAccountSecurityStore.getState().otpEnabled).toBe(true);
       expect(useAccountSecurityStore.getState().appPasswords).toEqual([]);
       expect(useAccountSecurityStore.getState().apiKeys).toEqual([]);
-    });
-
-    it('reports TOTP disabled when the webmail 2FA store says disabled', async () => {
-      mockedApiFetch.mockResolvedValue({ ok: true, json: async () => ({ enabled: false }) });
-      mockedJmap.mockResolvedValueOnce([
-        ['x:AppPassword/query', { ids: [] }, '1'],
-        ['x:ApiKey/query', { ids: [] }, '2'],
-      ]);
-
-      await useAccountSecurityStore.getState().fetchAuthInfo();
-
-      expect(useAccountSecurityStore.getState().otpEnabled).toBe(false);
     });
 
     it('resolves app password and api key rows via a single follow-up batch when queries return ids', async () => {
@@ -265,58 +237,6 @@ describe('account-security-store', () => {
     });
   });
 
-  describe('enableTotp / disableTotp', () => {
-    it('enableTotp posts action=enable with otpUrl + otpCode to the webmail 2FA route', async () => {
-      mockedApiFetch.mockResolvedValue({ ok: true, json: async () => ({ ok: true, enabled: true }) });
-
-      await useAccountSecurityStore.getState().enableTotp('pw', 'otpauth://totp/x?secret=S', '123456');
-
-      expect(useAccountSecurityStore.getState().otpEnabled).toBe(true);
-      const [url, init] = mockedApiFetch.mock.calls[0];
-      expect(url).toBe('/api/account/twofactor');
-      expect(init.method).toBe('POST');
-      expect(JSON.parse(init.body)).toEqual({
-        action: 'enable',
-        otpUrl: 'otpauth://totp/x?secret=S',
-        otpCode: '123456',
-      });
-      // Never touches Stalwart's Enterprise AccountPassword.
-      expect(mockedJmap).not.toHaveBeenCalled();
-    });
-
-    it('enableTotp surfaces an invalid-code error from the route', async () => {
-      mockedApiFetch.mockResolvedValue({ ok: false, json: async () => ({ error: 'invalid_code' }) });
-
-      await expect(
-        useAccountSecurityStore.getState().enableTotp('pw', 'otpauth://totp/x?secret=S', '000000'),
-      ).rejects.toThrow(/invalid verification code/i);
-      expect(useAccountSecurityStore.getState().otpEnabled).toBe(false);
-    });
-
-    it('disableTotp posts action=disable with the current code to the webmail 2FA route', async () => {
-      useAccountSecurityStore.setState({ otpEnabled: true });
-      mockedApiFetch.mockResolvedValue({ ok: true, json: async () => ({ ok: true, enabled: false }) });
-
-      await useAccountSecurityStore.getState().disableTotp('654321');
-
-      expect(useAccountSecurityStore.getState().otpEnabled).toBe(false);
-      const [url, init] = mockedApiFetch.mock.calls[0];
-      expect(url).toBe('/api/account/twofactor');
-      expect(JSON.parse(init.body)).toEqual({ action: 'disable', otpCode: '654321' });
-      expect(mockedJmap).not.toHaveBeenCalled();
-    });
-
-    it('disableTotp surfaces a re-auth error when the current code is rejected', async () => {
-      useAccountSecurityStore.setState({ otpEnabled: true });
-      mockedApiFetch.mockResolvedValue({ ok: false, json: async () => ({ error: 'reauth_required' }) });
-
-      await expect(
-        useAccountSecurityStore.getState().disableTotp('000000'),
-      ).rejects.toThrow(/invalid verification code/i);
-      expect(useAccountSecurityStore.getState().otpEnabled).toBe(true);
-    });
-  });
-
   describe('createAppPassword', () => {
     it('returns the server-generated id and secret then refreshes auth info', async () => {
       mockedJmap
@@ -434,7 +354,6 @@ describe('account-security-store', () => {
     it('resets all derived fields back to defaults', () => {
       useAccountSecurityStore.setState({
         isStalwart: true,
-        otpEnabled: true,
         appPasswords: [{ id: 'p', description: 'd', createdAt: null, expiresAt: null, allowedIps: [] }],
         apiKeys: [{ id: 'k', description: 'd', createdAt: null, expiresAt: null, allowedIps: [] }],
         encryptionType: 'Aes256',
@@ -449,7 +368,6 @@ describe('account-security-store', () => {
 
       const state = useAccountSecurityStore.getState();
       expect(state.isStalwart).toBeNull();
-      expect(state.otpEnabled).toBe(false);
       expect(state.appPasswords).toEqual([]);
       expect(state.apiKeys).toEqual([]);
       expect(state.encryptionType).toBe('Disabled');

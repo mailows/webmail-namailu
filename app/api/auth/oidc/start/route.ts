@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { randomBytes, createHash } from 'node:crypto';
 import { getDiscovery } from '@/lib/oidc/discovery';
-import { isRpEnabled, OIDC_CLIENT_ID, OIDC_SCOPE, redirectUri } from '@/lib/oidc/rp-config';
+import { OIDC_CLIENT_ID, OIDC_SCOPE, redirectUri } from '@/lib/oidc/rp-config';
 import {
   OIDC_PENDING_COOKIE,
   PENDING_MAX_AGE_S,
@@ -25,10 +25,6 @@ function b64url(buf: Buffer): string {
 }
 
 export async function GET(request: NextRequest) {
-  if (!isRpEnabled()) {
-    return NextResponse.json({ error: 'rp_disabled' }, { status: 404 });
-  }
-
   const verifier = b64url(randomBytes(32));
   const challenge = b64url(createHash('sha256').update(verifier).digest());
   const state = b64url(randomBytes(16));

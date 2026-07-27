@@ -128,7 +128,10 @@ export function makeRequest(url: string, cookies: Record<string, string> = {}) {
   return {
     nextUrl: parsed,
     url,
-    cookies: { get: (name: string) => (name in cookies ? { value: cookies[name] } : undefined) },
+    cookies: {
+      get: (name: string) => (name in cookies ? { value: cookies[name] } : undefined),
+      getAll: () => Object.entries(cookies).map(([name, value]) => ({ name, value })),
+    },
     headers: new Headers(),
   } as never;
 }

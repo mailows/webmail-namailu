@@ -1,27 +1,20 @@
 /**
  * Klientská (prohlížečová) strana RP režimu.
  *
- * Feature flag se do prohlížeče dostává jedinou cestou — `/api/config`, kde ho vydává
- * serverová `isRpEnabled()`. Žádná druhá `NEXT_PUBLIC_` proměnná, aby nemohlo vzniknout
- * „server si myslí zapnuto, klient vypnuto".
- *
  * Access token tudy prochází do paměti JS a **nikdy** se neukládá do `localStorage`
  * ani `sessionStorage` — zdůvodnění a zbytkové riziko viz `webmail/FORK.md`.
  */
 import { cachedConfig, fetchConfig } from '@/hooks/use-config';
 import { apiFetch, replaceWindowLocation } from '@/lib/browser-navigation';
-import { OIDC_CONTRACT_ORIGIN } from '@/lib/oidc/rp-config';
 
 export const OIDC_START_ENDPOINT = '/api/auth/oidc/start';
 export const OIDC_SESSION_ENDPOINT = '/api/auth/oidc/session';
 
 /**
- * Kam uživatel přistane po odhlášení. Musí sedět na allowlist IdP (`POST_LOGOUT_ALLOWED`),
- * jinak IdP použije svůj default — otevřený redirect po logoutu je klasická cesta, jak
- * uživatele poslat na podvrženou přihlašovací stránku hned po odhlášení.
+ * Landing je na samostatném originu, aby nikdy nedostával webmailové cookies.
  */
 export function landingUrl(): string {
-  return `${OIDC_CONTRACT_ORIGIN}/`;
+  return 'https://www.namailu.cz/';
 }
 
 /**
@@ -89,10 +82,7 @@ export function startOidcLogin(next: string): void {
 export async function oidcLogout(landingUrl: string): Promise<void> {
   let target = landingUrl;
   try {
-    const res = await apiFetch(
-      `${OIDC_SESSION_ENDPOINT}?post_logout_redirect_uri=${encodeURIComponent(landingUrl)}`,
-      { method: 'DELETE', credentials: 'include' },
-    );
+    const res = await apiFetch(OIDC_SESSION_ENDPOINT, { method: 'DELETE', credentials: 'include' });
     if (res.ok) {
       const { idpLogoutUrl } = await res.json();
       if (typeof idpLogoutUrl === 'string' && idpLogoutUrl) target = idpLogoutUrl;

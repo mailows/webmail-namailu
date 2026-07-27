@@ -39,7 +39,6 @@ function serveIdp(over: { tokenStatus?: number; discoveryFails?: boolean } = {})
 }
 
 beforeEach(() => {
-  process.env.OIDC_RP_ENABLED = 'true';
   resetDiscoveryCache();
   resetJwksCache();
   issuedAccessToken = accessToken({ nonce: 'NONCE' });
@@ -48,7 +47,6 @@ beforeEach(() => {
   serveIdp();
 });
 afterEach(() => {
-  delete process.env.OIDC_RP_ENABLED;
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
@@ -94,12 +92,6 @@ describe('/api/auth/oidc/start', () => {
     const res2 = await start(makeRequest(
       'https://namailu.cz/api/auth/oidc/start?next=//evil.test')) as unknown as FakeResponse;
     expect(res2.status).toBe(302);
-  });
-
-  it('s vypnutým flagem nikam nepouští', async () => {
-    delete process.env.OIDC_RP_ENABLED;
-    const res = await start(makeRequest('https://namailu.cz/api/auth/oidc/start')) as unknown as FakeResponse;
-    expect(res.status).toBe(404);
   });
 
   it('nedostupné IdP je 503, ne 500 a ne prázdná stránka', async () => {
@@ -249,8 +241,7 @@ describe('odhlášení', () => {
     expect(res.cookiesDeleted.has(OIDC_REFRESH_COOKIE)).toBe(true);
     expect(res.cookiesDeleted.has(OIDC_IDENTITY_COOKIE)).toBe(true);
     const body = await res.json() as { idpLogoutUrl: string };
-    expect(body.idpLogoutUrl).toContain('https://id.namailu.cz/logout');
-    expect(body.idpLogoutUrl).toContain('post_logout_redirect_uri=');
+    expect(body.idpLogoutUrl).toBe('https://id.namailu.cz/logout');
   });
 
   it('NEDOSTUPNÉ IdP odhlášení nezastaví — lokální session umírá tak jako tak', async () => {
@@ -262,11 +253,5 @@ describe('odhlášení', () => {
     expect(res.cookiesDeleted.has(OIDC_REFRESH_COOKIE)).toBe(true);
     expect(res.cookiesDeleted.has(OIDC_IDENTITY_COOKIE)).toBe(true);
     await expect(res.json()).resolves.toMatchObject({ loggedOut: true, idpLogoutUrl: null });
-  });
-
-  it('s vypnutým flagem neodpovídá vůbec', async () => {
-    delete process.env.OIDC_RP_ENABLED;
-    const res = await logout(makeRequest(sUrl)) as unknown as FakeResponse;
-    expect(res.status).toBe(404);
   });
 });

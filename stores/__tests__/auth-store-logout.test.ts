@@ -1,6 +1,6 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import * as browserNavigation from '@/lib/browser-navigation';
-import { useAuthStore } from '../auth-store';
+import { resetLogoutNavigationForTests, useAuthStore } from '../auth-store';
 import { useAccountStore } from '../account-store';
 
 type FetchInput = Parameters<typeof fetch>[0];
@@ -9,6 +9,7 @@ type FetchInit = Parameters<typeof fetch>[1];
 describe('auth-store logout redirects', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    resetLogoutNavigationForTests();
     sessionStorage.clear();
     localStorage.clear();
     window.history.pushState({}, '', '/en');
@@ -54,8 +55,8 @@ describe('auth-store logout redirects', () => {
 
     useAuthStore.getState().logout();
 
-    expect(replaceSpy).toHaveBeenCalledWith('https://portal.namailu.cz/logout-remote');
-    expect(fetchMock).toHaveBeenCalledWith('/api/auth/session?slot=0', { method: 'DELETE', keepalive: true });
+    expect(replaceSpy).toHaveBeenCalledWith('/api/auth/logout');
+    expect(fetchMock).not.toHaveBeenCalledWith('/api/auth/session?slot=0', { method: 'DELETE', keepalive: true });
   });
 
   // FORK (namailu.cz): každá stránka má stráž `if (!isAuthenticated) redirectToLogin()`.
@@ -74,8 +75,32 @@ describe('auth-store logout redirects', () => {
     const { redirectToLogin } = await import('@/stores/auth-store');
     redirectToLogin();
 
-    expect(replaceSpy).toHaveBeenCalledWith('https://portal.namailu.cz/logout-remote');
+    expect(replaceSpy).toHaveBeenCalledWith('/api/auth/logout');
     expect(replaceSpy).not.toHaveBeenCalledWith('/cs/login');
+  });
+
+  it('uses full SLO when a stale persisted account cannot be restored', () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+    vi.stubGlobal('fetch', fetchMock);
+    const replaceSpy = vi.spyOn(browserNavigation, 'replaceWindowLocation').mockImplementation(() => {});
+    const accountStore = useAccountStore.getState();
+    const activeId = accountStore.addAccount({
+      label: 'Active', serverUrl: 'https://namailu.cz', username: 'active@example.test',
+      authMode: 'oauth', rememberMe: true, displayName: 'Active', email: 'active@example.test',
+      lastLoginAt: Date.now(), isConnected: true, hasError: false, isDefault: true,
+    });
+    accountStore.addAccount({
+      label: 'Stale', serverUrl: 'https://namailu.cz', username: 'stale@example.test',
+      authMode: 'oauth', rememberMe: true, displayName: 'Stale', email: 'stale@example.test',
+      lastLoginAt: Date.now(), isConnected: false, hasError: false, isDefault: false,
+    });
+    accountStore.setActiveAccount(activeId);
+    useAuthStore.setState({ isAuthenticated: true, authMode: 'oauth', activeAccountId: activeId });
+
+    useAuthStore.getState().logout();
+
+    expect(replaceSpy).toHaveBeenCalledWith('/api/auth/logout');
+    expect(fetchMock).not.toHaveBeenCalledWith('/api/auth/session?slot=0', { method: 'DELETE', keepalive: true });
   });
 
   it('marks session expiry, preserves the current path, and redirects to login when the refresh is rejected (401)', async () => {

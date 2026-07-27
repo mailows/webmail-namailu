@@ -6,11 +6,20 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const deleted: string[] = [];
-const clearedCtxSlots: number[] = [];
 
 vi.mock('next/server', () => ({
   NextResponse: {
-    redirect: (url: string | URL, status?: number) => ({ status: status ?? 307, url: String(url) }),
+    redirect: (url: string | URL, status?: number) => ({
+      status: status ?? 307,
+      url: String(url),
+      cookies: { delete: (name: string) => { deleted.push(name); } },
+      headers: {
+        set: () => {},
+        append: (name: string, value: string) => {
+          if (name.toLowerCase() === 'set-cookie') deleted.push(value.split('=', 1)[0]);
+        },
+      },
+    }),
   },
 }));
 
@@ -25,19 +34,21 @@ vi.mock('next/headers', () => ({
 
 vi.mock('@/lib/logger', () => ({ logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() } }));
 vi.mock('@/lib/auth/session-cookie', () => ({ sessionCookieName: (s: number) => `jmap_session_${s}` }));
-vi.mock('@/lib/stalwart/auth-context', () => ({
-  clearStalwartAuthContextInStore: (_store: unknown, slot: number) => { clearedCtxSlots.push(slot); },
-}));
 vi.mock('@/lib/oauth/tokens', () => ({
   refreshTokenCookieName: (s: number) => `rt_${s}`,
   refreshTokenServerCookieName: (s: number) => `rts_${s}`,
 }));
 vi.mock('@/lib/account-utils', () => ({ MAX_ACCOUNT_SLOTS: 50 }));
+vi.mock('@/lib/oidc/rp-config', () => ({
+  OIDC_ISSUER: 'https://id.namailu.cz',
+}));
+vi.mock('@/lib/oidc/cookies', () => ({
+  OIDC_REFRESH_COOKIE: 'oidc_rt', OIDC_IDENTITY_COOKIE: 'oidc_id', OIDC_PENDING_COOKIE: 'oidc_pending',
+}));
 
 describe('logout route (single logout chain)', () => {
   beforeEach(() => {
     deleted.length = 0;
-    clearedCtxSlots.length = 0;
     presentCookies = [];
     vi.resetModules();
   });
@@ -45,11 +56,10 @@ describe('logout route (single logout chain)', () => {
   it('clears the session cookies of every slot the browser actually has', async () => {
     presentCookies = ['jmap_session_0', 'jmap_session_2', 'rt_2'];
     const { GET } = await import('@/app/api/auth/logout/route');
-    await GET({} as never);
+    await GET({ nextUrl: { searchParams: new URLSearchParams() } } as never);
 
     expect(deleted).toContain('jmap_session_0');
     expect(deleted).toContain('jmap_session_2');
-    expect(clearedCtxSlots).toEqual(expect.arrayContaining([0, 2]));
   });
 
   it('does not emit Set-Cookie for slots the browser never used', async () => {
@@ -58,18 +68,38 @@ describe('logout route (single logout chain)', () => {
     // odhlášení (nahlášeno z provozu 25.7.2026).
     presentCookies = ['jmap_session_0'];
     const { GET } = await import('@/app/api/auth/logout/route');
-    await GET({} as never);
+    await GET({ nextUrl: { searchParams: new URLSearchParams() } } as never);
 
     expect(deleted.length).toBeLessThan(12);
     expect(deleted).not.toContain('jmap_session_7');
   });
 
-  it('lands on the configured landing page and ignores any URL-supplied target', async () => {
-    process.env.LANDING_URL = 'https://namailu.cz/';
+  it('always continues through the fixed IdP logout and ignores URL-supplied targets', async () => {
+    process.env.LANDING_URL = 'https://www.namailu.cz/';
     const { GET } = await import('@/app/api/auth/logout/route');
     const res = await GET({ nextUrl: { searchParams: new URLSearchParams('next=https://evil.test') } } as never);
 
-    expect(res.url).toBe('https://namailu.cz/');
+    expect(res.url).toBe('https://id.namailu.cz/logout');
+    expect(res.status).toBe(302);
+  });
+
+  it('clears local OIDC cookies and revokes the IdP session', async () => {
+    process.env.LANDING_URL = 'https://www.namailu.cz/';
+    const { GET } = await import('@/app/api/auth/logout/route');
+    const res = await GET({ nextUrl: { searchParams: new URLSearchParams() } } as never);
+
+    expect(res.url).toBe('https://id.namailu.cz/logout');
+    expect(res.status).toBe(302);
+    expect(deleted).toEqual(expect.arrayContaining(['oidc_rt', 'oidc_id', 'oidc_pending']));
+  });
+
+  it('finishes the IdP return on landing instead of entering a logout loop', async () => {
+    process.env.LANDING_URL = 'https://www.namailu.cz/';
+    const { GET } = await import('@/app/api/auth/logout/route');
+    const res = await GET({ nextUrl: { searchParams: new URLSearchParams('from_idp=1') } } as never);
+
+    expect(res.url).toBe('https://www.namailu.cz/');
     expect(res.status).toBe(303);
+    expect(deleted).toEqual(expect.arrayContaining(['oidc_rt', 'oidc_id', 'oidc_pending']));
   });
 });

@@ -54,17 +54,17 @@ describe('odhlášení v RP režimu', () => {
   it('když náš endpoint selže, uživatel stejně skončí na landingu', async () => {
     deleteResponse = { ok: false, body: {} };
     await oidcLogout(landingUrl());
-    expect(navigations).toEqual(['https://namailu.cz/']);
+    expect(navigations).toEqual(['https://www.namailu.cz/']);
   });
 
   it('když IdP odkaz nevrátí (je nedostupné), taky se přistane na landingu', async () => {
     deleteResponse = { ok: true, body: { loggedOut: true, idpLogoutUrl: null } };
     await oidcLogout(landingUrl());
-    expect(navigations).toEqual(['https://namailu.cz/']);
+    expect(navigations).toEqual(['https://www.namailu.cz/']);
   });
 
-  it('cíl po odhlášení je na allowlistu IdP (apex, ne portál)', () => {
-    expect(landingUrl()).toBe('https://namailu.cz/');
+  it('cíl po odhlášení je oddělený landing origin', () => {
+    expect(landingUrl()).toBe('https://www.namailu.cz/');
   });
 });
 

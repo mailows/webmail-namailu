@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { isRpEnabled, publicOrigin } from '@/lib/oidc/rp-config';
+import { publicOrigin } from '@/lib/oidc/rp-config';
 import { exchangeCode, TokenRejected } from '@/lib/oidc/token';
 import { verifyAccessToken } from '@/lib/oidc/verify';
 import { jmapServerUrl, resumePath } from '@/lib/oidc/rp-runtime';
@@ -13,6 +13,14 @@ import {
   sealIdentity,
 } from '@/lib/oidc/cookies';
 import { logger } from '@/lib/logger';
+import { MAX_ACCOUNT_SLOTS } from '@/lib/account-utils';
+import { sessionCookieName } from '@/lib/auth/session-cookie';
+import { refreshTokenCookieName, refreshTokenServerCookieName } from '@/lib/oauth/tokens';
+import { stalwartAuthContextCookieName } from '@/lib/stalwart/auth-context';
+
+function legacyTotpTrustCookieName(slot: number): string {
+  return slot === 0 ? 'jmap_totp_trust' : `jmap_totp_trust_${slot}`;
+}
 
 /**
  * Callback OIDC Relying Party (id.namailu.cz → webmail).
@@ -30,13 +38,6 @@ function fail(reason: string, status = 400) {
 }
 
 export async function GET(request: NextRequest) {
-  // S vypnutým flagem tudy nesmí projít nic. Odpověď je ale pořád aplikační
-  // (JSON s naším klíčem), aby šlo zvenčí ověřit, že registrovaný redirect_uri
-  // míří na živou aplikaci, a ne na 404 od reverzní proxy.
-  if (!isRpEnabled()) {
-    return NextResponse.json({ error: 'rp_disabled' }, { status: 404 });
-  }
-
   const params = request.nextUrl.searchParams;
   const pending = openPending(request.cookies.get(OIDC_PENDING_COOKIE)?.value);
 
@@ -104,6 +105,21 @@ export async function GET(request: NextRequest) {
     rpCookieOptions(SESSION_MAX_AGE_S),
   );
   response.cookies.delete(OIDC_PENDING_COOKIE);
+  // Při prvním RP přihlášení zahoď všechny před-cutoverové password/OAuth session.
+  // Mažeme jen cookies, které request skutečně přinesl, ať nevzniknou stovky
+  // Set-Cookie hlaviček pro prázdné sloty.
+  const present = new Set(request.cookies.getAll().map((cookie) => cookie.name));
+  for (let slot = 0; slot < MAX_ACCOUNT_SLOTS; slot++) {
+    for (const name of [
+      sessionCookieName(slot),
+      stalwartAuthContextCookieName(slot),
+      refreshTokenCookieName(slot),
+      refreshTokenServerCookieName(slot),
+      legacyTotpTrustCookieName(slot),
+    ]) {
+      if (present.has(name)) response.cookies.delete(name);
+    }
+  }
   response.headers.set('Cache-Control', 'no-store');
   return response;
 }

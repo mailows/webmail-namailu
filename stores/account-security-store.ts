@@ -2,8 +2,6 @@ import { create } from 'zustand';
 import { debug } from '@/lib/debug';
 import { useAuthStore } from '@/stores/auth-store';
 import { stalwartJmap, requireResult, type JmapMethodResponse } from '@/lib/stalwart/jmap-passthrough';
-import { apiFetch } from '@/lib/browser-navigation';
-import { getActiveAccountSlotHeaders } from '@/lib/auth/active-account-slot';
 
 export type EncryptionType = 'Disabled' | 'Aes128' | 'Aes256';
 
@@ -34,7 +32,6 @@ interface AccountSecurityState {
   isProbing: boolean;
 
   // Auth info
-  otpEnabled: boolean;
   appPasswords: AppPasswordInfo[];
   apiKeys: ApiKeyInfo[];
   isLoadingAuth: boolean;
@@ -61,11 +58,6 @@ interface AccountSecurityState {
 
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   updateDisplayName: (displayName: string) => Promise<void>;
-
-  enableTotp: (currentPassword: string, otpUrl: string, otpCode: string) => Promise<void>;
-  // Disabling requires a fresh code from the CURRENT authenticator (server-side
-  // re-auth), so a stolen session cannot turn 2FA off on its own.
-  disableTotp: (otpCode: string) => Promise<void>;
 
   createAppPassword: (input: AppCredentialInput) => Promise<{ id: string; secret: string }>;
   removeAppPassword: (id: string) => Promise<void>;
@@ -204,7 +196,6 @@ function extractEncryptionType(raw: unknown): EncryptionType {
 export const useAccountSecurityStore = create<AccountSecurityState>()((set, get) => ({
   isStalwart: null,
   isProbing: false,
-  otpEnabled: false,
   appPasswords: [],
   apiKeys: [],
   isLoadingAuth: false,
@@ -252,19 +243,6 @@ export const useAccountSecurityStore = create<AccountSecurityState>()((set, get)
       const appPwQuery = requireResult<{ ids: string[] }>(responses, 'x:AppPassword/query');
       const apiKeyQuery = requireResult<{ ids: string[] }>(responses, 'x:ApiKey/query');
 
-      // 2FA status comes from the webmail-managed TOTP store (mailbox-backed),
-      // NOT Stalwart's Enterprise AccountPassword.otpAuth.
-      let otpEnabled = false;
-      try {
-        const res = await apiFetch('/api/account/twofactor', { headers: getActiveAccountSlotHeaders() });
-        if (res.ok) {
-          const data = await res.json();
-          otpEnabled = data?.enabled === true;
-        }
-      } catch (err) {
-        debug.error('Failed to read 2FA status:', err);
-      }
-
       const followUps: [string, Record<string, unknown>, string][] = [];
       if (appPwQuery.ids?.length) {
         followUps.push(['x:AppPassword/get', { accountId, ids: appPwQuery.ids }, 'app']);
@@ -287,7 +265,7 @@ export const useAccountSecurityStore = create<AccountSecurityState>()((set, get)
         }
       }
 
-      set({ otpEnabled, appPasswords, apiKeys, isLoadingAuth: false });
+      set({ appPasswords, apiKeys, isLoadingAuth: false });
     } catch (error) {
       debug.error('Failed to fetch auth info:', error);
       set({
@@ -412,61 +390,6 @@ export const useAccountSecurityStore = create<AccountSecurityState>()((set, get)
     }
   },
 
-  // TOTP is now webmail-managed: the secret lives in the user's mailbox and is
-  // encrypted/verified server-side (see lib/twofactor/store.ts + the
-  // /api/account/twofactor route). Stalwart's Enterprise AccountPassword.otpAuth
-  // is no longer touched. `currentPassword` is retained in the signature for the
-  // enrollment UI but the account is identified server-side by its stored
-  // Basic-auth context, so it is not resent here.
-  enableTotp: async (_currentPassword, otpUrl, otpCode) => {
-    set({ isSaving: true, error: null });
-    try {
-      const res = await apiFetch('/api/account/twofactor', {
-        method: 'POST',
-        headers: { ...getActiveAccountSlotHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'enable', otpUrl, otpCode }),
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({} as { error?: string }));
-        throw new Error(body?.error === 'invalid_code' ? 'Invalid verification code' : (body?.error || 'Failed to enable TOTP'));
-      }
-      set({ otpEnabled: true, isSaving: false });
-    } catch (error) {
-      set({
-        isSaving: false,
-        error: error instanceof Error ? error.message : 'Failed to enable TOTP',
-      });
-      throw error;
-    }
-  },
-
-  disableTotp: async (otpCode) => {
-    set({ isSaving: true, error: null });
-    try {
-      const res = await apiFetch('/api/account/twofactor', {
-        method: 'POST',
-        headers: { ...getActiveAccountSlotHeaders(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'disable', otpCode }),
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({} as { error?: string }));
-        const msg = body?.error === 'reauth_required'
-          ? 'Invalid verification code'
-          : body?.error === 'totp_locked'
-            ? 'Too many attempts — try again later'
-            : (body?.error || 'Failed to disable TOTP');
-        throw new Error(msg);
-      }
-      set({ otpEnabled: false, isSaving: false });
-    } catch (error) {
-      set({
-        isSaving: false,
-        error: error instanceof Error ? error.message : 'Failed to disable TOTP',
-      });
-      throw error;
-    }
-  },
-
   createAppPassword: async (input) => {
     return createCredential(get, set, 'x:AppPassword/set', input, 'Failed to create app password');
   },
@@ -486,7 +409,6 @@ export const useAccountSecurityStore = create<AccountSecurityState>()((set, get)
   clearState: () => set({
     isStalwart: null,
     isProbing: false,
-    otpEnabled: false,
     appPasswords: [],
     apiKeys: [],
     isLoadingAuth: false,
