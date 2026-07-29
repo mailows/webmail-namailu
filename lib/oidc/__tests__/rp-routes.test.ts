@@ -16,7 +16,8 @@ import { GET as session, DELETE as logout } from '@/app/api/auth/oidc/session/ro
 import { resetDiscoveryCache } from '@/lib/oidc/discovery';
 import { resetJwksCache } from '@/lib/oidc/verify';
 import {
-  OIDC_IDENTITY_COOKIE, OIDC_PENDING_COOKIE, OIDC_REFRESH_COOKIE, sealIdentity, sealPending,
+  OIDC_ACCESS_COOKIE, OIDC_IDENTITY_COOKIE, OIDC_PENDING_COOKIE, OIDC_REFRESH_COOKIE,
+  sealAccess, sealIdentity, sealPending,
 } from '@/lib/oidc/cookies';
 
 let fetchSpy: Mock;
@@ -118,6 +119,9 @@ describe('/api/auth/oidc/callback', () => {
 
     expect(res.cookiesSet.get(OIDC_REFRESH_COOKIE)!.value).toBe('rt-1');
     expect(res.cookiesSet.get(OIDC_REFRESH_COOKIE)!.options).toMatchObject({ httpOnly: true });
+    expect(res.cookiesSet.get(OIDC_ACCESS_COOKIE)!.options).toMatchObject({
+      httpOnly: true, sameSite: 'lax', maxAge: 600,
+    });
     expect(res.cookiesSet.has(OIDC_IDENTITY_COOKIE)).toBe(true);
     expect(res.cookiesDeleted.has(OIDC_PENDING_COOKIE)).toBe(true);
   });
@@ -202,6 +206,58 @@ describe('/api/auth/oidc/session', () => {
     expect(res.headers.get('Cache-Control')).toBe('no-store');
   });
 
+  it('reload vrátí šifrovaně cachovaný access token bez rotace refresh tokenu', async () => {
+    const cachedToken = accessToken({ jti: 'cached' });
+    const res = await session(makeRequest(sUrl, {
+      [OIDC_REFRESH_COOKIE]: 'rt-1',
+      [OIDC_IDENTITY_COOKIE]: identity(),
+      [OIDC_ACCESS_COOKIE]: sealAccess({
+        token: cachedToken,
+        sub: '42',
+        expiresAt: Date.now() + 5 * 60 * 1000,
+      }),
+    })) as unknown as FakeResponse;
+
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toMatchObject({ access_token: cachedToken });
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(res.cookiesSet.has(OIDC_REFRESH_COOKIE)).toBe(false);
+  });
+
+  it('access cache z jiné identity se nepoužije', async () => {
+    issuedAccessToken = accessToken({ jti: 'right-account' });
+    const res = await session(makeRequest(sUrl, {
+      [OIDC_REFRESH_COOKIE]: 'rt-old',
+      [OIDC_IDENTITY_COOKIE]: identity(),
+      [OIDC_ACCESS_COOKIE]: sealAccess({
+        token: accessToken({ jti: 'wrong-account' }),
+        sub: 'someone-else',
+        expiresAt: Date.now() + 5 * 60 * 1000,
+      }),
+    })) as unknown as FakeResponse;
+
+    expect(res.status).toBe(200);
+    expect(fetchSpy).toHaveBeenCalled();
+    expect(res.cookiesSet.get(OIDC_REFRESH_COOKIE)!.value).toBe('rt-1');
+  });
+
+  it('access cache minutu před expirací obnoví a uloží nový token', async () => {
+    issuedAccessToken = accessToken({ jti: 'fresh' });
+    const res = await session(makeRequest(sUrl, {
+      [OIDC_REFRESH_COOKIE]: 'rt-old',
+      [OIDC_IDENTITY_COOKIE]: identity(),
+      [OIDC_ACCESS_COOKIE]: sealAccess({
+        token: accessToken({ jti: 'almost-expired' }),
+        sub: '42',
+        expiresAt: Date.now() + 30 * 1000,
+      }),
+    })) as unknown as FakeResponse;
+
+    expect(res.status).toBe(200);
+    expect(res.cookiesSet.get(OIDC_REFRESH_COOKIE)!.value).toBe('rt-1');
+    expect(res.cookiesSet.has(OIDC_ACCESS_COOKIE)).toBe(true);
+  });
+
   it('výpadek IdP session NEZABÍJÍ (cookies zůstávají)', async () => {
     serveIdp({ tokenStatus: 503 });
     const res = await session(makeRequest(sUrl, {
@@ -224,9 +280,12 @@ describe('/api/auth/oidc/session', () => {
   it('obnovený token se taky ověřuje (podpis, issuer, expirace)', async () => {
     issuedAccessToken = accessToken({ iss: 'https://evil.test' });
     const res = await session(makeRequest(sUrl, {
-      [OIDC_REFRESH_COOKIE]: 'rt-1', [OIDC_IDENTITY_COOKIE]: identity(),
+      [OIDC_REFRESH_COOKIE]: 'rt-old', [OIDC_IDENTITY_COOKIE]: identity(),
     })) as unknown as FakeResponse;
     expect(res.status).toBe(502);
+    // IdP už mohl starý refresh spálit; náhradní cookie se nesmí zahodit jen proto,
+    // že access token neprošel lokálním ověřením.
+    expect(res.cookiesSet.get(OIDC_REFRESH_COOKIE)!.value).toBe('rt-1');
   });
 });
 
@@ -240,6 +299,7 @@ describe('odhlášení', () => {
     expect(res.status).toBe(200);
     expect(res.cookiesDeleted.has(OIDC_REFRESH_COOKIE)).toBe(true);
     expect(res.cookiesDeleted.has(OIDC_IDENTITY_COOKIE)).toBe(true);
+    expect(res.cookiesDeleted.has(OIDC_ACCESS_COOKIE)).toBe(true);
     const body = await res.json() as { idpLogoutUrl: string };
     expect(body.idpLogoutUrl).toBe('https://id.namailu.cz/logout');
   });

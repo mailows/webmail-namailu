@@ -4,12 +4,14 @@ import { exchangeCode, TokenRejected } from '@/lib/oidc/token';
 import { verifyAccessToken } from '@/lib/oidc/verify';
 import { jmapServerUrl, resumePath } from '@/lib/oidc/rp-runtime';
 import {
+  OIDC_ACCESS_COOKIE,
   OIDC_IDENTITY_COOKIE,
   OIDC_PENDING_COOKIE,
   OIDC_REFRESH_COOKIE,
   SESSION_MAX_AGE_S,
   openPending,
   rpCookieOptions,
+  sealAccess,
   sealIdentity,
 } from '@/lib/oidc/cookies';
 import { logger } from '@/lib/logger';
@@ -99,6 +101,18 @@ export async function GET(request: NextRequest) {
   if (tokens.refresh_token) {
     response.cookies.set(OIDC_REFRESH_COOKIE, tokens.refresh_token, rpCookieOptions(SESSION_MAX_AGE_S));
   }
+  // Kód už vrátil ověřený access token. Uložíme ho šifrovaně a HttpOnly, aby
+  // resume/reload nemusel okamžitě pálit refresh token jen kvůli nové JS paměti.
+  const accessMaxAge = Math.max(1, Math.floor(tokens.expires_in));
+  response.cookies.set(
+    OIDC_ACCESS_COOKIE,
+    sealAccess({
+      token: tokens.access_token,
+      sub: claims.sub,
+      expiresAt: Date.now() + accessMaxAge * 1000,
+    }),
+    rpCookieOptions(accessMaxAge),
+  );
   response.cookies.set(
     OIDC_IDENTITY_COOKIE,
     sealIdentity({ address, sub: claims.sub, serverUrl }),

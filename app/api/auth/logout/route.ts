@@ -11,7 +11,12 @@ import { sessionCookieName } from '@/lib/auth/session-cookie';
 import { refreshTokenCookieName, refreshTokenServerCookieName } from '@/lib/oauth/tokens';
 import { MAX_ACCOUNT_SLOTS } from '@/lib/account-utils';
 import { OIDC_ISSUER } from '@/lib/oidc/rp-config';
-import { OIDC_IDENTITY_COOKIE, OIDC_PENDING_COOKIE, OIDC_REFRESH_COOKIE } from '@/lib/oidc/cookies';
+import {
+  OIDC_ACCESS_COOKIE,
+  OIDC_IDENTITY_COOKIE,
+  OIDC_PENDING_COOKIE,
+  OIDC_REFRESH_COOKIE,
+} from '@/lib/oidc/cookies';
 
 const LANDING_URL = process.env.LANDING_URL || 'https://www.namailu.cz/';
 
@@ -83,6 +88,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Vždy, i když getAll() cookie z nějakého důvodu nevrátí.
+  kill(OIDC_ACCESS_COOKIE);
   kill(OIDC_IDENTITY_COOKIE);
   kill(OIDC_REFRESH_COOKIE);
   kill(OIDC_PENDING_COOKIE);

@@ -12,6 +12,8 @@ import { encryptPayload, decryptPayload } from '@/lib/auth/crypto';
 export const OIDC_PENDING_COOKIE = 'oidc_pending';
 export const OIDC_REFRESH_COOKIE = 'oidc_rt';
 export const OIDC_IDENTITY_COOKIE = 'oidc_id';
+/** Ověřený access token jako šifrovaná serverová cache; JS čte jen odpověď /session. */
+export const OIDC_ACCESS_COOKIE = 'oidc_at';
 
 /** Odskok na IdP a zpět je otázka vteřin až minut, ne hodin. */
 export const PENDING_MAX_AGE_S = 5 * 60;
@@ -30,6 +32,14 @@ export interface RpIdentity {
   address: string;
   sub: string;
   serverUrl: string;
+}
+
+export interface RpAccess {
+  token: string;
+  /** Vazba cache na tutéž RP identitu; brání smíchání cookies mezi účty. */
+  sub: string;
+  /** Absolutní čas expirace v milisekundách Unix epoch. */
+  expiresAt: number;
 }
 
 export interface CookieOptions {
@@ -71,6 +81,20 @@ export function openIdentity(raw: string | undefined): RpIdentity | null {
   if (!raw) return null;
   const data = decryptPayload(raw) as unknown as RpIdentity | null;
   if (!data?.address || !data?.serverUrl) return null;
+  return data;
+}
+
+export function sealAccess(access: RpAccess): string {
+  return encryptPayload(access as unknown as Record<string, unknown>);
+}
+
+export function openAccess(raw: string | undefined): RpAccess | null {
+  if (!raw) return null;
+  const data = decryptPayload(raw) as unknown as RpAccess | null;
+  if (!data?.token || !data.sub
+      || typeof data.expiresAt !== 'number' || !Number.isFinite(data.expiresAt)) {
+    return null;
+  }
   return data;
 }
 

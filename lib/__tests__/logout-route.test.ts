@@ -43,7 +43,8 @@ vi.mock('@/lib/oidc/rp-config', () => ({
   OIDC_ISSUER: 'https://id.namailu.cz',
 }));
 vi.mock('@/lib/oidc/cookies', () => ({
-  OIDC_REFRESH_COOKIE: 'oidc_rt', OIDC_IDENTITY_COOKIE: 'oidc_id', OIDC_PENDING_COOKIE: 'oidc_pending',
+  OIDC_ACCESS_COOKIE: 'oidc_at', OIDC_REFRESH_COOKIE: 'oidc_rt',
+  OIDC_IDENTITY_COOKIE: 'oidc_id', OIDC_PENDING_COOKIE: 'oidc_pending',
 }));
 
 describe('logout route (single logout chain)', () => {
@@ -90,7 +91,7 @@ describe('logout route (single logout chain)', () => {
 
     expect(res.url).toBe('https://id.namailu.cz/logout');
     expect(res.status).toBe(302);
-    expect(deleted).toEqual(expect.arrayContaining(['oidc_rt', 'oidc_id', 'oidc_pending']));
+    expect(deleted).toEqual(expect.arrayContaining(['oidc_at', 'oidc_rt', 'oidc_id', 'oidc_pending']));
   });
 
   it('finishes the IdP return on landing instead of entering a logout loop', async () => {
@@ -100,7 +101,7 @@ describe('logout route (single logout chain)', () => {
 
     expect(res.url).toBe('https://www.namailu.cz/');
     expect(res.status).toBe(303);
-    expect(deleted).toEqual(expect.arrayContaining(['oidc_rt', 'oidc_id', 'oidc_pending']));
+    expect(deleted).toEqual(expect.arrayContaining(['oidc_at', 'oidc_rt', 'oidc_id', 'oidc_pending']));
   });
 
   it('revokes by refresh token server-side without putting the token in a URL', async () => {

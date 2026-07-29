@@ -3,12 +3,15 @@ import { refreshTokens, TokenRejected } from '@/lib/oidc/token';
 import { verifyAccessToken } from '@/lib/oidc/verify';
 import { getDiscovery } from '@/lib/oidc/discovery';
 import {
+  OIDC_ACCESS_COOKIE,
   OIDC_IDENTITY_COOKIE,
   OIDC_PENDING_COOKIE,
   OIDC_REFRESH_COOKIE,
   SESSION_MAX_AGE_S,
+  openAccess,
   openIdentity,
   rpCookieOptions,
+  sealAccess,
 } from '@/lib/oidc/cookies';
 import { logger } from '@/lib/logger';
 
@@ -30,10 +33,31 @@ function noStore(res: NextResponse): NextResponse {
 
 /** Smrt lokální session. Jen zápis do odpovědi — nemá jak selhat a nečeká na nikoho. */
 function killLocalSession(res: NextResponse): NextResponse {
+  res.cookies.delete(OIDC_ACCESS_COOKIE);
   res.cookies.delete(OIDC_REFRESH_COOKIE);
   res.cookies.delete(OIDC_IDENTITY_COOKIE);
   res.cookies.delete(OIDC_PENDING_COOKIE);
   return res;
+}
+
+/** Access token obnovujeme minutu před expirací; klient používá stejnou rezervu. */
+const ACCESS_REFRESH_SKEW_MS = 60 * 1000;
+
+function sessionResponse(identity: { serverUrl: string; address: string },
+                         accessToken: string, expiresIn: number): NextResponse {
+  return NextResponse.json({
+    serverUrl: identity.serverUrl,
+    username: identity.address,
+    access_token: accessToken,
+    expires_in: Math.max(1, Math.floor(expiresIn)),
+  });
+}
+
+function persistRotatedRefresh(res: NextResponse, replacement: string | undefined,
+                               previous: string): void {
+  if (replacement && replacement !== previous) {
+    res.cookies.set(OIDC_REFRESH_COOKIE, replacement, rpCookieOptions(SESSION_MAX_AGE_S));
+  }
 }
 
 export async function GET(request: NextRequest) {
@@ -41,6 +65,14 @@ export async function GET(request: NextRequest) {
   const refreshToken = request.cookies.get(OIDC_REFRESH_COOKIE)?.value;
   if (!identity || !refreshToken) {
     return noStore(NextResponse.json({ error: 'no_session' }, { status: 401 }));
+  }
+
+  // Šifrovaná HttpOnly cache vznikla až PO lokálním ověření podpisu/issueru/audience.
+  // Reload stránky tak jen vrátí už ověřený token a nespotřebuje refresh token.
+  const cached = openAccess(request.cookies.get(OIDC_ACCESS_COOKIE)?.value);
+  const remainingMs = cached ? cached.expiresAt - Date.now() : 0;
+  if (cached && cached.sub === identity.sub && remainingMs > ACCESS_REFRESH_SKEW_MS) {
+    return noStore(sessionResponse(identity, cached.token, remainingMs / 1000));
   }
 
   let tokens;
@@ -68,18 +100,25 @@ export async function GET(request: NextRequest) {
     logger.error('OIDC session: obnovený token neprošel ověřením', {
       error: error instanceof Error ? error.message : 'unknown',
     });
-    return noStore(NextResponse.json({ error: 'token_invalid' }, { status: 502 }));
+    // IdP už mohl refresh token úspěšně zrotovat. Náhradní cookie zachováme i
+    // při vadném access tokenu/JWKS výpadku; token do JS přesto nevydáme.
+    const failed = NextResponse.json({ error: 'token_invalid' }, { status: 502 });
+    persistRotatedRefresh(failed, tokens.refresh_token, refreshToken);
+    return noStore(failed);
   }
 
-  const res = NextResponse.json({
-    serverUrl: identity.serverUrl,
-    username: identity.address,
-    access_token: tokens.access_token,
-    expires_in: tokens.expires_in,
-  });
-  if (tokens.refresh_token && tokens.refresh_token !== refreshToken) {
-    res.cookies.set(OIDC_REFRESH_COOKIE, tokens.refresh_token, rpCookieOptions(SESSION_MAX_AGE_S));
-  }
+  const accessMaxAge = Math.max(1, Math.floor(tokens.expires_in));
+  const res = sessionResponse(identity, tokens.access_token, accessMaxAge);
+  persistRotatedRefresh(res, tokens.refresh_token, refreshToken);
+  res.cookies.set(
+    OIDC_ACCESS_COOKIE,
+    sealAccess({
+      token: tokens.access_token,
+      sub: identity.sub,
+      expiresAt: Date.now() + accessMaxAge * 1000,
+    }),
+    rpCookieOptions(accessMaxAge),
+  );
   return noStore(res);
 }
 
