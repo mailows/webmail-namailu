@@ -11,6 +11,7 @@ import { SettingsSection, SettingItem } from './settings-section';
 import { useAccountSecurityStore, type AppPasswordInfo, type ApiKeyInfo, type AppCredentialInput } from '@/stores/account-security-store';
 import { useAuthStore } from '@/stores/auth-store';
 import { useAccountStore } from '@/stores/account-store';
+import { useConfig } from '@/hooks/use-config';
 import { apiFetch, getPathPrefix } from '@/lib/browser-navigation';
 import { toast } from '@/stores/toast-store';
 import { cn } from '@/lib/utils';
@@ -624,7 +625,13 @@ export function AccountSecuritySettings() {
   const t = useTranslations('settings.security');
   const { isStalwart, isProbing, probe, fetchAll, fetchAuthInfo } = useAccountSecurityStore();
   const { isAuthenticated, authMode, client } = useAuthStore();
+  const { oidcRpEnabled } = useConfig();
   const isOAuth = authMode === 'oauth';
+  // In the namailu OIDC-RP deployment the identity password is authoritative
+  // in the control plane even if an additionally attached account happens to
+  // use Basic auth. Stalwart's external directory rejects AccountPassword/set,
+  // so never offer that legacy form in this deployment.
+  const passwordManagedByPortal = isOAuth || oidcRpEnabled;
 
   // Wait for `client` before probing. On reload the persisted `isAuthenticated`
   // flips true before the async OAuth reconnect sets `client`; probing in that
@@ -667,7 +674,7 @@ export function AccountSecuritySettings() {
     // INVALID_TAG.
     return (
       <SettingsSection title={t('title')} description={t('description')}>
-        {isOAuth ? (
+        {passwordManagedByPortal ? (
           <div className="space-y-6">
             <LinkDeviceSection />
             <div className="border-t border-border" />
@@ -685,14 +692,18 @@ export function AccountSecuritySettings() {
       <div className="space-y-6">
         {!isOAuth && (
           <>
-            <PasswordChangeSection />
-            <div className="border-t border-border" />
+            {!passwordManagedByPortal && (
+              <>
+                <PasswordChangeSection />
+                <div className="border-t border-border" />
+              </>
+            )}
             <DisplayNameSection />
             <div className="border-t border-border" />
           </>
         )}
 
-        {isOAuth && (
+        {passwordManagedByPortal && (
           <>
             <EmailClientSection />
             <div className="border-t border-border" />
