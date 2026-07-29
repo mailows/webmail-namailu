@@ -1497,7 +1497,7 @@
         "jmap_username_label": "اسم مستخدم JMAP",
         "copy": "نسخ",
         "copied": "تم النسخ",
-        "password_instructions": "استخدم اسم مستخدم JMAP أعلاه مع كلمة مرور تطبيق لتسجيل الدخول إلى عميل البريد الخاص بك. أنشئ كلمة مرور تطبيق في القسم أعلاه إذا لم تفعل بعد."
+        "password_instructions": "Use the same password as for webmail and portal sign-in. A password change or reset applies immediately to IMAP, SMTP and POP3 as well. Web 2FA does not apply to ordinary password authentication in a mail client."
       },
       "link_device": {
         "title": "ربط تطبيق الجوال",

@@ -1490,7 +1490,7 @@
         "jmap_username_label": "JMAP-Benutzername",
         "copy": "Kopieren",
         "copied": "Kopiert",
-        "password_instructions": "Verwenden Sie Ihren oben angezeigten JMAP-Benutzernamen zusammen mit einem App-Passwort, um sich bei Ihrem E-Mail-Client anzumelden. Erstellen Sie im obigen Abschnitt ein App-Passwort, falls Sie noch keines haben."
+        "password_instructions": "Use the same password as for webmail and portal sign-in. A password change or reset applies immediately to IMAP, SMTP and POP3 as well. Web 2FA does not apply to ordinary password authentication in a mail client."
       },
       "link_device": {
         "title": "Mobile App verknüpfen",

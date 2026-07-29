@@ -1490,7 +1490,7 @@
         "jmap_username_label": "Uživatelské jméno JMAP",
         "copy": "Kopírovat",
         "copied": "Zkopírováno",
-        "password_instructions": "Použijte výše uvedené uživatelské jméno JMAP společně s heslem aplikace pro přihlášení v poštovním klientovi. Pokud jste tak ještě neučinili, vytvořte si heslo aplikace v sekci výše."
+        "password_instructions": "Použijte stejné heslo jako pro přihlášení do webmailu a portálu. Jeho změna nebo reset začne okamžitě platit také pro IMAP, SMTP a POP3. Webové 2FA se na běžné heslové přihlášení poštovního klienta nevztahuje."
       },
       "link_device": {
         "title": "Propojit mobilní aplikaci",

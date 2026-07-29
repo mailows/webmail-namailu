@@ -1490,7 +1490,7 @@
         "jmap_username_label": "Ім'я користувача JMAP",
         "copy": "Копія",
         "copied": "Скопійовано",
-        "password_instructions": "Використовуйте своє ім’я користувача JMAP вище разом із паролем програми, щоб увійти у свій поштовий клієнт. Створіть пароль програми в розділі вище, якщо ви ще цього не зробили."
+        "password_instructions": "Use the same password as for webmail and portal sign-in. A password change or reset applies immediately to IMAP, SMTP and POP3 as well. Web 2FA does not apply to ordinary password authentication in a mail client."
       },
       "link_device": {
         "title": "Прив'язати мобільний застосунок",

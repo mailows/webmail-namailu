@@ -463,7 +463,21 @@ function EmailClientSection() {
             </button>
           </div>
         </div>
+        <div className="grid grid-cols-[72px_1fr] gap-x-3 gap-y-1 text-xs">
+          <span className="text-muted-foreground">IMAP</span>
+          <code className="text-foreground">namailu.cz · 993 · TLS</code>
+          <span className="text-muted-foreground">SMTP</span>
+          <code className="text-foreground">namailu.cz · 465 · TLS</code>
+          <span className="text-muted-foreground">SMTP</span>
+          <code className="text-foreground">namailu.cz · 587 · STARTTLS</code>
+        </div>
         <p className="text-xs text-muted-foreground pt-1">{t('email_client.password_instructions')}</p>
+        <a
+          href="https://portal.namailu.cz/zabezpeceni#heslo"
+          className="inline-flex items-center rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent"
+        >
+          {t('password.title')}
+        </a>
       </div>
     </div>
   );
@@ -678,6 +692,13 @@ export function AccountSecuritySettings() {
           </>
         )}
 
+        {isOAuth && (
+          <>
+            <EmailClientSection />
+            <div className="border-t border-border" />
+          </>
+        )}
+
         <AppPasswordsSection />
 
         <div className="border-t border-border" />
@@ -685,8 +706,6 @@ export function AccountSecuritySettings() {
 
         {isOAuth && (
           <>
-            <div className="border-t border-border" />
-            <EmailClientSection />
             <div className="border-t border-border" />
             <LinkDeviceSection />
           </>

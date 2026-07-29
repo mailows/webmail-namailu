@@ -1490,7 +1490,7 @@
         "jmap_username_label": "JMAP 用户名",
         "copy": "复制",
         "copied": "已复制",
-        "password_instructions": "使用上面的 JMAP 用户名和应用密码登录您的邮件客户端。如果您还没有创建应用密码，请在上面的部分中创建。"
+        "password_instructions": "Use the same password as for webmail and portal sign-in. A password change or reset applies immediately to IMAP, SMTP and POP3 as well. Web 2FA does not apply to ordinary password authentication in a mail client."
       },
       "link_device": {
         "title": "关联移动应用",

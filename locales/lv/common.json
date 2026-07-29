@@ -1490,7 +1490,7 @@
         "jmap_username_label": "JMAP lietotājvārds",
         "copy": "Kopēt",
         "copied": "Nokopēts",
-        "password_instructions": "Izmantojiet norādīto JMAP lietotājvārdu kopā ar lietotnes paroli. Izveidojiet lietotnes paroli sadaļā augstāk."
+        "password_instructions": "Use the same password as for webmail and portal sign-in. A password change or reset applies immediately to IMAP, SMTP and POP3 as well. Web 2FA does not apply to ordinary password authentication in a mail client."
       },
       "link_device": {
         "title": "Saistīt mobilo lietotni",

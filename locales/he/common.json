@@ -1443,7 +1443,7 @@
         "jmap_username_label": "שם משתמש JMAP",
         "copy": "העתק",
         "copied": "הועתק",
-        "password_instructions": "השתמש בשם המשתמש שלך ב-JMAP למעלה יחד עם סיסמת אפליקציה כדי להיכנס ללקוח הדוא\"ל שלך. צור סיסמת אפליקציה בסעיף למעלה אם עדיין לא עשית זאת."
+        "password_instructions": "Use the same password as for webmail and portal sign-in. A password change or reset applies immediately to IMAP, SMTP and POP3 as well. Web 2FA does not apply to ordinary password authentication in a mail client."
       },
       "api_keys": {
         "title": "מפתחות API",

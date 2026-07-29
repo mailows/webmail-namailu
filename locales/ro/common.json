@@ -1497,7 +1497,7 @@
         "jmap_username_label": "JMAP Nume de utilizator",
         "copy": "Copiere",
         "copied": "Copiat",
-        "password_instructions": "Folosiți numele de utilizator de la JMAP menționat mai sus, împreună cu o parolă de aplicație, pentru a vă autentifica în clientul de e-mail. Creați o parolă de aplicație în secțiunea de mai sus, dacă nu ați făcut-o deja."
+        "password_instructions": "Use the same password as for webmail and portal sign-in. A password change or reset applies immediately to IMAP, SMTP and POP3 as well. Web 2FA does not apply to ordinary password authentication in a mail client."
       },
       "link_device": {
         "title": "Aplicație mobilă",

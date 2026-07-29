@@ -1497,7 +1497,7 @@
         "jmap_username_label": "Používateľské meno JMAP",
         "copy": "Kopírovať",
         "copied": "Skopírované",
-        "password_instructions": "Použite vyššie uvedené používateľské meno JMAP spolu s heslom aplikácie na prihlásenie v poštovom klientovi."
+        "password_instructions": "Use the same password as for webmail and portal sign-in. A password change or reset applies immediately to IMAP, SMTP and POP3 as well. Web 2FA does not apply to ordinary password authentication in a mail client."
       },
       "link_device": {
         "title": "Prepojiť mobilnú aplikáciu",
