@@ -471,7 +471,11 @@ const DEFAULT_SETTINGS = {
   // Email Display
   disableThreading: false,
 
-  senderFavicons: true,
+  // FORK: vypnuto. Zapnutí znamená, že se náš server ptá třetí strany na ikonu
+  // pro každou doménu odesílatele — tedy jí prozradí, s kým uživatel koresponduje.
+  // Kdo to chce, zapne si to vědomě; serverový vypínač SENDER_FAVICON_LOOKUP
+  // má i tak poslední slovo (app/api/favicon/route.ts).
+  senderFavicons: false,
   showAvatarsInJunk: false,
   faviconUnreadBadge: true,
 

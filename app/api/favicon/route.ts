@@ -33,6 +33,20 @@ const MISSING_FAVICON_HEADERS = {
   'X-Bulwark-Favicon': 'missing',
 };
 
+// FORK: serverový vypínač vyhledávání ikon.
+//
+// Route se pro každou doménu odesílatele ptá `icons.duckduckgo.com` — tedy třetí strana
+// se dozví seznam domén, se kterými naši uživatelé korespondují. Per-user přepínač
+// `senderFavicons` na to nestačí: drží se v localStorage, takže starý prohlížeč si nese
+// staré „zapnuto" dál. Tenhle vypínač platí na serveru a je poslední slovo.
+//
+// Vypnuto → vrací tentýž průhledný PNG jako „doména ikonu nemá", takže se klient
+// bez chyby propadne na iniciály. Žádná chybová cesta navíc.
+function lookupDisabled(): boolean {
+  const v = (process.env.SENDER_FAVICON_LOOKUP ?? '').toLowerCase();
+  return v === 'off' || v === 'false' || v === '0' || v === 'no';
+}
+
 // Strict domain validation to prevent SSRF
 const DOMAIN_RE = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/i;
 
@@ -433,6 +447,10 @@ function evictOldest() {
 }
 
 export async function GET(request: NextRequest) {
+  if (lookupDisabled()) {
+    return new NextResponse(TRANSPARENT_PNG, { headers: MISSING_FAVICON_HEADERS });
+  }
+
   const domain = request.nextUrl.searchParams.get('domain');
 
   if (!domain || !isValidDomain(domain)) {
