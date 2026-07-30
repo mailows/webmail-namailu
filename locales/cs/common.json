@@ -1672,7 +1672,8 @@
         "button": "Importovat"
       },
       "about": {
-        "title": "Bulwark Webmail"
+        "title": "Bulwark Webmail",
+        "source_code": "Zdrojový kód"
       }
     },
     "sidebar_apps": {

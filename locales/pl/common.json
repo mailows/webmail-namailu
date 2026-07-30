@@ -1672,7 +1672,8 @@
         "button": "Importuj"
       },
       "about": {
-        "title": "Bulwark Webmail"
+        "title": "Bulwark Webmail",
+        "source_code": "Kod źródłowy"
       }
     },
     "sidebar_apps": {

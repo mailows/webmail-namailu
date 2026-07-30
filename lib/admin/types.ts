@@ -68,12 +68,20 @@ export interface FeatureGates {
   unifiedCrossAccountEnabled: boolean;
 }
 
+// FORK: tři funkce jsou proti upstreamu vypnuté. Upstream je self-hosted klient pro
+// jednoho technického uživatele, my nabízíme mailovou službu cizím lidem — a výchozí
+// hodnoty jedou s imagem, takže je nejde ztratit spolu s volume jako admin politiku.
+// Hlídá `lib/admin/__tests__/feature-gate-defaults.test.ts`:
+//   sidebarAppsEnabled — vkládá cizí URL do rozhraní pošty, plocha navíc bez užitku;
+//   debugModeEnabled   — diagnostika pro provoz, ne položka nastavení pro uživatele;
+//   filesEnabled       — úložiště neposkytujeme (rozhodnutí 30.7.2026); až případně
+//                        jako funkce platících tarifů, a to se zapne vědomě.
 export const DEFAULT_FEATURE_GATES: FeatureGates = {
   pluginsEnabled: false,
   pluginsUploadEnabled: true,
   requirePluginApproval: true,
   themesEnabled: true,
-  sidebarAppsEnabled: true,
+  sidebarAppsEnabled: false,
   userThemesEnabled: true,
   settingsExportEnabled: true,
   customKeywordsEnabled: true,
@@ -82,10 +90,10 @@ export const DEFAULT_FEATURE_GATES: FeatureGates = {
   calendarTasksEnabled: true,
   smimeEnabled: true,
   externalContentEnabled: true,
-  debugModeEnabled: true,
+  debugModeEnabled: false,
   folderIconsEnabled: true,
   hoverActionsConfigEnabled: true,
-  filesEnabled: true,
+  filesEnabled: false,
   contactsEnabled: true,
   allMailViewEnabled: false,
   crossUnreadViewEnabled: false,

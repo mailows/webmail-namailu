@@ -1679,7 +1679,8 @@
         "button": "استيراد"
       },
       "about": {
-        "title": "بريد Bulwark الإلكتروني"
+        "title": "بريد Bulwark الإلكتروني",
+        "source_code": "الكود المصدري"
       }
     },
     "sidebar_apps": {

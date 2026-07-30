@@ -1672,7 +1672,8 @@
         "button": "Importeren"
       },
       "about": {
-        "title": "Bulwark Webmail"
+        "title": "Bulwark Webmail",
+        "source_code": "Broncode"
       }
     },
     "sidebar_apps": {

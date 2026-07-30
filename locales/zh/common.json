@@ -1672,7 +1672,8 @@
         "button": "导入"
       },
       "about": {
-        "title": "Bulwark 网页邮箱"
+        "title": "Bulwark 网页邮箱",
+        "source_code": "源代码"
       }
     },
     "sidebar_apps": {

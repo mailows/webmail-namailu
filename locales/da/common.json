@@ -1675,7 +1675,8 @@
         "button": "Importér"
       },
       "about": {
-        "title": "Bulwark Webmail"
+        "title": "Bulwark Webmail",
+        "source_code": "Kildekode"
       }
     },
     "sidebar_apps": {

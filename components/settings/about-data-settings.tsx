@@ -10,12 +10,17 @@ import { usePolicyStore } from '@/stores/policy-store';
 import { useUpdateStore } from '@/stores/update-store';
 import { ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { getPathPrefix } from '@/lib/browser-navigation';
 import { clearCachedData } from '@/lib/clear-cached-data';
-import { SpamSiegeGame } from './spam-siege-game';
 
 const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION || "0.0.0";
 const GIT_COMMIT = process.env.NEXT_PUBLIC_GIT_COMMIT || "unknown";
+// AGPL-3.0 §13: kdo službu používá po síti, musí dostat nabídku odpovídajícího zdroje.
+// Výchozí cíl je NÁŠ, ne upstreamový — jinak by se s odkazem vrátil i cizí branding, který
+// odsud právě zmizel. Ta stránka MUSÍ existovat před ostrým spuštěním (publikace forku je
+// launch blocker, viz webmail/FORK.md a issue #10); přebít ji jde `NEXT_PUBLIC_SOURCE_CODE_URL`
+// na adresu repozitáře.
+const SOURCE_CODE_URL =
+  process.env.NEXT_PUBLIC_SOURCE_CODE_URL || "https://www.namailu.cz/zdrojovy-kod";
 
 function VersionUpdateTag() {
   const status = useUpdateStore((s) => s.status);
@@ -53,26 +58,11 @@ export function AboutDataSettings() {
   const tCommon = useTranslations('common');
   const { settingsSyncDisabled, updateSetting, resetToDefaults, exportSettings, importSettings } =
     useSettingsStore();
-  const { settingsSyncEnabled } = useConfig();
+  const { settingsSyncEnabled, appName } = useConfig();
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showRefreshConfirm, setShowRefreshConfirm] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { isFeatureEnabled } = usePolicyStore();
-  const [showGame, setShowGame] = useState(false);
-  const logoClickCount = useRef(0);
-  const logoClickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const handleLogoClick = () => {
-    logoClickCount.current++;
-    if (logoClickTimer.current) clearTimeout(logoClickTimer.current);
-    if (logoClickCount.current >= 3) {
-      logoClickCount.current = 0;
-      setShowGame(true);
-    } else {
-      logoClickTimer.current = setTimeout(() => { logoClickCount.current = 0; }, 2000);
-    }
-  };
-
   const handleExport = () => {
     const settingsJson = exportSettings();
     const blob = new Blob([settingsJson], { type: 'application/json' });
@@ -129,39 +119,33 @@ export function AboutDataSettings() {
 
   return (
     <>
-      {showGame && <SpamSiegeGame onClose={() => setShowGame(false)} />}
+      {/* FORK: upstreamový banner (logo Bulwark + jméno + odkaz na jejich GitHub) je pryč —
+          tohle je white-label produkt, uživatel má vidět jméno naší instance. Jméno se bere
+          z konfigurace (`appName`), ne z překladu, aby se nemuselo měnit ve 23 jazycích.
+
+          Odkaz na zdrojový kód ZŮSTÁVÁ: fork je odvozenina AGPL-3.0 a §13 vyžaduje, aby
+          uživatel používající službu po síti dostal nabídku odpovídajícího zdroje.
+          Cíl viz `SOURCE_CODE_URL` výš — je NÁŠ, aby s odkazem nevrátil cizí branding.
+
+          Se bannerem odešel i easter egg (hra se spouštěla klikem na logo). */}
       <div className="rounded-lg border border-border bg-card p-5 mb-6">
         <div className="flex items-center gap-4">
-          <button onClick={handleLogoClick} className="flex items-center gap-4 flex-1 text-start focus:outline-none group/about cursor-pointer" aria-label="About">
-            <div className="shrink-0">
-              <img
-                src={`${getPathPrefix()}/branding/Bulwark_Logo_Color.svg`}
-                alt="Bulwark"
-                className="w-12 h-12 object-contain dark:hidden group-hover/about:scale-105 group-active/about:scale-95 transition-transform"
-              />
-              <img
-                src={`${getPathPrefix()}/branding/Bulwark_Logo_White.svg`}
-                alt="Bulwark"
-                className="w-12 h-12 object-contain hidden dark:block group-hover/about:scale-105 group-active/about:scale-95 transition-transform"
-              />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-foreground">
-                {t('about.title')}
-              </p>
-              <p className="text-xs text-muted-foreground group-hover/about:translate-x-0.5 group-active/about:translate-y-px transition-transform">
-                v{APP_VERSION} <span className="text-muted-foreground/60">({GIT_COMMIT})</span>
-                <VersionUpdateTag />
-              </p>
-            </div>
-          </button>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-foreground">
+              {appName || 'Webmail'}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              v{APP_VERSION} <span className="text-muted-foreground/60">({GIT_COMMIT})</span>
+              <VersionUpdateTag />
+            </p>
+          </div>
           <a
-            href="https://github.com/bulwarkmail/webmail"
+            href={SOURCE_CODE_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
           >
-            GitHub <ExternalLink className="w-3 h-3" />
+            {t('about.source_code')} <ExternalLink className="w-3 h-3" />
           </a>
         </div>
       </div>

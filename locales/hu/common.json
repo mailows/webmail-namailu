@@ -1675,7 +1675,8 @@
         "button": "Importálás"
       },
       "about": {
-        "title": "Bulwark Webmail"
+        "title": "Bulwark Webmail",
+        "source_code": "Forráskód"
       }
     },
     "sidebar_apps": {

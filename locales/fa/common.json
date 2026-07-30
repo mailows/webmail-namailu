@@ -1679,7 +1679,8 @@
         "button": "وارد کردن"
       },
       "about": {
-        "title": "Bulwark Webmail"
+        "title": "Bulwark Webmail",
+        "source_code": "کد منبع"
       }
     },
     "sidebar_apps": {

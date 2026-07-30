@@ -1672,7 +1672,8 @@
         "button": "İçe Aktar"
       },
       "about": {
-        "title": "Bulwark Webmail"
+        "title": "Bulwark Webmail",
+        "source_code": "Kaynak kodu"
       }
     },
     "sidebar_apps": {

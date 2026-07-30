@@ -1634,7 +1634,8 @@
         "button": "ייבוא"
       },
       "about": {
-        "title": "Bulwark Webmail"
+        "title": "Bulwark Webmail",
+        "source_code": "קוד מקור"
       },
       "show_avatars_in_junk": {
         "label": "הצג אווטרים בתיקייה זבל",

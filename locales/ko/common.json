@@ -1672,7 +1672,8 @@
         "button": "가져오기"
       },
       "about": {
-        "title": "Bulwark Webmail 정보"
+        "title": "Bulwark Webmail 정보",
+        "source_code": "소스 코드"
       }
     },
     "sidebar_apps": {
