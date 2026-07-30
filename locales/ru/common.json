@@ -1673,8 +1673,7 @@
         "button": "Импортировать"
       },
       "about": {
-        "title": "Bulwark Webmail",
-        "source_code": "Исходный код"
+        "title": "Bulwark Webmail"
       }
     },
     "sidebar_apps": {

@@ -1,64 +1,20 @@
 "use client";
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { useSettingsStore } from '@/stores/settings-store';
 import { useConfig } from '@/hooks/use-config';
 import { SettingsSection, SettingItem, ToggleSwitch } from './settings-section';
 import { Button } from '@/components/ui/button';
 import { usePolicyStore } from '@/stores/policy-store';
-import { useUpdateStore } from '@/stores/update-store';
-import { ExternalLink } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { clearCachedData } from '@/lib/clear-cached-data';
-
-const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION || "0.0.0";
-const GIT_COMMIT = process.env.NEXT_PUBLIC_GIT_COMMIT || "unknown";
-// AGPL-3.0 §13: kdo službu používá po síti, musí dostat nabídku odpovídajícího zdroje.
-// Výchozí cíl je NÁŠ, ne upstreamový — jinak by se s odkazem vrátil i cizí branding, který
-// odsud právě zmizel. Ta stránka MUSÍ existovat před ostrým spuštěním (publikace forku je
-// launch blocker, viz webmail/FORK.md a issue #10); přebít ji jde `NEXT_PUBLIC_SOURCE_CODE_URL`
-// na adresu repozitáře.
-const SOURCE_CODE_URL =
-  process.env.NEXT_PUBLIC_SOURCE_CODE_URL || "https://www.namailu.cz/zdrojovy-kod";
-
-function VersionUpdateTag() {
-  const status = useUpdateStore((s) => s.status);
-  const startPolling = useUpdateStore((s) => s.startPolling);
-
-  useEffect(() => {
-    startPolling();
-  }, [startPolling]);
-
-  if (!status?.updateAvailable) return null;
-  if (status.severity === 'unknown' || status.severity === 'none') return null;
-
-  const important = status.severity === 'security' || status.severity === 'deprecated';
-  const label =
-    status.severity === 'security' ? 'security'
-    : status.severity === 'deprecated' ? 'deprecated'
-    : status.latest ?? 'update';
-
-  return (
-    <span
-      className={cn(
-        "ms-2 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium align-middle",
-        important
-          ? "bg-red-500/15 text-red-700 dark:text-red-300"
-          : "bg-amber-500/15 text-amber-700 dark:text-amber-300",
-      )}
-    >
-      {important ? label : `update: ${label}`}
-    </span>
-  );
-}
 
 export function AboutDataSettings() {
   const t = useTranslations('settings.advanced');
   const tCommon = useTranslations('common');
   const { settingsSyncDisabled, updateSetting, resetToDefaults, exportSettings, importSettings } =
     useSettingsStore();
-  const { settingsSyncEnabled, appName } = useConfig();
+  const { settingsSyncEnabled } = useConfig();
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showRefreshConfirm, setShowRefreshConfirm] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -119,37 +75,13 @@ export function AboutDataSettings() {
 
   return (
     <>
-      {/* FORK: upstreamový banner (logo Bulwark + jméno + odkaz na jejich GitHub) je pryč —
-          tohle je white-label produkt, uživatel má vidět jméno naší instance. Jméno se bere
-          z konfigurace (`appName`), ne z překladu, aby se nemuselo měnit ve 23 jazycích.
+      {/* FORK: celý „about" banner je pryč — logo a jméno upstreamu, verze i odkaz na
+          zdrojový kód. Nabídka zdroje podle AGPL-3.0 §13 se přesouvá na právní statement
+          mimo aplikaci (rozhodnutí 30. 7. 2026); do spuštění tam MUSÍ být, jinak fork
+          nabízíme bez nabídky zdroje. Viz webmail/FORK.md.
 
-          Odkaz na zdrojový kód ZŮSTÁVÁ: fork je odvozenina AGPL-3.0 a §13 vyžaduje, aby
-          uživatel používající službu po síti dostal nabídku odpovídajícího zdroje.
-          Cíl viz `SOURCE_CODE_URL` výš — je NÁŠ, aby s odkazem nevrátil cizí branding.
-
+          Verze a commit tím zmizely z UI; pro provoz je vidíme na image tagu a v adminu.
           Se bannerem odešel i easter egg (hra se spouštěla klikem na logo). */}
-      <div className="rounded-lg border border-border bg-card p-5 mb-6">
-        <div className="flex items-center gap-4">
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-foreground">
-              {appName || 'Webmail'}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              v{APP_VERSION} <span className="text-muted-foreground/60">({GIT_COMMIT})</span>
-              <VersionUpdateTag />
-            </p>
-          </div>
-          <a
-            href={SOURCE_CODE_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-          >
-            {t('about.source_code')} <ExternalLink className="w-3 h-3" />
-          </a>
-        </div>
-      </div>
-
       <SettingsSection title={t('title')} description={t('description')}>
         {settingsSyncEnabled && (
           <SettingItem label={t('settings_sync.label')} description={t('settings_sync.description')}>

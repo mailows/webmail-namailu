@@ -1673,8 +1673,7 @@
         "contacts_description": "Kontaktu sinhronizācija, adrešu grāmatu darbības un uzticamie sūtītāji"
       },
       "about": {
-        "title": "Bulwark Webmail",
-        "source_code": "Pirmkods"
+        "title": "Bulwark Webmail"
       }
     },
     "sidebar_apps": {

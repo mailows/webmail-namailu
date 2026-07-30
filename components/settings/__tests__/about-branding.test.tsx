@@ -3,16 +3,15 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AboutDataSettings } from '../about-data-settings';
 
 /**
- * Sekce „Info a data" nesmí nést upstreamový brand.
+ * Sekce „Info a data" nesmí nést upstreamový brand ANI vlastní banner.
  *
- * Fork je white-label produkt (namailu.cz), takže uživatel tam nemá vidět logo ani jméno
- * Bulwark Webmail a odkaz na upstreamový GitHub. Zároveň ale platí AGPL-3.0 §13: kdo službu
- * používá po síti, musí dostat nabídku odpovídajícího zdrojového kódu. Proto se banner ruší,
- * ale **odkaz na zdrojový kód zůstává** — jen jako text, bez cizího brandingu, a míří tam,
- * kam ho nasměruje `NEXT_PUBLIC_SOURCE_CODE_URL` (po zveřejnění našeho forku na náš repozitář).
+ * Fork je white-label produkt (namailu.cz): žádné logo ani jméno Bulwark Webmail, žádný odkaz
+ * na upstreamový GitHub. Rozhodnutím z 30. 7. 2026 zmizel celý „about" blok včetně verze
+ * a odkazu na zdrojový kód — **nabídka zdroje podle AGPL-3.0 §13 se přesouvá na právní
+ * statement mimo aplikaci**. Do spuštění tam musí být; tenhle test to nehlídá (je mimo kód
+ * webmailu), hlídá `webmail/FORK.md` a launch checklist.
  *
- * Test drží obojí: kdyby někdo brand vrátil, spadne; kdyby někdo zrušil i nabídku zdroje
- * (a tím compliance), spadne taky.
+ * Co test drží: v sekci není brand upstreamu, žádný odkaz ven a ani zbytek banneru.
  */
 
 vi.mock('../settings-section', () => ({
@@ -55,22 +54,16 @@ describe('AboutDataSettings — branding a AGPL', () => {
     expect(container.textContent ?? '').not.toContain('GitHub');
   });
 
-  it('pořád nabízí zdrojový kód (AGPL §13)', () => {
+  it('nevede z nastavení nikam ven', () => {
     const { container } = render(<AboutDataSettings />);
-    const source = Array.from(container.querySelectorAll('a')).find((a) =>
-      /zdrojov|source/i.test(a.textContent ?? ''),
-    );
-    expect(source, 'chybí odkaz na zdrojový kód — AGPL §13 vyžaduje nabídku zdroje').toBeTruthy();
-    expect(source?.getAttribute('href') ?? '').toMatch(/^https?:\/\//);
+    const external = Array.from(container.querySelectorAll('a'))
+      .map((a) => a.getAttribute('href') ?? '')
+      .filter((h) => /^https?:\/\//.test(h));
+    expect(external, `zbyl odkaz ven: ${external.join(', ')}`).toHaveLength(0);
   });
 
-  it('ukazuje jméno instance z konfigurace, ne z překladu', () => {
-    render(<AboutDataSettings />);
-    expect(screen.getByText('namailu.cz')).toBeInTheDocument();
-  });
-
-  it('verzi a commit dál zobrazuje (podpora se podle nich ptá)', () => {
+  it('banner s verzí a commitem je pryč celý', () => {
     const { container } = render(<AboutDataSettings />);
-    expect(container.textContent ?? '').toMatch(/v\d+\.\d+\.\d+|v0\.0\.0/);
+    expect(container.textContent ?? '').not.toMatch(/v\d+\.\d+\.\d+/);
   });
 });
