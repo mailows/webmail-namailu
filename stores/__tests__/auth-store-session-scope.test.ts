@@ -41,7 +41,11 @@ vi.mock('@/lib/oidc/rp-client', () => ({
   OIDC_SESSION_ENDPOINT: '/api/auth/oidc/session',
 }));
 vi.mock('@/hooks/use-config', () => ({
-  fetchConfig: async () => ({ settingsSyncEnabled: false, jmapServerUrl: 'https://namailu.cz' }),
+  fetchConfig: async () => ({
+    settingsSyncEnabled: false,
+    jmapServerUrl: 'https://namailu.cz',
+    oidcRpEnabled: true,
+  }),
   cachedConfig: () => null,
 }));
 
@@ -62,8 +66,18 @@ const BASIC_ACCOUNT = {
   isDefault: true,
 };
 
+const OIDC_ACCOUNT = {
+  ...BASIC_ACCOUNT,
+  authMode: 'oauth' as const,
+  rememberMe: true,
+};
+
 beforeEach(() => {
   fetchCalls.length = 0;
+  restoreResponse = {
+    ok: true, status: 200,
+    body: { serverUrl: 'https://namailu.cz', username: 'koren@namailu.cz', password: 'tajne' },
+  };
   useAccountStore.setState({ accounts: [], activeAccountId: null, defaultAccountId: null });
 });
 afterEach(() => {
@@ -92,5 +106,27 @@ describe('obnova session bez „zapamatovat si mě"', () => {
       ok: true, status: 200,
       body: { serverUrl: 'https://namailu.cz', username: 'koren@namailu.cz', password: 'tajne' },
     };
+  });
+});
+
+describe('obnova OIDC RP session po reloadu nebo uspání karty', () => {
+  it('použije RP session endpoint, nikdy legacy OAuth refresh', async () => {
+    restoreResponse = { ok: false, status: 401, body: { error: 'no_session' } };
+    useAccountStore.getState().addAccount(OIDC_ACCOUNT);
+
+    await useAuthStore.getState().checkAuth();
+
+    expect(fetchCalls.some((c) => c.url === '/api/auth/oidc/session')).toBe(true);
+    expect(fetchCalls.some((c) => c.url.startsWith('/api/auth/token'))).toBe(false);
+  });
+
+  it('při přechodném výpadku RP session účet nemaže', async () => {
+    restoreResponse = { ok: false, status: 503, body: { error: 'idp_unavailable' } };
+    const accountId = useAccountStore.getState().addAccount(OIDC_ACCOUNT);
+
+    await useAuthStore.getState().checkAuth();
+
+    expect(useAccountStore.getState().getAccountById(accountId)).toBeDefined();
+    expect(fetchCalls.some((c) => c.url === '/api/auth/oidc/session')).toBe(true);
   });
 });

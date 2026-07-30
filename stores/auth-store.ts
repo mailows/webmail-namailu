@@ -1690,6 +1690,17 @@ export const useAuthStore = create<AuthState>()(
       checkAuth: async () => {
         const accountStore = useAccountStore.getState();
         let accounts = accountStore.accounts;
+        // Obnova persisted účtu probíhá dřív, než má UI nutně načtenou konfiguraci.
+        // Proto si RP režim zjistíme zde explicitně. Rozhodovat jen podle
+        // `account.authMode === "oauth"` nestačí: stejný příznak používá legacy OAuth
+        // i náš OIDC RP, ale každý má jinou refresh cookie a jiný endpoint.
+        let oidcRpMode: boolean | null = null;
+        try {
+          oidcRpMode = (await fetchConfig()).oidcRpEnabled === true;
+        } catch {
+          // Neznámý režim při výpadku konfigurace není důvod zahodit účet ani cookies.
+          // OAuth větev níže ho proto vyhodnotí jako přechodnou chybu.
+        }
 
         // If the only account is the demo account, re-initialize demo mode
         // instead of trying to restore a server session (which doesn't exist).
@@ -1761,9 +1772,18 @@ export const useAuthStore = create<AuthState>()(
 
             try {
               if (account.authMode === 'oauth') {
-                const res = await apiFetch(`/api/auth/token?slot=${account.cookieSlot}`, { method: 'PUT' });
+                if (oidcRpMode === null) {
+                  throw new TransientAuthError('Authentication configuration unavailable', 503);
+                }
+                const res = oidcRpMode
+                  ? await apiFetch(OIDC_SESSION_ENDPOINT, {
+                      method: 'GET',
+                      credentials: 'include',
+                    })
+                  : await apiFetch(`/api/auth/token?slot=${account.cookieSlot}`, { method: 'PUT' });
                 if (res.ok) {
                   const { access_token, expires_in } = await res.json();
+                  if (oidcRpMode) markRpSession();
                   const refreshFn = get().refreshAccessToken;
                   const client = JMAPClient.withBearer(account.serverUrl, access_token, account.username, () => refreshFn());
                   bindClientStatusHandlers(client, set, get, account.id);
