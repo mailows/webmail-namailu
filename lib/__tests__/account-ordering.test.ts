@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { sortDefaultFirst, reorderNonDefaultIds, type OrderableAccount } from '../account-utils';
+import {
+  canAddIndependentAccount,
+  sortDefaultFirst,
+  reorderNonDefaultIds,
+  type OrderableAccount,
+} from '../account-utils';
 
 const acct = (id: string, isDefault = false): OrderableAccount => ({ id, isDefault });
 
@@ -41,5 +46,16 @@ describe('reorderNonDefaultIds', () => {
   it('returns null when the default is dragged or targeted', () => {
     expect(reorderNonDefaultIds(accounts, 'd', 'a')).toBeNull();
     expect(reorderNonDefaultIds(accounts, 'a', 'd')).toBeNull();
+  });
+});
+
+describe('canAddIndependentAccount', () => {
+  it('hides the stale add-account flow in central OIDC RP mode', () => {
+    expect(canAddIndependentAccount(1, true, 5)).toBe(false);
+  });
+
+  it('keeps upstream per-slot account support outside RP mode', () => {
+    expect(canAddIndependentAccount(1, false, 5)).toBe(true);
+    expect(canAddIndependentAccount(5, false, 5)).toBe(false);
   });
 });

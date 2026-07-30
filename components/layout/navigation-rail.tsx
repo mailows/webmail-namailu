@@ -17,7 +17,7 @@ import { useAuthStore } from "@/stores/auth-store";
 import { useAccountStore } from "@/stores/account-store";
 import { useUpdateStore, selectHasUpdate } from "@/stores/update-store";
 import { getActiveAccountSlotHeaders } from "@/lib/auth/active-account-slot";
-import { getMaxAccounts } from "@/lib/account-utils";
+import { canAddIndependentAccount } from "@/lib/account-utils";
 import { isDocumentRTL } from "@/i18n/direction";
 import { cn, formatFileSize } from "@/lib/utils";
 import { PluginSlot } from "@/components/plugins/plugin-slot";
@@ -189,7 +189,7 @@ export function NavigationRail({
   const t = useTranslations("sidebar");
   const pathname = usePathname();
   const router = useRouter();
-  const { appLogoLightUrl, appLogoDarkUrl } = useConfig();
+  const { appLogoLightUrl, appLogoDarkUrl, oidcRpEnabled } = useConfig();
   const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
   const { supportsCalendar } = useCalendarStore();
   const { mailboxes } = useEmailStore();
@@ -707,7 +707,7 @@ export function NavigationRail({
                 </button>
               );
             })}
-            {accounts.length < getMaxAccounts() && (
+            {canAddIndependentAccount(accounts.length, oidcRpEnabled) && (
               <button
                 onClick={() => router.push(`/login?mode=add-account` as never)}
                 className="flex items-center justify-center w-8 h-8 rounded-full border border-dashed border-muted-foreground/50 text-muted-foreground hover:border-foreground hover:text-foreground hover:bg-muted transition-colors flex-shrink-0"

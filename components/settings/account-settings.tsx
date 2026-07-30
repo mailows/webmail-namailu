@@ -7,12 +7,13 @@ import { useAuthStore } from '@/stores/auth-store';
 import { useEmailStore } from '@/stores/email-store';
 import { useAccountStore, type AccountEntry } from '@/stores/account-store';
 import { useManagedAccountStore } from '@/stores/managed-account-store';
+import { useConfig } from '@/hooks/use-config';
 import type { SharedAccount } from '@/lib/jmap/types';
 import { SettingsSection, SettingItem } from './settings-section';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { useRouter } from '@/i18n/navigation';
-import { getMaxAccounts } from '@/lib/account-utils';
+import { canAddIndependentAccount } from '@/lib/account-utils';
 import { formatFileSize, cn } from '@/lib/utils';
 
 function hostnameOf(serverUrl: string): string {
@@ -32,6 +33,7 @@ function firstScopedTab(caps: SharedAccount['capabilities']): string | null {
 export function AccountSettings() {
   const t = useTranslations('settings.account');
   const router = useRouter();
+  const { oidcRpEnabled } = useConfig();
   const { username, serverUrl, isDemoMode, primaryIdentity, authMode, client } = useAuthStore();
   const activeAccountId = useAuthStore((s) => s.activeAccountId);
   const switchAccount = useAuthStore((s) => s.switchAccount);
@@ -55,7 +57,6 @@ export function AccountSettings() {
   const quotaPercentage = quota && quota.total > 0 ? Math.min(Math.round((quota.used / quota.total) * 100), 100) : 0;
   const displayName = primaryIdentity?.name || account?.displayName || (isDemoMode ? 'Demo User' : undefined);
   const email = primaryIdentity?.email || account?.email || username;
-  const max = getMaxAccounts();
 
   const handleDragStart = useCallback((e: React.DragEvent, index: number) => {
     draggedIndexRef.current = index;
@@ -213,7 +214,7 @@ export function AccountSettings() {
               />
             ))}
 
-            {accounts.length < max && (
+            {canAddIndependentAccount(accounts.length, oidcRpEnabled) && (
               <Button
                 variant="outline"
                 size="sm"

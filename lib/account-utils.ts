@@ -103,6 +103,21 @@ export function getMaxAccounts(): number {
   return isHttp2Available() ? MAX_ACCOUNT_SLOTS : MAX_ACCOUNTS_HTTP1;
 }
 
+/**
+ * Centrální OIDC RP session je zatím záměrně jednoidentitní. Upstream multi-account
+ * přihlašování používá per-slot password/OAuth cookies, které po OIDC cutoveru
+ * neexistují; nabídnout v tomto režimu „Přidat účet" by proto otevřelo mrtvý formulář.
+ *
+ * Sdílené/delegované JMAP schránky nejsou další login a tímto omezené nejsou.
+ */
+export function canAddIndependentAccount(
+  accountCount: number,
+  oidcRpEnabled: boolean,
+  maxAccounts = getMaxAccounts(),
+): boolean {
+  return !oidcRpEnabled && accountCount < maxAccounts;
+}
+
 /** Minimal shape needed to order accounts (structural — avoids importing AccountEntry). */
 export interface OrderableAccount {
   id: string;

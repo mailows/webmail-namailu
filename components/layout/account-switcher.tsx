@@ -6,7 +6,8 @@ import { Check, Plus, LogOut, Star, ChevronDown, AlertCircle, GripVertical, X } 
 import { useTranslations } from "next-intl";
 import { useAccountStore, type AccountEntry } from "@/stores/account-store";
 import { useAuthStore } from "@/stores/auth-store";
-import { getMaxAccounts, sortDefaultFirst, reorderNonDefaultIds } from "@/lib/account-utils";
+import { canAddIndependentAccount, sortDefaultFirst, reorderNonDefaultIds } from "@/lib/account-utils";
+import { useConfig } from "@/hooks/use-config";
 import { isDocumentRTL } from "@/i18n/direction";
 import { cn } from "@/lib/utils";
 import { useRouter } from "@/i18n/navigation";
@@ -34,6 +35,7 @@ function AccountAvatar({ account, size = "sm" }: { account: AccountEntry; size?:
 export function AccountSwitcher({ variant = "rail", className }: AccountSwitcherProps) {
   const t = useTranslations("sidebar");
   const router = useRouter();
+  const { oidcRpEnabled } = useConfig();
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -312,7 +314,7 @@ export function AccountSwitcher({ variant = "rail", className }: AccountSwitcher
           </div>
 
           {/* Separator + Add Account */}
-          {accounts.length < getMaxAccounts() && (
+          {canAddIndependentAccount(accounts.length, oidcRpEnabled) && (
             <div className="border-t border-border">
               <button
                 onClick={handleAddAccount}
