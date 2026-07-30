@@ -1409,7 +1409,8 @@
         "error_title": "Échec du changement de mot de passe",
         "error_mismatch": "Les nouveaux mots de passe ne correspondent pas",
         "error_min_length": "Le mot de passe doit comporter au moins 8 caractères",
-        "error_generic": "Impossible de changer le mot de passe"
+        "error_generic": "Impossible de changer le mot de passe",
+        "managed_by_portal": "Your account password is managed in the portal — it applies to the web, IMAP and SMTP alike."
       },
       "display_name": {
         "label": "Nom d'affichage",

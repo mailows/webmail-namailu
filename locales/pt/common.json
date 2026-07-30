@@ -1409,7 +1409,8 @@
         "error_title": "Falha ao alterar a senha",
         "error_mismatch": "As novas senhas não coincidem",
         "error_min_length": "A senha deve ter pelo menos 8 caracteres",
-        "error_generic": "Não foi possível alterar a senha"
+        "error_generic": "Não foi possível alterar a senha",
+        "managed_by_portal": "Your account password is managed in the portal — it applies to the web, IMAP and SMTP alike."
       },
       "display_name": {
         "label": "Nome de exibição",

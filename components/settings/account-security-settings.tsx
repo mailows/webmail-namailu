@@ -12,6 +12,7 @@ import { useAccountSecurityStore, type AppPasswordInfo, type ApiKeyInfo, type Ap
 import { useAuthStore } from '@/stores/auth-store';
 import { useAccountStore } from '@/stores/account-store';
 import { useConfig } from '@/hooks/use-config';
+import { usePolicyStore } from '@/stores/policy-store';
 import { apiFetch, getPathPrefix } from '@/lib/browser-navigation';
 import { toast } from '@/stores/toast-store';
 import { cn } from '@/lib/utils';
@@ -421,6 +422,29 @@ function EncryptionSection() {
   );
 }
 
+// FORK: heslo vlastní IdP, webmail se ho po fázi 3 nesmí dotknout — proto odkaz na portál,
+// ne formulář ani modal (ten by znamenal, že staré i nové heslo zase teče přes webmail).
+// Vlastní řádek nahoře schválně: dřív to bylo tlačítko schované UVNITŘ boxu s IMAP/SMTP
+// údaji, kam se pro změnu hesla nikdo nedívá.
+function PortalPasswordSection() {
+  const t = useTranslations('settings.security');
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <Key className="w-4 h-4 text-muted-foreground" />
+        <h4 className="text-sm font-medium text-foreground">{t('password.title')}</h4>
+      </div>
+      <p className="text-xs text-muted-foreground">{t('password.managed_by_portal')}</p>
+      <a
+        href="https://portal.namailu.cz/zabezpeceni#heslo"
+        className="inline-flex items-center rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent"
+      >
+        {t('password.title')}
+      </a>
+    </div>
+  );
+}
+
 function EmailClientSection() {
   const t = useTranslations('settings.security');
   const { client } = useAuthStore();
@@ -473,12 +497,6 @@ function EmailClientSection() {
           <code className="text-foreground">namailu.cz · 587 · STARTTLS</code>
         </div>
         <p className="text-xs text-muted-foreground pt-1">{t('email_client.password_instructions')}</p>
-        <a
-          href="https://portal.namailu.cz/zabezpeceni#heslo"
-          className="inline-flex items-center rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent"
-        >
-          {t('password.title')}
-        </a>
       </div>
     </div>
   );
@@ -626,6 +644,8 @@ export function AccountSecuritySettings() {
   const { isStalwart, isProbing, probe, fetchAll, fetchAuthInfo } = useAccountSecurityStore();
   const { isAuthenticated, authMode, client } = useAuthStore();
   const { oidcRpEnabled } = useConfig();
+  const { isFeatureEnabled } = usePolicyStore();
+  const selfServiceCredentials = isFeatureEnabled('selfServiceCredentialsEnabled');
   const isOAuth = authMode === 'oauth';
   // In the namailu OIDC-RP deployment the identity password is authoritative
   // in the control plane even if an additionally attached account happens to
@@ -705,15 +725,20 @@ export function AccountSecuritySettings() {
 
         {passwordManagedByPortal && (
           <>
+            <PortalPasswordSection />
+            <div className="border-t border-border" />
             <EmailClientSection />
             <div className="border-t border-border" />
           </>
         )}
 
-        <AppPasswordsSection />
-
-        <div className="border-t border-border" />
-        <ApiKeysSection />
+        {selfServiceCredentials && (
+          <>
+            <AppPasswordsSection />
+            <div className="border-t border-border" />
+            <ApiKeysSection />
+          </>
+        )}
 
         {isOAuth && (
           <>

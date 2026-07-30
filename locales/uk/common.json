@@ -1409,7 +1409,8 @@
         "error_title": "Не вдалося змінити пароль",
         "error_mismatch": "Нові паролі не збігаються",
         "error_min_length": "Пароль має бути не менше 8 символів",
-        "error_generic": "Не вдалося змінити пароль"
+        "error_generic": "Не вдалося змінити пароль",
+        "managed_by_portal": "Your account password is managed in the portal — it applies to the web, IMAP and SMTP alike."
       },
       "display_name": {
         "label": "Відображуване ім'я",

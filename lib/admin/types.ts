@@ -47,6 +47,7 @@ export interface FeatureGates {
   requirePluginApproval: boolean;
   themesEnabled: boolean;
   sidebarAppsEnabled: boolean;
+  selfServiceCredentialsEnabled: boolean;
   userThemesEnabled: boolean;
   settingsExportEnabled: boolean;
   customKeywordsEnabled: boolean;
@@ -76,12 +77,18 @@ export interface FeatureGates {
 //   debugModeEnabled   — diagnostika pro provoz, ne položka nastavení pro uživatele;
 //   filesEnabled       — úložiště neposkytujeme (rozhodnutí 30.7.2026); až případně
 //                        jako funkce platících tarifů, a to se zapne vědomě.
+//   selfServiceCredentialsEnabled — hesla aplikací a API klíče si uživatel vyráběl přímo
+//                        ve Stalwartu: control plane o nich neví, nemají expiraci ani audit,
+//                        obcházejí 2FA, přežijí změnu hesla a app heslo si umí vyrobit další
+//                        (změřeno 30.7.2026), takže revokace uniklého nestačí. Zapneme, až
+//                        k nim bude evidence — viz control-plane/FUTURE_UPGRADES.md.
 export const DEFAULT_FEATURE_GATES: FeatureGates = {
   pluginsEnabled: false,
   pluginsUploadEnabled: true,
   requirePluginApproval: true,
   themesEnabled: true,
   sidebarAppsEnabled: false,
+  selfServiceCredentialsEnabled: false,
   userThemesEnabled: true,
   settingsExportEnabled: true,
   customKeywordsEnabled: true,

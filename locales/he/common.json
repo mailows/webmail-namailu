@@ -1374,7 +1374,8 @@
         "error_title": "שינוי הסיסמה נכשל",
         "error_mismatch": "סיסמאות חדשות אינן תואמות",
         "error_min_length": "הסיסמה חייבת להיות לפחות 8 תווים",
-        "error_generic": "שינוי הסיסמה נכשל"
+        "error_generic": "שינוי הסיסמה נכשל",
+        "managed_by_portal": "Your account password is managed in the portal — it applies to the web, IMAP and SMTP alike."
       },
       "display_name": {
         "label": "שם תצוגה",

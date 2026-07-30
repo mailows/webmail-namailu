@@ -1416,7 +1416,8 @@
         "error_title": "خطا",
         "error_mismatch": "مطابقت ندارد",
         "error_min_length": "حداقل ۸ کاراکتر",
-        "error_generic": "تغییر ناموفق"
+        "error_generic": "تغییر ناموفق",
+        "managed_by_portal": "Your account password is managed in the portal — it applies to the web, IMAP and SMTP alike."
       },
       "display_name": {
         "label": "نام نمایشی",

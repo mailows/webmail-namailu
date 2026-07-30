@@ -1409,7 +1409,8 @@
         "error_title": "Wachtwoord wijzigen mislukt",
         "error_mismatch": "Nieuwe wachtwoorden komen niet overeen",
         "error_min_length": "Wachtwoord moet minimaal 8 tekens bevatten",
-        "error_generic": "Kan wachtwoord niet wijzigen"
+        "error_generic": "Kan wachtwoord niet wijzigen",
+        "managed_by_portal": "Your account password is managed in the portal — it applies to the web, IMAP and SMTP alike."
       },
       "display_name": {
         "label": "Weergavenaam",

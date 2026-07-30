@@ -1409,7 +1409,8 @@
         "error_title": "Neizdevās mainīt paroli",
         "error_mismatch": "Jaunās paroles nesakrīt",
         "error_min_length": "Parolei jābūt vismaz 8 rakstzīmes garai",
-        "error_generic": "Neizdevās mainīt paroli"
+        "error_generic": "Neizdevās mainīt paroli",
+        "managed_by_portal": "Your account password is managed in the portal — it applies to the web, IMAP and SMTP alike."
       },
       "display_name": {
         "label": "Redzamais vārds",

@@ -1416,7 +1416,8 @@
         "error_title": "Schimbarea parolei a eșuat",
         "error_mismatch": "Noile parole nu se potrivesc",
         "error_min_length": "Parola trebuie să conțină cel puțin 8 caractere",
-        "error_generic": "Nu s-a putut schimba parola"
+        "error_generic": "Nu s-a putut schimba parola",
+        "managed_by_portal": "Your account password is managed in the portal — it applies to the web, IMAP and SMTP alike."
       },
       "display_name": {
         "label": "Nume afișat",

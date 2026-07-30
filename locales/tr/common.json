@@ -1409,7 +1409,8 @@
         "error_title": "Parola değiştirme başarısız",
         "error_mismatch": "Yeni parolalar eşleşmiyor",
         "error_min_length": "Parola en az 8 karakter olmalıdır",
-        "error_generic": "Parola değiştirilemedi"
+        "error_generic": "Parola değiştirilemedi",
+        "managed_by_portal": "Your account password is managed in the portal — it applies to the web, IMAP and SMTP alike."
       },
       "display_name": {
         "label": "Görünen Ad",

@@ -1409,7 +1409,8 @@
         "error_title": "Změna hesla selhala",
         "error_mismatch": "Nová hesla se neshodují",
         "error_min_length": "Heslo musí obsahovat alespoň 8 znaků",
-        "error_generic": "Heslo se nepodařilo změnit"
+        "error_generic": "Heslo se nepodařilo změnit",
+        "managed_by_portal": "Heslo účtu se mění na portálu — platí zároveň pro web, IMAP i SMTP."
       },
       "display_name": {
         "label": "Zobrazované jméno",
@@ -1441,7 +1442,7 @@
       },
       "app_passwords": {
         "title": "Hesla aplikací",
-        "description": "Vytvořte hesla pro aplikace, které nepodporují dvoufázové ověření",
+        "description": "Vytvořte hesla pro aplikace, které nepodporují dvoufázové ověření. Existují vedle hesla účtu: změna hesla se jich nedotkne, ruší se zvlášť.",
         "add": "Přidat",
         "create": "Vytvořit",
         "cancel": "Zrušit",

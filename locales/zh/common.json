@@ -1409,7 +1409,8 @@
         "error_title": "密码修改失败",
         "error_mismatch": "新密码不匹配",
         "error_min_length": "密码必须至少为 8 个字符",
-        "error_generic": "更改密码失败"
+        "error_generic": "更改密码失败",
+        "managed_by_portal": "Your account password is managed in the portal — it applies to the web, IMAP and SMTP alike."
       },
       "display_name": {
         "label": "显示名称",

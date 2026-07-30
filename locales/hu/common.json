@@ -1412,7 +1412,8 @@
         "error_title": "Jelszó módosítás sikertelen",
         "error_mismatch": "Az új jelszavak nem egyeznek",
         "error_min_length": "A jelszónak legalább 8 karakter hosszúnak kell lennie",
-        "error_generic": "Nem sikerült módosítani a jelszót"
+        "error_generic": "Nem sikerült módosítani a jelszót",
+        "managed_by_portal": "Your account password is managed in the portal — it applies to the web, IMAP and SMTP alike."
       },
       "display_name": {
         "label": "Megjelenített név",

@@ -1416,7 +1416,8 @@
         "error_title": "Zmena hesla zlyhala",
         "error_mismatch": "Nové heslá sa nezhodujú",
         "error_min_length": "Heslo musí mať aspoň 8 znakov",
-        "error_generic": "Nepodarilo sa zmeniť heslo"
+        "error_generic": "Nepodarilo sa zmeniť heslo",
+        "managed_by_portal": "Your account password is managed in the portal — it applies to the web, IMAP and SMTP alike."
       },
       "display_name": {
         "label": "Zobrazované meno",

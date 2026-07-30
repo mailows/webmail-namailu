@@ -1409,7 +1409,8 @@
         "error_title": "パスワードの変更に失敗しました",
         "error_mismatch": "新しいパスワードが一致しません",
         "error_min_length": "パスワードは8文字以上である必要があります",
-        "error_generic": "パスワードを変更できませんでした"
+        "error_generic": "パスワードを変更できませんでした",
+        "managed_by_portal": "Your account password is managed in the portal — it applies to the web, IMAP and SMTP alike."
       },
       "display_name": {
         "label": "表示名",

@@ -1409,7 +1409,8 @@
         "error_title": "비밀번호 변경 실패",
         "error_mismatch": "새 비밀번호가 서로 일치하지 않아요",
         "error_min_length": "비밀번호는 최소 8자 이상이어야 해요",
-        "error_generic": "비밀번호를 변경하지 못했어요"
+        "error_generic": "비밀번호를 변경하지 못했어요",
+        "managed_by_portal": "Your account password is managed in the portal — it applies to the web, IMAP and SMTP alike."
       },
       "display_name": {
         "label": "표시 이름",

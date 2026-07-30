@@ -1412,7 +1412,8 @@
         "error_title": "Adgangskodeændring mislykkedes",
         "error_mismatch": "De nye adgangskoder er ikke ens",
         "error_min_length": "Adgangskoden skal være mindst 8 tegn",
-        "error_generic": "Kunne ikke ændre adgangskode"
+        "error_generic": "Kunne ikke ændre adgangskode",
+        "managed_by_portal": "Your account password is managed in the portal — it applies to the web, IMAP and SMTP alike."
       },
       "display_name": {
         "label": "Visningsnavn",

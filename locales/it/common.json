@@ -1409,7 +1409,8 @@
         "error_title": "Cambio password fallito",
         "error_mismatch": "Le nuove password non corrispondono",
         "error_min_length": "La password deve contenere almeno 8 caratteri",
-        "error_generic": "Impossibile cambiare la password"
+        "error_generic": "Impossibile cambiare la password",
+        "managed_by_portal": "Your account password is managed in the portal — it applies to the web, IMAP and SMTP alike."
       },
       "display_name": {
         "label": "Nome visualizzato",

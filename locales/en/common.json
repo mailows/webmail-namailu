@@ -1416,7 +1416,8 @@
         "error_title": "Password change failed",
         "error_mismatch": "New passwords do not match",
         "error_min_length": "Password must be at least 8 characters",
-        "error_generic": "Failed to change password"
+        "error_generic": "Failed to change password",
+        "managed_by_portal": "Your account password is managed in the portal — it applies to the web, IMAP and SMTP alike."
       },
       "display_name": {
         "label": "Display Name",
@@ -1448,7 +1449,7 @@
       },
       "app_passwords": {
         "title": "App Passwords",
-        "description": "Create passwords for apps that don't support two-factor authentication",
+        "description": "Create passwords for apps that don't support two-factor authentication They live alongside the account password: changing it does not revoke them; remove them separately.",
         "add": "Add",
         "create": "Create",
         "cancel": "Cancel",

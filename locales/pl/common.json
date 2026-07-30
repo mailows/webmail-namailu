@@ -1409,7 +1409,8 @@
         "error_title": "Zmiana hasła nie powiodła się",
         "error_mismatch": "Nowe hasła nie są zgodne",
         "error_min_length": "Hasło musi mieć co najmniej 8 znaków",
-        "error_generic": "Nie udało się zmienić hasła"
+        "error_generic": "Nie udało się zmienić hasła",
+        "managed_by_portal": "Your account password is managed in the portal — it applies to the web, IMAP and SMTP alike."
       },
       "display_name": {
         "label": "Nazwa wyświetlana",

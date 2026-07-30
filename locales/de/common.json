@@ -1409,7 +1409,8 @@
         "error_title": "Passwortänderung fehlgeschlagen",
         "error_mismatch": "Neue Passwörter stimmen nicht überein",
         "error_min_length": "Das Passwort muss mindestens 8 Zeichen lang sein",
-        "error_generic": "Passwort konnte nicht geändert werden"
+        "error_generic": "Passwort konnte nicht geändert werden",
+        "managed_by_portal": "Your account password is managed in the portal — it applies to the web, IMAP and SMTP alike."
       },
       "display_name": {
         "label": "Anzeigename",

@@ -1416,7 +1416,8 @@
         "error_title": "فشل تغيير كلمة المرور",
         "error_mismatch": "كلمتا المرور الجديدتان غير متطابقتين",
         "error_min_length": "يجب أن تتكون كلمة المرور من 8 أحرف على الأقل",
-        "error_generic": "فشل تغيير كلمة المرور"
+        "error_generic": "فشل تغيير كلمة المرور",
+        "managed_by_portal": "Your account password is managed in the portal — it applies to the web, IMAP and SMTP alike."
       },
       "display_name": {
         "label": "الاسم المعروض",
