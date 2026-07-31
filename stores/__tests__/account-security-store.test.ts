@@ -152,6 +152,10 @@ describe('account-security-store', () => {
             roles: { '@type': 'User' },
           }],
         }, '0'],
+        // Zobrazovane jmeno se bere z Identity.name, ne z popisu uctu.
+        ['Identity/get', { list: [
+          { id: 'i-mine', email: 'user@example.com', name: 'Display User' },
+        ] }, '1'],
       ]);
 
       await useAccountSecurityStore.getState().fetchPrincipal();
@@ -224,16 +228,42 @@ describe('account-security-store', () => {
   });
 
   describe('updateDisplayName', () => {
-    it('patches AccountSettings.description and updates local state', async () => {
-      mockedJmap.mockResolvedValueOnce([
-        ['x:AccountSettings/set', { updated: { singleton: null } }, '0'],
-      ]);
+    // Zapisuje se do Identity.name, NE do AccountSettings.description. Popis uctu se do
+    // odchozi posty nepropise vubec — uzivatel si jmeno nastavil a nikde se neukazovalo.
+    it('patches the Identity matching the account address', async () => {
+      mockedJmap
+        .mockResolvedValueOnce([
+          ['x:Account/get', { list: [{ emailAddress: 'me@example.test' }] }, '0'],
+          ['Identity/get', { list: [
+            { id: 'i-other', email: 'abuse@example.test', name: 'Abuse' },
+            { id: 'i-mine', email: 'me@example.test', name: 'me@example.test' },
+          ] }, '1'],
+        ])
+        .mockResolvedValueOnce([
+          ['Identity/set', { updated: { 'i-mine': null } }, '0'],
+        ]);
 
       await useAccountSecurityStore.getState().updateDisplayName('New Name');
 
       expect(useAccountSecurityStore.getState().displayName).toBe('New Name');
-      const args = mockedJmap.mock.calls[0][0][0][1];
-      expect(args).toEqual({ accountId: 'acc-primary', update: { singleton: { description: 'New Name' } } });
+      const [method, args] = mockedJmap.mock.calls[1][0][0];
+      expect(method).toBe('Identity/set');
+      expect(args).toEqual({ accountId: 'acc-primary', update: { 'i-mine': { name: 'New Name' } } });
+    });
+
+    it('never renames a different address on a multi-identity account', async () => {
+      mockedJmap
+        .mockResolvedValueOnce([
+          ['x:Account/get', { list: [{ emailAddress: 'me@example.test' }] }, '0'],
+          ['Identity/get', { list: [
+            { id: 'i-other', email: 'abuse@example.test', name: 'Abuse' },
+          ] }, '1'],
+        ]);
+
+      await expect(
+        useAccountSecurityStore.getState().updateDisplayName('New Name'),
+      ).rejects.toThrow();
+      expect(mockedJmap.mock.calls).toHaveLength(1);
     });
   });
 

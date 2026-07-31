@@ -4,7 +4,13 @@ import { getActiveAccountSlotHeaders } from '@/lib/auth/active-account-slot';
 export type JmapMethodCall = [string, Record<string, unknown>, string];
 export type JmapMethodResponse = [string, Record<string, unknown>, string];
 
-export const STALWART_JMAP_USING = ['urn:ietf:params:jmap:core', 'urn:stalwart:jmap'];
+// `Identity/*` (zobrazovane jmeno odesilatele) patri pod submission capability;
+// bez ni Stalwart odpovi `unknownMethod`.
+export const STALWART_JMAP_USING = [
+  'urn:ietf:params:jmap:core',
+  'urn:ietf:params:jmap:submission',
+  'urn:stalwart:jmap',
+];
 
 export interface StalwartJmapError extends Error {
   status: number;

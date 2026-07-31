@@ -3,6 +3,32 @@ import { debug } from '@/lib/debug';
 import { useAuthStore } from '@/stores/auth-store';
 import { stalwartJmap, requireResult, type JmapMethodResponse } from '@/lib/stalwart/jmap-passthrough';
 
+interface JmapIdentity {
+  id: string;
+  email: string;
+  name?: string | null;
+}
+
+/** Identita odpovidajici adrese uctu. Ucet jich muze mit vic (postmaster ma i abuse@),
+ *  takze „ta prvni" by prejmenovala cizi adresu. */
+function matchIdentity(identities: JmapIdentity[], address: string): JmapIdentity | undefined {
+  const a = address.trim().toLowerCase();
+  return identities.find((i) => (i.email ?? '').toLowerCase() === a);
+}
+
+async function findOwnIdentity(accountId: string): Promise<JmapIdentity> {
+  const responses = await stalwartJmap([
+    ['x:Account/get', { accountId, ids: [accountId] }, '0'],
+    ['Identity/get', { accountId }, '1'],
+  ]);
+  const acc = requireResult<{ list: Array<{ emailAddress?: string | null; name?: string | null }> }>(
+    responses, 'x:Account/get').list?.[0];
+  const identities = requireResult<{ list: JmapIdentity[] }>(responses, 'Identity/get').list ?? [];
+  const own = matchIdentity(identities, acc?.emailAddress ?? acc?.name ?? '');
+  if (!own) throw new Error('Account has no identity matching its own address');
+  return own;
+}
+
 export type EncryptionType = 'Disabled' | 'Aes128' | 'Aes256';
 
 export interface AppPasswordInfo {
@@ -303,10 +329,12 @@ export const useAccountSecurityStore = create<AccountSecurityState>()((set, get)
       const accountId = getPrimaryAccountId();
       const responses = await stalwartJmap([
         ['x:Account/get', { accountId, ids: [accountId] }, '0'],
+        ['Identity/get', { accountId }, '1'],
       ]);
       const result = requireResult<{
         list: Array<{
           description?: string | null;
+          emailAddress?: string | null;
           aliases?: Record<string, { name?: string; domainId?: string; enabled?: boolean }>;
           quotas?: { maxDiskQuota?: number };
           roles?: { ['@type']?: string };
@@ -321,8 +349,15 @@ export const useAccountSecurityStore = create<AccountSecurityState>()((set, get)
             .flatMap((a) => (a && a.enabled !== false && a.name ? [a.name] : []))
         : [];
       const primaryEmail = acc?.name ? [acc.name] : [];
+      // Vychozi hodnota Stalwartu je samotna adresa — to neni jmeno, to je „nenastaveno".
+      // Tolerantne: kdyby Identity/get chybel (jina verze serveru, jina capability),
+      // nesmi to shodit cele nacteni uctu — jen se jmeno nezobrazi.
+      const identityResp = responses.find((r) => r[0] === 'Identity/get');
+      const identities = ((identityResp?.[1] as { list?: JmapIdentity[] })?.list) ?? [];
+      const own = matchIdentity(identities, acc?.emailAddress ?? acc?.name ?? '');
+      const identityName = (own?.name ?? '').trim();
       set({
-        displayName: acc?.description ?? '',
+        displayName: identityName.toLowerCase() === (own?.email ?? '').toLowerCase() ? '' : identityName,
         emails: [...primaryEmail, ...aliasAddresses],
         quota: acc?.quotas?.maxDiskQuota ?? 0,
         roles: acc?.roles?.['@type'] ? [acc.roles['@type']] : [],
@@ -373,10 +408,14 @@ export const useAccountSecurityStore = create<AccountSecurityState>()((set, get)
     set({ isSaving: true, error: null });
     try {
       const accountId = getPrimaryAccountId();
+      // Jmeno musi jit do Identity.name — `x:AccountSettings.description` se do odchozi
+      // posty nepropise vubec, takze editace vypadala jako by nemela zadny efekt.
+      // Portal pise do TEHOZ pole, aby se obe mista nemohla rozejit.
+      const identity = await findOwnIdentity(accountId);
       await stalwartJmap([
         [
-          'x:AccountSettings/set',
-          { accountId, update: { singleton: { description: displayName } } },
+          'Identity/set',
+          { accountId, update: { [identity.id]: { name: displayName || identity.email } } },
           '0',
         ],
       ]);
