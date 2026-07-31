@@ -1506,16 +1506,16 @@
       }
     },
     "identities": {
-      "title": "Identity odesílatele",
-      "description": "Správa e-mailových adres, ze kterých můžete odesílat zprávy",
+      "title": "Identita odesílatele",
+      "description": "Nastavte zobrazované jméno, adresu pro odpověď a podpis",
       "identities_count": {
-        "label": "Vaše identity",
-        "description": "E-mailové adresy nakonfigurované pro odesílání",
-        "count_zero": "Žádné identity",
+        "label": "Aktuální odesílatel",
+        "description": "Adresa schránky se spravuje v portálu",
+        "count_zero": "Identita není dostupná",
         "count_one": "1 identita",
         "count_other": "{count} identit"
       },
-      "manage": "Spravovat identity",
+      "manage": "Upravit identitu",
       "sub_addressing": {
         "label": "Subadresování",
         "description": "Používejte štítky jako uzivatel+stitek@domena.cz pro uspořádání příchozí pošty",
@@ -2114,7 +2114,7 @@
     "toggle_thread": "Přepnout zobrazení vlákna"
   },
   "identities": {
-    "modal_title": "Správa identit odesílatele",
+    "modal_title": "Upravit identitu odesílatele",
     "create_new": "Vytvořit novou identitu",
     "edit_identity": "Upravit identitu",
     "delete_confirm": "Odstranit tuto identitu? Tuto akci nelze vrátit zpět.",
@@ -2140,7 +2140,7 @@
       "email_placeholder": "vas.email@example.com",
       "email_required": "E-mailová adresa je vyžadována",
       "email_invalid": "Zadejte platnou e-mailovou adresu",
-      "email_immutable": "E-mailovou adresu nelze po vytvoření změnit",
+      "email_immutable": "E-mailová adresa se spravuje v portálu",
       "reply_to_label": "Odpovědět na (volitelně)",
       "reply_to_placeholder": "jiny@example.com",
       "bcc_label": "Automatická skrytá kopie (volitelně)",

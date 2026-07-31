@@ -10,25 +10,25 @@ import { useIdentityStore } from '@/stores/identity-store';
 export function IdentitySettings() {
   const t = useTranslations('settings.identities');
   const { identities } = useIdentityStore();
+  const currentIdentity = identities[0];
   const [showModal, setShowModal] = useState(false);
 
   return (
     <>
       <SettingsSection title={t('title')} description={t('description')}>
-        {/* Identity Count */}
         <SettingItem
           label={t('identities_count.label')}
           description={t('identities_count.description')}
         >
           <div className="flex items-center gap-2">
             <span className="text-sm text-foreground">
-              {identities.length === 0
-                ? t('identities_count.count_zero')
-                : identities.length === 1
-                ? t('identities_count.count_one')
-                : t('identities_count.count_other', { count: identities.length })}
+              {currentIdentity?.email ?? t('identities_count.count_zero')}
             </span>
-            <Button onClick={() => setShowModal(true)} size="sm">
+            <Button
+              onClick={() => setShowModal(true)}
+              size="sm"
+              disabled={!currentIdentity}
+            >
               {t('manage')}
             </Button>
           </div>
@@ -39,9 +39,7 @@ export function IdentitySettings() {
           label={t('sub_addressing.label')}
           description={t('sub_addressing.description')}
         >
-          <Button variant="outline" size="sm" onClick={() => setShowModal(true)}>
-            {t('sub_addressing.learn_more')}
-          </Button>
+          {null}
         </SettingItem>
       </SettingsSection>
 
