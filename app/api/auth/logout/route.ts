@@ -20,6 +20,24 @@ import {
 
 const LANDING_URL = process.env.LANDING_URL || 'https://www.namailu.cz/';
 
+/** Domény, kam smí odhlašovací řetěz pokračovat. Odvozeno z LANDING_URL a z
+ *  výčtu značek — jiný cíl se zahodí a spadne se na landing. */
+const CHAIN_HOST_SUFFIXES = ['namailu.cz', 'mailows.com'];
+
+export function safeChainTarget(raw: string | null): string | null {
+  if (!raw) return null;
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== 'https:' || url.username || url.password) return null;
+  const host = url.hostname.toLowerCase();
+  const ok = CHAIN_HOST_SUFFIXES.some((d) => host === d || host.endsWith(`.${d}`));
+  return ok ? url.toString() : null;
+}
+
 function legacyTotpTrustCookieName(slot: number): string {
   return slot === 0 ? 'jmap_totp_trust' : `jmap_totp_trust_${slot}`;
 }
@@ -53,10 +71,13 @@ export async function GET(request: NextRequest) {
   }
 
   const fromIdp = request.nextUrl.searchParams.get('from_idp') === '1';
-  const response = NextResponse.redirect(
-    fromIdp ? LANDING_URL : `${OIDC_ISSUER}/logout`,
-    fromIdp ? 303 : 302,
-  );
+  // Řetězené odhlášení napříč značkami (16. 8. 2026): IdP posílá `next` na DALŠÍ
+  // instanci webmailu, na konci landing. Bez toho se řetěz zastavil na první
+  // instanci a session ve druhé zůstala živá. `next` je vstup zvenčí — smí mířit
+  // jen na naše domény, jinak by z odhlášení byl otevřený redirect.
+  const nextParam = request.nextUrl.searchParams.get('next');
+  const target = fromIdp ? (safeChainTarget(nextParam) ?? LANDING_URL) : `${OIDC_ISSUER}/logout`;
+  const response = NextResponse.redirect(target, fromIdp ? 303 : 302);
   response.headers.set('Cache-Control', 'no-store');
 
   const kill = (name: string) => {

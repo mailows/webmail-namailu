@@ -104,6 +104,31 @@ describe('logout route (single logout chain)', () => {
     expect(deleted).toEqual(expect.arrayContaining(['oidc_at', 'oidc_rt', 'oidc_id', 'oidc_pending']));
   });
 
+  it('follows a same-family next target from the IdP so every webmail instance signs out', async () => {
+    // Řetězené odhlášení napříč značkami (16. 8. 2026): IdP posílá next na DALŠÍ
+    // instanci webmailu. Bez toho se řetěz zastavil na první a druhá zůstala živá.
+    process.env.LANDING_URL = 'https://www.namailu.cz/';
+    const { GET } = await import('@/app/api/auth/logout/route');
+    const next = 'https://mailows.com/api/auth/logout?from_idp=1&next=https%3A%2F%2Fwww.mailows.com%2F';
+    const res = await GET({
+      nextUrl: { searchParams: new URLSearchParams({ from_idp: '1', next }) },
+    } as never);
+
+    expect(res.url).toBe(next);
+    expect(res.status).toBe(303);
+  });
+
+  it('refuses a foreign next target even from the IdP (no open redirect through logout)', async () => {
+    process.env.LANDING_URL = 'https://www.namailu.cz/';
+    const { GET } = await import('@/app/api/auth/logout/route');
+    for (const bad of ['https://evil.test/', 'http://mailows.com/x', 'https://notmailows.com/', 'https://user@mailows.com/']) {
+      const res = await GET({
+        nextUrl: { searchParams: new URLSearchParams({ from_idp: '1', next: bad }) },
+      } as never);
+      expect(res.url).toBe('https://www.namailu.cz/');
+    }
+  });
+
   it('revokes by refresh token server-side without putting the token in a URL', async () => {
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => ({ ok: true, status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
