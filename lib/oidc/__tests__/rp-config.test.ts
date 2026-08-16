@@ -51,8 +51,15 @@ describe('kontrakt redirect_uri', () => {
   it('kontrakt drží tvar, na který spoléhá control plane', () => {
     expect(Object.keys(contract).sort()).toEqual(
       ['_comment', 'access_token_audience', 'callback_path', 'client_id', 'issuer',
-       'origin', 'redirect_uri', 'scope'].sort()
+       'origin', 'redirect_uri', 'redirect_uris', 'scope'].sort()
     );
+    // `redirect_uris` (od 15. 8. 2026): každá značka má vlastní instanci webmailu
+    // na svém apexu se stejným client_id; kanonický `redirect_uri` primární
+    // značky musí být ve výčtu, jinak by tenhle build nesedě na registraci.
+    expect(contract.redirect_uris).toContain(contract.redirect_uri);
+    for (const uri of contract.redirect_uris) {
+      expect(new URL(uri).pathname).toBe(contract.callback_path);
+    }
     expect(contract.issuer).toBe('https://id.namailu.cz');
     // `aud` tokenu je mailserver, ne webmail — kdyby se to opravilo „na klienta",
     // přestal by procházet i platný token.
