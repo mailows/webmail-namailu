@@ -24,7 +24,10 @@ const LANDING_URL = process.env.LANDING_URL || 'https://www.namailu.cz/';
  *  výčtu značek — jiný cíl se zahodí a spadne se na landing. */
 const CHAIN_HOST_SUFFIXES = ['namailu.cz', 'mailows.com'];
 
-export function safeChainTarget(raw: string | null): string | null {
+// Ne `export`: z route souboru smí Next.js exportovat jen HTTP handlery — jiný
+// export shodí `next build` na typové kontrole (stalo se 16. 8. 2026, vitest to
+// nechytí, protože kontrakt routy ověřuje až build).
+function safeChainTarget(raw: string | null): string | null {
   if (!raw) return null;
   let url: URL;
   try {
