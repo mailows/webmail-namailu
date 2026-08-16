@@ -35,8 +35,11 @@ import {
   BellOff,
   Mails,
   MailOpen,
+  ExternalLink,
 } from "lucide-react";
 import { cn, buildMailboxTree, MailboxNode } from "@/lib/utils";
+import { useConfig } from "@/hooks/use-config";
+import { portalUrlForBrand } from "@/lib/portal/handoff-url";
 import { localizeMailboxName } from "@/lib/mailbox-label";
 import { isEditableEventTarget } from "@/lib/keyboard";
 import { Mailbox } from "@/lib/jmap/types";
@@ -801,6 +804,7 @@ export function Sidebar({
     (connectedAccounts.length > 1 || (includeGroupInUnified && hasGroupInboxes));
   const { unifiedCounts } = useEmailStore();
   const t = useTranslations('sidebar');
+  const { loginWebsiteUrl } = useConfig();
 
   useEffect(() => {
     const stored = localStorage.getItem('expandedMailboxes');
@@ -1281,6 +1285,19 @@ export function Sidebar({
             )}
           </div>
         )}
+
+        {/* Odkaz do portálu značky pod štítky (16. 8. 2026). Na mobilu je sidebar
+            to, co se otevře z menu — rail s ikonou portálu se tam nevykresluje.
+            Stejný SidebarRow jako složky a štítky, ať to sedí i ve sbaleném stavu. */}
+        <div className="pt-1 border-t border-border">
+          <SidebarRow
+            icon={<ExternalLink className="w-4 h-4 flex-shrink-0 text-muted-foreground" />}
+            label={t("portal")}
+            depth={0}
+            onClick={() => { window.location.assign(portalUrlForBrand(loginWebsiteUrl)); }}
+            isCollapsed={isCollapsed}
+          />
+        </div>
 
         {!isCollapsed && <PluginSlot name="sidebar-widget" className="border-t border-border" />}
       </div>
