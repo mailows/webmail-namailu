@@ -1,9 +1,24 @@
 /**
- * Pevný odkaz do portálu. Identitu nepřenáší vlastní token ani slot:
+ * Odkaz do portálu značky. Identitu nepřenáší vlastní token ani slot:
  * portál zahájí standardní OIDC flow a host-only idp_session zajistí SSO.
+ *
+ * ⚠️ Podle ZNAČKY instance, ne natvrdo (16. 8. 2026): `NEXT_PUBLIC_PORTAL_URL`
+ * je build-time, tedy stejný pro obě instance téhož obrazu — webmail Mailows by
+ * posílal do portálu namailu. Značka se bere z `LOGIN_WEBSITE_URL`, který je
+ * běhový a každá instance má svůj (`https://www.mailows.com/registrace` →
+ * `portal.mailows.com`). Bez něj se spadne na build-time hodnotu / primární.
  */
-const PORTAL_URL = (process.env.NEXT_PUBLIC_PORTAL_URL || 'https://portal.namailu.cz').replace(/\/+$/, '');
+const FALLBACK_PORTAL_URL = (process.env.NEXT_PUBLIC_PORTAL_URL || 'https://portal.namailu.cz').replace(/\/+$/, '');
 
-export function portalHandoffUrl(_slot?: number | null): string {
-  return PORTAL_URL;
+export function portalUrlForBrand(loginWebsiteUrl: string | undefined | null): string {
+  if (!loginWebsiteUrl) return FALLBACK_PORTAL_URL;
+  try {
+    const host = new URL(loginWebsiteUrl).hostname.toLowerCase();
+    // www.mailows.com → mailows.com → portal.mailows.com
+    const apex = host.replace(/^www\./, '');
+    if (!/^[a-z0-9.-]+\.[a-z]{2,}$/.test(apex)) return FALLBACK_PORTAL_URL;
+    return `https://portal.${apex}`;
+  } catch {
+    return FALLBACK_PORTAL_URL;
+  }
 }

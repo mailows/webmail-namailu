@@ -2,12 +2,13 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { Check, Plus, LogOut, Star, ChevronDown, AlertCircle, GripVertical, X } from "lucide-react";
+import { Check, Plus, LogOut, Star, ChevronDown, AlertCircle, GripVertical, X, ExternalLink } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useAccountStore, type AccountEntry } from "@/stores/account-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { canAddIndependentAccount, sortDefaultFirst, reorderNonDefaultIds } from "@/lib/account-utils";
 import { useConfig } from "@/hooks/use-config";
+import { portalUrlForBrand } from "@/lib/portal/handoff-url";
 import { isDocumentRTL } from "@/i18n/direction";
 import { cn } from "@/lib/utils";
 import { useRouter } from "@/i18n/navigation";
@@ -35,7 +36,7 @@ function AccountAvatar({ account, size = "sm" }: { account: AccountEntry; size?:
 export function AccountSwitcher({ variant = "rail", className }: AccountSwitcherProps) {
   const t = useTranslations("sidebar");
   const router = useRouter();
-  const { oidcRpEnabled } = useConfig();
+  const { oidcRpEnabled, loginWebsiteUrl } = useConfig();
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -327,6 +328,21 @@ export function AccountSwitcher({ variant = "rail", className }: AccountSwitcher
               </button>
             </div>
           )}
+
+          {/* Portál značky. Na desktopu je i v navigation railu, ale rail se na
+              mobilu nevykresluje — menu účtu je tam jediné místo, kam se dá odkaz
+              dát a kde ho uživatel hledá (hlášeno 16. 8. 2026). */}
+          <div className="border-t border-border">
+            <a
+              href={portalUrlForBrand(loginWebsiteUrl)}
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+              role="menuitem"
+              data-testid="portal-link"
+            >
+              <ExternalLink className="w-4 h-4" />
+              {t("portal")}
+            </a>
+          </div>
 
           {/* Separator + Actions */}
           <div className="border-t border-border">

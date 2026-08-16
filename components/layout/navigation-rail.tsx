@@ -23,7 +23,7 @@ import { cn, formatFileSize } from "@/lib/utils";
 import { PluginSlot } from "@/components/plugins/plugin-slot";
 import { KeyboardShortcutsModal } from "@/components/keyboard-shortcuts-modal";
 import { apiFetch, getPathPrefix, withBasePath } from "@/lib/browser-navigation";
-import { portalHandoffUrl } from "@/lib/portal/handoff-url";
+import { portalUrlForBrand } from "@/lib/portal/handoff-url";
 import { Avatar } from "@/components/ui/avatar";
 
 interface NavItem {
@@ -189,7 +189,7 @@ export function NavigationRail({
   const t = useTranslations("sidebar");
   const pathname = usePathname();
   const router = useRouter();
-  const { appLogoLightUrl, appLogoDarkUrl, oidcRpEnabled } = useConfig();
+  const { appLogoLightUrl, appLogoDarkUrl, oidcRpEnabled, loginWebsiteUrl } = useConfig();
   const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
   const { supportsCalendar } = useCalendarStore();
   const { mailboxes } = useEmailStore();
@@ -205,8 +205,6 @@ export function NavigationRail({
   const visibleSidebarApps = sidebarAppsEnabled ? sidebarApps : [];
   const inboxUnread = mailboxes.find(m => m.role === "inbox")?.unreadEmails || 0;
   const [isStalwartAdmin, setIsStalwartAdmin] = useState(false);
-  const activeSlot = useAccountStore((s) =>
-    s.accounts.find((a) => a.id === s.activeAccountId)?.cookieSlot ?? null);
   const hasUpdate = useUpdateStore(selectHasUpdate);
   const updateSeverity = useUpdateStore((s) => s.status?.severity);
   const startUpdatePolling = useUpdateStore((s) => s.startPolling);
@@ -628,7 +626,7 @@ export function NavigationRail({
 
         {/* Standardní OIDC SSO: žádný handoff token ani dotaz na portál. */}
         <a
-          href={withBasePath(portalHandoffUrl(activeSlot))}
+          href={portalUrlForBrand(loginWebsiteUrl)}
           className="flex items-center justify-center w-10 h-10 rounded-md transition-colors text-muted-foreground hover:text-foreground hover:bg-muted"
           title={t("portal")}
         >
