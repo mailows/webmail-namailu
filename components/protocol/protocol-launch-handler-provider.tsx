@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import type { ReactNode } from "react";
 import { useTranslations } from "next-intl";
+import { useConfig } from "@/hooks/use-config";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { getPathPrefix } from "@/lib/browser-navigation";
 import { parseMailto } from "@/lib/protocol-handlers/mailto";
@@ -68,6 +69,7 @@ interface ProtocolLaunchHandlerProviderProps {
 
 export function ProtocolLaunchHandlerProvider({ children }: ProtocolLaunchHandlerProviderProps) {
   const t = useTranslations("protocol_handlers");
+  const { appName } = useConfig();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -81,10 +83,10 @@ export function ProtocolLaunchHandlerProvider({ children }: ProtocolLaunchHandle
     }, () => ({
       path: pathname,
       standalone: isStandaloneDisplayMode(),
-      focusNotificationTitle: t("focus_notification_title"),
-      focusNotificationBody: t("focus_notification_body"),
+      focusNotificationTitle: t("focus_notification_title", { appName }),
+      focusNotificationBody: t("focus_notification_body", { appName }),
     }));
-  }, [pathname, router, t]);
+  }, [pathname, router, t, appName]);
 
   useEffect(() => {
     if (typeof window === "undefined" || !window.launchQueue) return;

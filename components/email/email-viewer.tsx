@@ -102,6 +102,7 @@ import { emailHooks, uiHooks, renderHooks } from "@/lib/plugin-hooks";
 import type { AttachmentInfo, AttachmentPreview } from "@/lib/plugin-types";
 import { useAttachmentDrag, isDragOutSupported, type AttachmentDragSource } from "@/hooks/use-attachment-drag";
 import type { IJMAPClient } from "@/lib/jmap/client-interface";
+import { useConfig } from "@/hooks/use-config";
 
 interface EmailViewerProps {
   email: Email | null;
@@ -653,6 +654,8 @@ export function EmailViewer({
   const tCommon = useTranslations('common');
   const tFiles = useTranslations('files');
   const tDemoWelcome = useTranslations('demo_welcome');
+  // Uvítání v demu nese jméno TÉTO instance, ne jméno upstreamu.
+  const { appName } = useConfig();
   const tWelcome = useTranslations('welcome');
   const externalContentPolicy = useSettingsStore((state) => state.externalContentPolicy);
   const messageSpacing = useSettingsStore((state) => state.messageSpacing);
@@ -2745,7 +2748,7 @@ export function EmailViewer({
               alt="Bulwark Mail"
               className="h-12 mx-auto mb-6"
             />
-            <h3 className="text-xl font-semibold text-foreground mb-3">{tDemoWelcome('title')}</h3>
+            <h3 className="text-xl font-semibold text-foreground mb-3">{tDemoWelcome('title', { appName })}</h3>
             <p className="text-sm text-muted-foreground mb-6 leading-relaxed">{tDemoWelcome('description')}</p>
             <div className="flex flex-col gap-3 items-center">
               <div className="grid grid-cols-2 gap-3 text-start text-sm text-muted-foreground w-full">

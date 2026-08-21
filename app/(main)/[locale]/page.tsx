@@ -2751,7 +2751,7 @@ export default function Home() {
           <div className="flex items-center justify-center gap-2 bg-amber-500/10 border-b border-amber-500/30 text-amber-700 dark:text-amber-300 text-sm py-1.5 px-4 flex-shrink-0">
             <AlertTriangle className="h-3.5 w-3.5" />
             <span>{tCommon('rate_limited_title')}</span>
-            <span className="text-amber-700/80 dark:text-amber-300/80">{tCommon('rate_limited_detail', { seconds: rateLimitSecondsLeft })}</span>
+            <span className="text-amber-700/80 dark:text-amber-300/80">{tCommon('rate_limited_detail', { seconds: rateLimitSecondsLeft, appName })}</span>
           </div>
         )}
         {connectionLost && (

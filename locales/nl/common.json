@@ -149,18 +149,18 @@
   },
   "protocol_handlers": {
     "title": "Standaardapps",
-    "description": "Kies of e-mail- en kalenderlinks in Bulwark worden geopend. Technisch registreert Bulwark zich als protocolhandler voor mailto:- en webcal:-links.",
+    "description": "Kies of e-mail- en kalenderlinks in {appName} worden geopend. Technisch registreert {appName} zich als protocolhandler voor mailto:- en webcal:-links.",
     "unsupported": "Deze browser of verbinding ondersteunt geen handmatige registratie van protocolhandlers. Mogelijk kun je de geïnstalleerde PWA nog gebruiken via de browser- of systeeminstellingen.",
     "mailto_label": "E-maillinks",
-    "mailto_description": "Opent mailto:-links in Bulwark met een vooraf ingevulde opsteller.",
+    "mailto_description": "Opent mailto:-links in {appName} met een vooraf ingevulde opsteller.",
     "protocol_open_mode_label": "Bij het openen van protocollinks",
-    "protocol_open_mode_description": "Kies of Bulwark mailto:- en webcal:-links in een nieuw tabblad opent of een geopende sessie hergebruikt. Voor de optie actieve sessie is toestemming voor meldingen nodig, zodat je op een fallbackmelding kunt klikken om Bulwark naar voren te halen als de browser focus blokkeert.",
+    "protocol_open_mode_description": "Kies of {appName} mailto:- en webcal:-links in een nieuw tabblad opent of een geopende sessie hergebruikt. Voor de optie actieve sessie is toestemming voor meldingen nodig, zodat je op een fallbackmelding kunt klikken om {appName} naar voren te halen als de browser focus blokkeert.",
     "protocol_open_mode_active_session": "Indien mogelijk openen in actieve sessie",
     "protocol_open_mode_new_tab": "Altijd een nieuw tabblad openen",
-    "focus_notification_title": "Bulwark openen",
-    "focus_notification_body": "De link is geopend in Bulwark. Klik om het venster naar voren te halen.",
+    "focus_notification_title": "{appName} openen",
+    "focus_notification_body": "De link is geopend in {appName}. Klik om het venster naar voren te halen.",
     "webcal_label": "Kalenderlinks",
-    "webcal_description": "Opent webcal:-links in Bulwark met een vooraf ingevuld dialoogvenster voor kalenderabonnementen.",
+    "webcal_description": "Opent webcal:-links in {appName} met een vooraf ingevuld dialoogvenster voor kalenderabonnementen.",
     "register_mailto": "E-mailapp registreren",
     "register_webcal": "Kalenderapp registreren",
     "mailto_registered": "Registratie van e-mailhandler aangevraagd",
@@ -168,7 +168,7 @@
     "registration_failed": "Registratie van protocolhandler mislukt",
     "opening_mailto": "Opsteller wordt geopend...",
     "opening_webcal": "Kalender wordt geopend...",
-    "browser_note": "Je browser of besturingssysteem kan om bevestiging vragen en kan vereisen dat Bulwark is geïnstalleerd voordat het als standaardapp kan worden geselecteerd.",
+    "browser_note": "Je browser of besturingssysteem kan om bevestiging vragen en kan vereisen dat {appName} is geïnstalleerd voordat het als standaardapp kan worden geselecteerd.",
     "select_account_title": "Account kiezen",
     "select_mailto_account": "Kies welk account deze e-maillink moet openen.",
     "select_webcal_account": "Kies welk account deze kalenderlink moet openen.",
@@ -717,9 +717,9 @@
     "app_title": "Webmail",
     "reconnecting": "Verbinding verloren. Opnieuw verbinden…",
     "rate_limited_title": "Serverauthenticatie is tijdelijk beperkt.",
-    "rate_limited_detail": "Bulwark heeft achtergrondverzoeken gepauzeerd om een blokkade te voorkomen. Nieuwe poging over {seconds}s.",
+    "rate_limited_detail": "{appName} heeft achtergrondverzoeken gepauzeerd om een blokkade te voorkomen. Nieuwe poging over {seconds}s.",
     "rate_limited_action_title": "Verzoek gepauzeerd om blokkade te voorkomen.",
-    "rate_limited_action_detail": "Bulwark wacht tot de servercooldown voorbij is voordat er nieuwe geauthenticeerde verzoeken worden verzonden. Probeer het over {seconds}s opnieuw."
+    "rate_limited_action_detail": "{appName} wacht tot de servercooldown voorbij is voordat er nieuwe geauthenticeerde verzoeken worden verzonden. Probeer het over {seconds}s opnieuw."
   },
   "notifications": {
     "email_sent": "E-mail succesvol verzonden",
@@ -1673,7 +1673,7 @@
         "button": "Importeren"
       },
       "about": {
-        "title": "Bulwark Webmail"
+        "title": "{appName} Webmail"
       }
     },
     "sidebar_apps": {
@@ -2997,7 +2997,7 @@
     "start_tour": "Tour starten"
   },
   "demo_welcome": {
-    "title": "Welkom bij Bulwark Mail",
+    "title": "Welkom bij {appName}",
     "description": "Ontdek een volwaardige webmail-client - rechtstreeks in je browser. Alle gegevens blijven op je apparaat, dus test gerust alles.",
     "feature_email": "E-mails lezen en schrijven",
     "feature_organize": "Tags, sterren en mappen",

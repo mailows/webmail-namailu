@@ -149,18 +149,18 @@
   },
   "protocol_handlers": {
     "title": "Alapértelmezett alkalmazások",
-    "description": "Válaszd ki, hogy az e-mail és naptár hivatkozások a Bulwarkban nyíljanak meg. Technikailag a Bulwark protokollkezelőként regisztrálja magát a mailto: és webcal: hivatkozásokhoz.",
+    "description": "Válaszd ki, hogy az e-mail és naptár hivatkozások a {appName} alkalmazásban nyíljanak meg. Technikailag a {appName} protokollkezelőként regisztrálja magát a mailto: és webcal: hivatkozásokhoz.",
     "unsupported": "Ez a böngésző vagy kapcsolat nem támogatja a kézi protokollkezelő regisztrációt. Lehetőség lehet a telepített PWA használatára a böngésző vagy operációs rendszer beállításain keresztül.",
     "mailto_label": "E-mail hivatkozások",
-    "mailto_description": "Mailto: hivatkozások megnyitása a Bulwarkban egy előre kitöltött szerkesztővel.",
+    "mailto_description": "Mailto: hivatkozások megnyitása a {appName} alkalmazásban egy előre kitöltött szerkesztővel.",
     "protocol_open_mode_label": "Protokoll hivatkozások megnyitásakor",
-    "protocol_open_mode_description": "Válaszd ki, hogy a Bulwark a mailto: és webcal: hivatkozásokat új lapon vagy a meglévő munkamenetben nyissa meg. Az aktív munkamenet opcióhoz értesítési engedély szükséges, hogy egy értesítésre kattintva előtérbe hozd a Bulwarkot, ha a böngésző blokkolja a fókuszt.",
+    "protocol_open_mode_description": "Válaszd ki, hogy a {appName} a mailto: és webcal: hivatkozásokat új lapon vagy a meglévő munkamenetben nyissa meg. Az aktív munkamenet opcióhoz értesítési engedély szükséges, hogy egy értesítésre kattintva előtérbe hozd a {appName} alkalmazást, ha a böngésző blokkolja a fókuszt.",
     "protocol_open_mode_active_session": "Megnyitás aktív munkamenetben, ha lehetséges",
     "protocol_open_mode_new_tab": "Mindig új lapon nyisson",
-    "focus_notification_title": "Bulwark megnyitása",
-    "focus_notification_body": "A hivatkozás megnyílt a Bulwarkban. Kattints az ablak előtérbe hozásához.",
+    "focus_notification_title": "{appName} megnyitása",
+    "focus_notification_body": "A hivatkozás megnyílt a {appName} alkalmazásban. Kattints az ablak előtérbe hozásához.",
     "webcal_label": "Naptár hivatkozások",
-    "webcal_description": "Webcal: hivatkozások megnyitása a Bulwarkban egy előre kitöltött naptárfeliratkozási párbeszédpanellel.",
+    "webcal_description": "Webcal: hivatkozások megnyitása a {appName} alkalmazásban egy előre kitöltött naptárfeliratkozási párbeszédpanellel.",
     "register_mailto": "E-mail alkalmazás regisztrálása",
     "register_webcal": "Naptár alkalmazás regisztrálása",
     "mailto_registered": "E-mail kezelő regisztráció kérve",
@@ -168,7 +168,7 @@
     "registration_failed": "Protokollkezelő regisztráció sikertelen",
     "opening_mailto": "Szerkesztő megnyitása...",
     "opening_webcal": "Naptár megnyitása...",
-    "browser_note": "A böngésző vagy operációs rendszered megerősítést kérhet, és előfordulhat, hogy a Bulwarkot telepíteni kell, mielőtt alapértelmezett alkalmazásként kiválasztható.",
+    "browser_note": "A böngésző vagy operációs rendszered megerősítést kérhet, és előfordulhat, hogy a {appName} alkalmazást telepíteni kell, mielőtt alapértelmezett alkalmazásként kiválasztható.",
     "select_account_title": "Fiók kiválasztása",
     "select_mailto_account": "Válaszd ki, melyik fiók nyissa meg ezt az e-mail hivatkozást.",
     "select_webcal_account": "Válaszd ki, melyik fiók nyissa meg ezt a naptár hivatkozást.",
@@ -717,9 +717,9 @@
     "app_title": "Webmail",
     "reconnecting": "Kapcsolat megszakadt. Újracsatlakozás...",
     "rate_limited_title": "A szerver hitelesítés átmenetileg korlátozva van.",
-    "rate_limited_detail": "A Bulwark szüneteltette a háttérkéréseket a lezárás elkerülése érdekében. Újrapróbálkozás {seconds} másodperc múlva.",
+    "rate_limited_detail": "A {appName} szüneteltette a háttérkéréseket a lezárás elkerülése érdekében. Újrapróbálkozás {seconds} másodperc múlva.",
     "rate_limited_action_title": "Kérés szüneteltetve a lezárás elkerülése érdekében.",
-    "rate_limited_action_detail": "A Bulwark várja a szerver lehűlését, mielőtt további hitelesített kéréseket küldene. Próbáld újra {seconds} másodperc múlva."
+    "rate_limited_action_detail": "A {appName} várja a szerver lehűlését, mielőtt további hitelesített kéréseket küldene. Próbáld újra {seconds} másodperc múlva."
   },
   "notifications": {
     "email_sent": "E-mail sikeresen elküldve",
@@ -1676,7 +1676,7 @@
         "button": "Importálás"
       },
       "about": {
-        "title": "Bulwark Webmail"
+        "title": "{appName} Webmail"
       }
     },
     "sidebar_apps": {
@@ -3020,7 +3020,7 @@
     "start_tour": "Bemutató indítása"
   },
   "demo_welcome": {
-    "title": "Üdvözlünk a Bulwark Mail-ben",
+    "title": "Üdvözlünk a {appName}-ben",
     "description": "Fedezz fel egy teljes funkciókkal rendelkező webmail klienst - közvetlenül a böngésződben. Az összes adat az eszközödön marad, nyugodtan tesztelj mindent.",
     "feature_email": "E-mailek olvasása és írása",
     "feature_organize": "Címkék, csillagok és mappák",

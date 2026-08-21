@@ -149,18 +149,18 @@
   },
   "protocol_handlers": {
     "title": "Standardapps",
-    "description": "Vælg om e-mail- og kalenderlinks åbnes i Bulwark. Teknisk set registrerer Bulwark sig som protokolhåndtering for mailto:- og webcal:-links.",
+    "description": "Vælg om e-mail- og kalenderlinks åbnes i {appName}. Teknisk set registrerer {appName} sig som protokolhåndtering for mailto:- og webcal:-links.",
     "unsupported": "Denne browser eller forbindelse understøtter ikke manuel registrering af protokolhåndtering. Du kan muligvis stadig bruge den installerede PWA via browser- eller OS-indstillinger.",
     "mailto_label": "E-mail-links",
-    "mailto_description": "Åbn mailto:-links i Bulwark med en forudfyldt komponist.",
+    "mailto_description": "Åbn mailto:-links i {appName} med en forudfyldt komponist.",
     "protocol_open_mode_label": "Ved åbning af protokollinks",
-    "protocol_open_mode_description": "Vælg om Bulwark åbner mailto:- og webcal:-links i en ny fane eller genbruger en åben session. Indstillingen \\\"aktiv session\\\" kræver notifikationstilladelse, så du kan klikke på en nødnotifikation for at bringe Bulwark frem, hvis browseren blokerer fokus.",
+    "protocol_open_mode_description": "Vælg om {appName} åbner mailto:- og webcal:-links i en ny fane eller genbruger en åben session. Indstillingen \\\"aktiv session\\\" kræver notifikationstilladelse, så du kan klikke på en nødnotifikation for at bringe {appName} frem, hvis browseren blokerer fokus.",
     "protocol_open_mode_active_session": "Åbn i aktiv session hvis muligt",
     "protocol_open_mode_new_tab": "Åbn altid ny fane",
-    "focus_notification_title": "Åbn Bulwark",
-    "focus_notification_body": "Linket blev åbnet i Bulwark. Klik for at bringe vinduet frem.",
+    "focus_notification_title": "Åbn {appName}",
+    "focus_notification_body": "Linket blev åbnet i {appName}. Klik for at bringe vinduet frem.",
     "webcal_label": "Kalenderlinks",
-    "webcal_description": "Åbn webcal:-links i Bulwark med en forudfyldt kalenderabonnementsdialog.",
+    "webcal_description": "Åbn webcal:-links i {appName} med en forudfyldt kalenderabonnementsdialog.",
     "register_mailto": "Registrer e-mail-app",
     "register_webcal": "Registrer kalender-app",
     "mailto_registered": "Registrering af e-mail-håndtering anmodet",
@@ -168,7 +168,7 @@
     "registration_failed": "Registrering af protokolhåndtering mislykkedes",
     "opening_mailto": "Åbner komponist...",
     "opening_webcal": "Åbner kalender...",
-    "browser_note": "Din browser eller dit operativsystem beder dig muligvis bekræfte dette og kræver muligvis, at Bulwark er installeret, før det kan vælges som standardapp.",
+    "browser_note": "Din browser eller dit operativsystem beder dig muligvis bekræfte dette og kræver muligvis, at {appName} er installeret, før det kan vælges som standardapp.",
     "select_account_title": "Vælg konto",
     "select_mailto_account": "Vælg hvilken konto der skal åbne dette e-mail-link.",
     "select_webcal_account": "Vælg hvilken konto der skal åbne dette kalenderlink.",
@@ -717,9 +717,9 @@
     "app_title": "Webmail",
     "reconnecting": "Forbindelse mistet. Forsøger at genoprette forbindelse…",
     "rate_limited_title": "Server-godkendelse er midlertidigt hastighedsbegrænset.",
-    "rate_limited_detail": "Bulwark har sat baggrundsanmodninger på pause for at undgå udelukkelse. Prøver igen om {seconds}s.",
+    "rate_limited_detail": "{appName} har sat baggrundsanmodninger på pause for at undgå udelukkelse. Prøver igen om {seconds}s.",
     "rate_limited_action_title": "Anmodning sat på pause for at undgå udelukkelse.",
-    "rate_limited_action_detail": "Bulwark venter på, at serverens nedkølingsperiode slutter, før der sendes flere godkendte anmodninger. Prøv igen om {seconds}s."
+    "rate_limited_action_detail": "{appName} venter på, at serverens nedkølingsperiode slutter, før der sendes flere godkendte anmodninger. Prøv igen om {seconds}s."
   },
   "notifications": {
     "email_sent": "E-mail sendt succesfuldt",
@@ -1676,7 +1676,7 @@
         "button": "Importér"
       },
       "about": {
-        "title": "Bulwark Webmail"
+        "title": "{appName} Webmail"
       }
     },
     "sidebar_apps": {
@@ -3020,7 +3020,7 @@
     "start_tour": "Start rundvisning"
   },
   "demo_welcome": {
-    "title": "Velkommen til Bulwark Mail",
+    "title": "Velkommen til {appName}",
     "description": "Udforsk en fuldt udstyret webmailklient - direkte i din browser. Alle data forbliver på din enhed, så du kan teste alt frit.",
     "feature_email": "Læs & skriv e-mail",
     "feature_organize": "Tags, stjerner & mapper",
