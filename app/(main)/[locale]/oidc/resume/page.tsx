@@ -5,7 +5,7 @@ import { useRouter } from "@/i18n/navigation";
 import { useSearchParams } from "next/navigation";
 import { Loader2, AlertCircle } from "lucide-react";
 import { useAuthStore } from "@/stores/auth-store";
-import { stripLocalePrefix, toRouterPath } from "@/lib/browser-navigation";
+import { safeInternalPath, stripLocalePrefix, toRouterPath } from "@/lib/browser-navigation";
 
 /**
  * Návrat z IdP (fáze 3).
@@ -29,7 +29,9 @@ function ResumeInner() {
     if (started.current) return;
     started.current = true;
 
-    const rawNext = searchParams.get("next") || "/";
+    // `next` přichází z URL, takže sem může přijít i ručně podvržená absolutní
+    // adresa — server-side `safeNext` hlídá jen start route, tady se musí znovu.
+    const rawNext = safeInternalPath(searchParams.get("next"));
     // next-intl router přidá locale prefix sám, takže `next` musí být locale-relativní.
     // Po root fixu (stripLocalePrefix při ukládání redirect_after_login) by už měl být
     // bez locale, ale pro jistotu (staré pending cookies, přímé linky) stripneme znovu.

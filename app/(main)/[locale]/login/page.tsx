@@ -12,7 +12,7 @@ import { useAccountStore } from "@/stores/account-store";
 import { useThemeStore } from "@/stores/theme-store";
 import { useShallow } from "zustand/react/shallow";
 import { useConfig } from "@/hooks/use-config";
-import { apiFetch, getPathPrefix, toRouterPath, withBasePath } from "@/lib/browser-navigation";
+import { apiFetch, getPathPrefix, safeInternalPath, toRouterPath, withBasePath } from "@/lib/browser-navigation";
 import { startOidcLogin } from "@/lib/oidc/rp-client";
 import { cn } from "@/lib/utils";
 import { AlertCircle, Loader2, X, Info, Eye, EyeOff, LogIn, Sun, Moon, Monitor, Check, Shield, Play, Copy } from "lucide-react";
@@ -206,8 +206,7 @@ export default function LoginPage() {
     if (configLoading || !oidcRpEnabled || isAuthenticated) return;
     let next = "/";
     try {
-      const saved = sessionStorage.getItem("redirect_after_login");
-      if (saved && saved.startsWith("/") && !saved.startsWith("//")) next = saved;
+      next = safeInternalPath(sessionStorage.getItem("redirect_after_login"));
     } catch {
       /* privátní režim: prostě se vrátíme na kořen */
     }

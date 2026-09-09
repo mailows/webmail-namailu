@@ -134,6 +134,18 @@ export function stripLocalePrefix(path: string): string {
 }
 
 /**
+ * Client-side counterpart of the server's `safeNext` (lib/oidc/cookies.ts):
+ * accepts only site-relative paths, so a `next`/`redirect_after_login` value
+ * can never become a cross-origin navigation. `//host` and `/\host` are
+ * scheme-relative URLs to browsers, so they are rejected too.
+ */
+export function safeInternalPath(path: string | null | undefined, fallback = '/'): string {
+  if (!path || !path.startsWith('/')) return fallback;
+  if (path.startsWith('//') || path.startsWith('/\\')) return fallback;
+  return path;
+}
+
+/**
  * Extracts the locale from the current URL, skipping any mount prefix.
  * Falls back to 'en' when no known locale segment is found.
  */
