@@ -38,6 +38,11 @@ function mockEmailSet() {
   return { captured, fetchSpy };
 }
 
+function patchFor(call: JMAPMethodCall, emailId: string): Record<string, unknown> {
+  const update = call[1].update as Record<string, Record<string, unknown>>;
+  return update[emailId];
+}
+
 describe('JMAP keyword writes route to the email account (#281)', () => {
   beforeEach(() => vi.restoreAllMocks());
   afterEach(() => vi.restoreAllMocks());
@@ -70,5 +75,97 @@ describe('JMAP keyword writes route to the email account (#281)', () => {
     const { captured } = mockEmailSet();
     await client.setKeyword('email-x', '$answered');
     expect(captured[0][1].accountId).toBe('primary-account');
+  });
+});
+
+describe('Email/set clears keywords with null, not false', () => {
+  beforeEach(() => vi.restoreAllMocks());
+  afterEach(() => vi.restoreAllMocks());
+
+  it('markAsRead(false) removes $seen with null', async () => {
+    const client = createClient();
+    const { captured } = mockEmailSet();
+    await client.markAsRead('email-x', false);
+    const patch = patchFor(captured[0], 'email-x');
+    expect(patch['keywords/$seen']).toBeNull();
+    expect(patch['keywords/$seen']).not.toBe(false);
+  });
+
+  it('markAsRead(true) sets $seen to true', async () => {
+    const client = createClient();
+    const { captured } = mockEmailSet();
+    await client.markAsRead('email-x', true);
+    expect(patchFor(captured[0], 'email-x')['keywords/$seen']).toBe(true);
+  });
+
+  it('batchMarkAsRead(false) removes $seen with null for every id', async () => {
+    const client = createClient();
+    const { captured } = mockEmailSet();
+    await client.batchMarkAsRead(['email-a', 'email-b'], false);
+    for (const id of ['email-a', 'email-b']) {
+      const patch = patchFor(captured[0], id);
+      expect(patch['keywords/$seen']).toBeNull();
+      expect(patch['keywords/$seen']).not.toBe(false);
+    }
+  });
+
+  it('batchMarkAsRead(true) sets $seen to true for every id', async () => {
+    const client = createClient();
+    const { captured } = mockEmailSet();
+    await client.batchMarkAsRead(['email-a', 'email-b'], true);
+    for (const id of ['email-a', 'email-b']) {
+      expect(patchFor(captured[0], id)['keywords/$seen']).toBe(true);
+    }
+  });
+
+  it('toggleStar(false) removes $flagged with null', async () => {
+    const client = createClient();
+    const { captured } = mockEmailSet();
+    await client.toggleStar('email-x', false);
+    const patch = patchFor(captured[0], 'email-x');
+    expect(patch['keywords/$flagged']).toBeNull();
+    expect(patch['keywords/$flagged']).not.toBe(false);
+  });
+
+  it('toggleStar(true) sets $flagged to true', async () => {
+    const client = createClient();
+    const { captured } = mockEmailSet();
+    await client.toggleStar('email-x', true);
+    expect(patchFor(captured[0], 'email-x')['keywords/$flagged']).toBe(true);
+  });
+});
+
+// "Not spam" used to patch only mailboxIds, so a message restored to the Inbox
+// kept its $junk keyword and stayed flagged as junk for every other JMAP client.
+// Both directions now move the message and flip $junk/$notjunk in one patch.
+describe('spam / not-spam patch keywords alongside the move (#850)', () => {
+  beforeEach(() => vi.restoreAllMocks());
+  afterEach(() => vi.restoreAllMocks());
+
+  it('undoSpam clears $junk (null) and sets $notjunk with the move', async () => {
+    const client = createClient();
+    const { captured } = mockEmailSet();
+    await client.undoSpam('email-x', 'inbox-id', 'shared-account');
+    expect(captured[0][0]).toBe('Email/set');
+    expect(captured[0][1].accountId).toBe('shared-account');
+    const patch = patchFor(captured[0], 'email-x');
+    expect(patch.mailboxIds).toEqual({ 'inbox-id': true });
+    expect(patch['keywords/$junk']).toBeNull();
+    expect(patch['keywords/$junk']).not.toBe(false);
+    expect(patch['keywords/$notjunk']).toBe(true);
+  });
+
+  it('markAsSpam sets $junk and clears $notjunk (null) with the move', async () => {
+    const client = createClient();
+    vi.spyOn(client, 'getMailboxes').mockResolvedValue([
+      { id: 'junk-id', role: 'junk', name: 'Junk', isShared: false } as never,
+    ]);
+    const { captured } = mockEmailSet();
+    await client.markAsSpam('email-x');
+    const patch = patchFor(captured[0], 'email-x');
+    expect(patch.mailboxIds).toEqual({ 'junk-id': true });
+    expect(patch['keywords/$junk']).toBe(true);
+    expect(patch['keywords/$notjunk']).toBeNull();
+    expect(patch['keywords/$seen']).toBeUndefined();
   });
 });

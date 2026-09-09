@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { Mail, Phone, Building, MapPin, StickyNote, Pencil, Trash2, BookUser, Copy, Send, Globe, Cake, KeyRound, Users, Briefcase, Heart, Languages, Calendar, UserCircle, Download, MoreHorizontal, Printer } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
+import { MailtoLink } from "@/components/ui/mailto-link";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { ContactCard, AnniversaryDate, PartialDate } from "@/lib/jmap/types";
@@ -12,6 +13,8 @@ import { ContactActivity } from "./contact-activity";
 import { toast } from "@/stores/toast-store";
 import { exportContact } from "./contact-export";
 import { printContact } from "./contact-print";
+import { usePluginSlotOffers } from "@/hooks/use-plugin-slot-offers";
+import { PluginSlot } from "@/components/plugins/plugin-slot";
 
 type MoreItem =
   | {
@@ -118,6 +121,7 @@ export function ContactDetail({ contact, onEdit, onDelete, onAddToGroup, onDupli
   const t = useTranslations("contacts");
 
   const cryptoKeys = contact?.cryptoKeys ? Object.values(contact.cryptoKeys) : [];
+  const hasCryptoKeysSlotOffers = usePluginSlotOffers('contact-cryptokeys').length > 0;
 
   if (!contact) {
     return (
@@ -171,7 +175,9 @@ export function ContactDetail({ contact, onEdit, onDelete, onAddToGroup, onDupli
 
   const hasNickname = nicknames.length > 0;
   const titleLine = jobTitles.length > 0 ? jobTitles.map(t => t.name).join(", ") : undefined;
-  const subtitleParts = [titleLine, orgs[0]?.name].filter(Boolean) as string[];
+  // On an organization card the org name is already the heading; don't repeat it.
+  const orgName = orgs[0]?.name;
+  const subtitleParts = [titleLine, orgName === name ? undefined : orgName].filter(Boolean) as string[];
   const hasContactDetails = emails.length > 0 || phones.length > 0 || addresses.length > 0 || onlineServices.length > 0;
   const hasWork = titles.length > 0 || orgs.length > 0;
   const hasGender = !!(contact.speakToAs && (contact.speakToAs.grammaticalGender || contact.speakToAs.pronouns));
@@ -230,18 +236,18 @@ export function ContactDetail({ contact, onEdit, onDelete, onAddToGroup, onDupli
               {emails.map((e, i) => (
                 <FieldRow key={`em${i}`} icon={Mail} label={e.label || formatContexts(e.contexts) || t("detail.email_default_label")}>
                   <div className="flex items-center gap-2 group">
-                    <a href={`mailto:${e.address}`} className="text-sm text-primary hover:underline break-all">
+                    <MailtoLink to={e.address} className="text-sm text-primary hover:underline break-all">
                       {e.address}
-                    </a>
+                    </MailtoLink>
                     <RowActions>
-                      <a
-                        href={`mailto:${e.address}`}
+                      <MailtoLink
+                        to={e.address}
                         className="p-1.5 rounded hover:bg-muted transition-colors touch-manipulation"
                         title={t("detail.compose_email")}
                         aria-label={t("detail.compose_email")}
                       >
                         <Send className="w-3.5 h-3.5 text-muted-foreground" />
-                      </a>
+                      </MailtoLink>
                       <CopyButton value={e.address} label={t("detail.copy_email")} successMsg={t("detail.copied")} failMsg={t("detail.copy_failed")} />
                     </RowActions>
                   </div>
@@ -426,7 +432,12 @@ export function ContactDetail({ contact, onEdit, onDelete, onAddToGroup, onDupli
         {cryptoKeys.length > 0 && (
           <Section title={t("detail.crypto_keys")}>
             <div className="space-y-3">
-              {cryptoKeys.map((key, i) => (
+
+             {hasCryptoKeysSlotOffers && (
+              <PluginSlot name="contact-cryptokeys" extraProps={{ cryptoKeys }} />
+              )}
+
+              {!hasCryptoKeysSlotOffers &&cryptoKeys.map((key, i) => (
                 <div key={i} className="rounded-md border border-border/60 bg-muted/30 p-3 space-y-1">
                   <div className="flex items-start gap-2 text-sm break-all">
                     <KeyRound className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />

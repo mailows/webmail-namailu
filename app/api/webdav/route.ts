@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 import { getStalwartCredentials } from '@/lib/stalwart/credentials';
 
-const ALLOWED_METHODS = new Set(['PROPFIND', 'MKCOL', 'GET', 'PUT', 'DELETE', 'MOVE', 'COPY']);
+const ALLOWED_METHODS = new Set(['PROPFIND', 'MKCOL', 'MKCALENDAR', 'GET', 'PUT', 'DELETE', 'MOVE', 'COPY']);
+
+// Stalwart DAV roots the proxy may address: `file` is the user's file storage,
+// `cal` their calendar collections (needed for MKCALENDAR, which is the only
+// way to pin a calendar's supported-calendar-component-set - #760).
+const ALLOWED_COLLECTIONS = new Set(['file', 'cal']);
 
 function normalizeDavRelativePath(rawPath: string): string {
   const sanitized = rawPath.replace(/\\/g, '/').split(/[?#]/, 1)[0] ?? '';
@@ -24,8 +29,8 @@ function normalizeDavRelativePath(rawPath: string): string {
   }).join('/');
 }
 
-function buildDavTargetUrl(baseUrl: string, username: string, rawPath: string): string {
-  const rootUrl = new URL(`${baseUrl.replace(/\/$/, '')}/dav/file/${encodeURIComponent(username)}/`);
+function buildDavTargetUrl(baseUrl: string, username: string, rawPath: string, collection: string = 'file'): string {
+  const rootUrl = new URL(`${baseUrl.replace(/\/$/, '')}/dav/${collection}/${encodeURIComponent(username)}/`);
   const relativePath = normalizeDavRelativePath(rawPath);
   return relativePath ? new URL(relativePath, rootUrl).toString() : rootUrl.toString();
 }
@@ -35,7 +40,8 @@ function buildDavTargetUrl(baseUrl: string, username: string, rawPath: string): 
  * Proxies WebDAV requests to the Stalwart server.
  *
  * Headers:
- *   X-WebDAV-Method: The actual WebDAV method (PROPFIND, MKCOL, GET, PUT, DELETE, MOVE, COPY)
+ *   X-WebDAV-Method: The actual WebDAV method (PROPFIND, MKCOL, MKCALENDAR, GET, PUT, DELETE, MOVE, COPY)
+ *   X-WebDAV-Collection: Which DAV root to address - `file` (default) or `cal`
  *   X-WebDAV-Path: Resource path relative to the user's DAV root (default: /)
  *   X-WebDAV-Destination: Destination path for MOVE/COPY (relative to user's DAV root)
  *   Depth: WebDAV Depth header (forwarded as-is)
@@ -54,9 +60,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid WebDAV method' }, { status: 400 });
     }
 
+    const collection = (request.headers.get('X-WebDAV-Collection') || 'file').toLowerCase();
+    if (!ALLOWED_COLLECTIONS.has(collection)) {
+      return NextResponse.json({ error: 'Invalid WebDAV collection' }, { status: 400 });
+    }
+
     const davPath = request.headers.get('X-WebDAV-Path') || '/';
     const baseUrl = creds.serverUrl.replace(/\/$/, '');
-    const targetUrl = buildDavTargetUrl(baseUrl, creds.username, davPath);
+    const targetUrl = buildDavTargetUrl(baseUrl, creds.username, davPath, collection);
 
     // Build headers for the upstream request
     const upstreamHeaders: Record<string, string> = {
@@ -73,7 +84,7 @@ export async function POST(request: NextRequest) {
     // For MOVE/COPY, construct the full Destination URL from the relative path
     const destination = request.headers.get('X-WebDAV-Destination');
     if (destination) {
-      upstreamHeaders['Destination'] = buildDavTargetUrl(baseUrl, creds.username, destination);
+      upstreamHeaders['Destination'] = buildDavTargetUrl(baseUrl, creds.username, destination, collection);
     }
 
     const overwrite = request.headers.get('Overwrite');
@@ -81,9 +92,9 @@ export async function POST(request: NextRequest) {
 
     // Forward request body for methods that need it.
     // PUT streams directly to upstream to avoid buffering large uploads in memory.
-    // PROPFIND bodies are small XML and are read fully.
+    // PROPFIND and MKCALENDAR bodies are small XML and are read fully.
     let body: ArrayBuffer | ReadableStream<Uint8Array> | null = null;
-    if (method === 'PROPFIND') {
+    if (method === 'PROPFIND' || method === 'MKCALENDAR') {
       body = await request.arrayBuffer();
     } else if (method === 'PUT') {
       body = request.body;
@@ -125,7 +136,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // For other methods (MKCOL, DELETE, MOVE, COPY, PUT), return the status
+    // For other methods (MKCOL, MKCALENDAR, DELETE, MOVE, COPY, PUT), return the status
     return new NextResponse(null, {
       status: response.status,
     });

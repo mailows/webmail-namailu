@@ -245,7 +245,7 @@ export function LayoutSettings() {
         />
       </SettingItem>
 
-      {(accounts.length > 1 || hasGroupInboxes) && !isSettingHidden('enableUnifiedMailbox') && (
+      {!isSettingHidden('enableUnifiedMailbox') && (
         <SettingItem
           label={t('unified_mailbox.label')}
           description={t('unified_mailbox.description')}
@@ -354,6 +354,7 @@ export function LayoutSettings() {
         <ToggleSwitch
           checked={proInterface}
           onChange={(v) => updateSetting('proInterface', v)}
+          testId="setting-pro-interface"
         />
       </SettingItem>
     </SettingsSection>

@@ -1,5 +1,19 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { JMAPClient } from '../jmap/client';
+import { JMAPClient, RequestTimeoutError } from '../jmap/client';
+
+/**
+ * A connection that accepts the request and then goes silent: the promise never
+ * settles on its own, exactly like `fetch` over a socket the network has torn
+ * down underneath it. Only an abort ends it - which is what the deadline does.
+ */
+function stalledFetch() {
+  return (_url: string, init?: RequestInit) =>
+    new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener('abort', () => {
+        reject(new DOMException('The operation was aborted.', 'AbortError'));
+      });
+    });
+}
 
 // Minimal valid JMAP session response
 function makeSession(overrides?: Record<string, unknown>) {
@@ -92,6 +106,77 @@ describe('JMAPClient resilience', () => {
 
       await expect(client.ping()).rejects.toThrow('Failed to fetch');
       expect(fetchSpy).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('authenticatedFetch - stalled request deadline', () => {
+    const downloadCalls = () =>
+      fetchSpy.mock.calls.filter(([url]: unknown[]) => String(url).includes('/jmap/download/'));
+
+    it('rejects a request that never produces response headers', async () => {
+      const client = await createConnectedClient();
+      fetchSpy.mockImplementation(stalledFetch());
+
+      const pending = client.ping();
+      const assertion = expect(pending).rejects.toBeInstanceOf(RequestTimeoutError);
+      await vi.advanceTimersByTimeAsync(30_000);
+      await assertion;
+    });
+
+    it('does not replay a timed-out request', async () => {
+      // The network-error path retries once, but a timeout may mean the server
+      // received and acted on the request - replaying an EmailSubmission/set
+      // there would send the message twice. Counted on the download URL so the
+      // keep-alive ping, which fires against the API URL while the clock runs,
+      // stays out of the tally.
+      const client = await createConnectedClient();
+      fetchSpy.mockImplementation(stalledFetch());
+
+      const pending = client.fetchBlob('blob-1', 'big.zip', 'application/zip');
+      const assertion = expect(pending).rejects.toBeInstanceOf(RequestTimeoutError);
+      await vi.advanceTimersByTimeAsync(300_000);
+      await assertion;
+      // Well past the 1s the retry path would have waited.
+      await vi.advanceTimersByTimeAsync(5_000);
+
+      expect(downloadCalls()).toHaveLength(1);
+    });
+
+    it('clears the deadline once the response arrives, leaving the body alone', async () => {
+      const client = await createConnectedClient();
+      const echoResponse = { methodResponses: [['Core/echo', { ping: 'pong' }, '0']] };
+      let capturedSignal: AbortSignal | undefined;
+
+      fetchSpy.mockImplementation((_url: string, init?: RequestInit) => {
+        capturedSignal = init?.signal ?? undefined;
+        return Promise.resolve(mockFetchResponse(200, echoResponse));
+      });
+
+      await expect(client.ping()).resolves.toBeUndefined();
+
+      // Long after the deadline would have fired, a streaming body handed back
+      // to the caller (SSE) must still be readable.
+      await vi.advanceTimersByTimeAsync(120_000);
+      expect(capturedSignal?.aborted).toBe(false);
+    });
+
+    it('gives blob transfers a longer budget than ordinary requests', async () => {
+      const client = await createConnectedClient();
+      fetchSpy.mockImplementation(stalledFetch());
+
+      let outcome: unknown;
+      const pending = client
+        .fetchBlob('blob-1', 'big.zip', 'application/zip')
+        .catch((error) => { outcome = error; });
+
+      // A large attachment on a slow uplink is legitimately still moving well
+      // past the deadline that applies to an ordinary API call.
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(outcome).toBeUndefined();
+
+      await vi.advanceTimersByTimeAsync(300_000);
+      await pending;
+      expect(outcome).toBeInstanceOf(RequestTimeoutError);
     });
   });
 
@@ -202,6 +287,56 @@ describe('JMAPClient resilience', () => {
     });
   });
 
+  describe('session URL rewriting', () => {
+    async function connectWith(session: Record<string, unknown>, serverUrl = 'https://mail.example.com') {
+      fetchSpy.mockResolvedValueOnce(mockFetchResponse(200, makeSession(session)));
+      const client = new JMAPClient(serverUrl, 'user@test.com', 'pass123');
+      await client.connect();
+      fetchSpy.mockReset();
+      return client;
+    }
+
+    async function pingUrl(client: JMAPClient): Promise<string> {
+      fetchSpy.mockResolvedValueOnce(
+        mockFetchResponse(200, { methodResponses: [['Core/echo', { ping: 'pong' }, '0']] }),
+      );
+      await client.ping();
+      return String(fetchSpy.mock.calls[0][0]);
+    }
+
+    it.each([
+      ['absolute-path relative', '/jmap/api'],
+      ['bare relative', 'jmap/api'],
+      ['cross-origin absolute', 'https://other.example.com/jmap/api'],
+      ['network-path reference', '//other.example.com/jmap/api'],
+    ])('anchors a %s apiUrl at the server origin', async (_form, apiUrl) => {
+      const client = await connectWith({ apiUrl });
+      expect(await pingUrl(client)).toBe('https://mail.example.com/jmap/api');
+    });
+
+    it('anchors a relative apiUrl at the origin even when serverUrl has a path', async () => {
+      const client = await connectWith({ apiUrl: 'jmap/api' }, 'https://mail.example.com/proxy');
+      expect(await pingUrl(client)).toBe('https://mail.example.com/jmap/api');
+    });
+
+    it.each([
+      ['same-origin', 'https://mail.example.com'],
+      ['cross-origin', 'https://other.example.com'],
+    ])('keeps URI Template placeholders literal in a %s downloadUrl', async (_o, host) => {
+      const client = await connectWith({
+        downloadUrl: `${host}/download/{accountId}/{blobId}/{name}?accept={type}`,
+      });
+      expect(client.getBlobDownloadUrl('blob1', 'file.txt', 'text/plain', 'acct-1')).toBe(
+        'https://mail.example.com/download/acct-1/blob1/file.txt?accept=text%2Fplain',
+      );
+    });
+
+    it('leaves an empty downloadUrl falsy so the unavailable guard still fires', async () => {
+      const client = await connectWith({ downloadUrl: '' });
+      expect(() => client.getBlobDownloadUrl('blob1')).toThrow('Download URL not available');
+    });
+  });
+
   describe('refreshSession', () => {
     it('updates session fields from server response', async () => {
       const client = await createConnectedClient();
@@ -238,7 +373,10 @@ describe('JMAPClient resilience', () => {
       client.onConnectionChange(callback);
 
       const echoResponse = { methodResponses: [['Core/echo', { ping: 'pong' }, '0']] };
-      fetchSpy.mockResolvedValue(mockFetchResponse(200, echoResponse));
+      // A Response body is single-use, so one shared instance breaks as soon
+      // as anything fetches more than once in the window - serve a fresh one
+      // per call like the other tests in this file.
+      fetchSpy.mockImplementation(() => Promise.resolve(mockFetchResponse(200, echoResponse)));
 
       // Advance past keep-alive interval (30s)
       await vi.advanceTimersByTimeAsync(30_000);
@@ -346,6 +484,216 @@ describe('JMAPClient resilience', () => {
       await vi.advanceTimersByTimeAsync(60_000);
 
       expect(callback).not.toHaveBeenCalled();
+    });
+  });
+
+  // Every account switch tears down and re-creates push for all connected
+  // clients. Aborting an SSE connect that is still in flight must read as an
+  // intentional close: treated as a network failure it spawns an unsupervised
+  // 3s polling interval per client, and its late rejection nulls the abort
+  // controller of the connection set up right after - which then can never be
+  // closed and reconnects itself in parallel. Rapid switching multiplies both
+  // until the server's concurrency limit stalls the app.
+  describe('SSE connect aborted mid-flight (account-switch churn)', () => {
+    function inFlightFetch(signals: AbortSignal[]) {
+      return (_url: RequestInfo | URL, init?: RequestInit) => {
+        if (init?.signal) signals.push(init.signal);
+        return new Promise<Response>((_resolve, reject) => {
+          const abort = () => reject(new DOMException('The operation was aborted.', 'AbortError'));
+          if (init?.signal?.aborted) return abort();
+          init?.signal?.addEventListener('abort', abort);
+        });
+      };
+    }
+
+    it('does not fall back to polling when the in-flight connect was aborted', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: false });
+      const client = await createConnectedClient();
+      fetchSpy.mockImplementation(inFlightFetch([]));
+
+      client.setupPushNotifications();
+      client.closePushNotifications();
+
+      // Flush the 1s network-error retry inside authenticatedFetch and a few
+      // would-be polling ticks (3s each).
+      await vi.advanceTimersByTimeAsync(10_000);
+
+      // The polling fallback is recognizable by its state-poll body; a
+      // keep-alive Core/echo that slips in must not fail the assertion.
+      const statePolls = fetchSpy.mock.calls.filter((call: unknown[]) => {
+        const body = (call[1] as RequestInit | undefined)?.body;
+        return typeof body === 'string' && body.includes('Mailbox/get');
+      });
+      expect(statePolls).toHaveLength(0);
+    });
+
+    it('keeps the replacement connection abortable when the aborted connect settles late', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: false });
+      const client = await createConnectedClient();
+      const signals: AbortSignal[] = [];
+      fetchSpy.mockImplementation(inFlightFetch(signals));
+
+      client.setupPushNotifications();
+      client.closePushNotifications();
+      client.setupPushNotifications();
+      // The retry inside authenticatedFetch re-sends the aborted first
+      // attempt later, so grab the replacement's signal now.
+      const replacementSignal = signals[signals.length - 1];
+
+      // Let the first attempt run through its retry and reject - after the
+      // replacement connect is already up.
+      await vi.advanceTimersByTimeAsync(2_000);
+
+      client.closePushNotifications();
+      expect(replacementSignal.aborted).toBe(true);
+    });
+
+    // #781: setupPushNotifications is re-run for every connected client on
+    // fairly frequent effect deps changes. Without an already-active guard a
+    // second connect stacks a new SSE stream while the previous one keeps its
+    // HTTP/1.1 socket open forever (readSSEStream only unwinds on abort/done),
+    // starving normal JMAP POSTs. Opening a new stream must abort the old one.
+    it('aborts the previous SSE stream when push is set up again (no orphan)', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: false });
+      const client = await createConnectedClient();
+      const signals: AbortSignal[] = [];
+      fetchSpy.mockImplementation(inFlightFetch(signals));
+
+      client.setupPushNotifications();
+      await vi.advanceTimersByTimeAsync(0); // let connect #1 register its signal
+      client.setupPushNotifications();
+      await vi.advanceTimersByTimeAsync(0); // connect #2 registers + guard aborts #1
+
+      // The first stream's signal is aborted, and exactly one stream stays live
+      // - no accumulation of abandoned SSE connections.
+      expect(signals[0].aborted).toBe(true);
+      expect(signals.filter((s) => !s.aborted)).toHaveLength(1);
+
+      client.closePushNotifications();
+    });
+  });
+
+  // #702: one logged-in account = one JMAPClient = one SSE stream held open as
+  // a long-lived fetch, i.e. one pinned HTTP/1.1 socket. Browsers allow 6 per
+  // host, so from the sixth login on no socket is left for ordinary JMAP
+  // POSTs - sends grey out and never finish, loads and moves take minutes.
+  // The client must cap concurrent streams per tab and slow-poll the rest.
+  describe('SSE stream budget across logins (#702)', () => {
+    const isSSE = (init?: RequestInit) =>
+      (init?.headers as Record<string, string> | undefined)?.['Accept'] === 'text/event-stream';
+
+    function trackingFetch(sse: AbortSignal[]) {
+      return (_url: RequestInfo | URL, init?: RequestInit) => {
+        if (isSSE(init)) {
+          if (init?.signal) sse.push(init.signal);
+          return new Promise<Response>((_resolve, reject) => {
+            const abort = () => reject(new DOMException('The operation was aborted.', 'AbortError'));
+            if (init?.signal?.aborted) return abort();
+            init?.signal?.addEventListener('abort', abort);
+          });
+        }
+        return Promise.resolve(mockFetchResponse(200, {
+          methodResponses: [
+            ['Mailbox/get', { state: 'm1', list: [] }, 'mbx:acct-1'],
+            ['Email/get', { state: 'e1', list: [] }, 'eml:acct-1'],
+          ],
+        }));
+      };
+    }
+
+    const statePollCount = () =>
+      fetchSpy.mock.calls.filter((call: unknown[]) => {
+        const body = (call[1] as RequestInit | undefined)?.body;
+        return typeof body === 'string' && body.includes('Mailbox/get');
+      }).length;
+
+    async function createClients(n: number): Promise<JMAPClient[]> {
+      const clients: JMAPClient[] = [];
+      for (let i = 0; i < n; i++) clients.push(await createConnectedClient());
+      return clients;
+    }
+
+    it('never holds more than MAX_SSE_STREAMS streams open, however many logins there are', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: false });
+      const clients = await createClients(7);
+      const sse: AbortSignal[] = [];
+      fetchSpy.mockImplementation(trackingFetch(sse));
+
+      for (const c of clients) c.setupPushNotifications();
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(sse.filter((s) => !s.aborted)).toHaveLength(JMAPClient.MAX_SSE_STREAMS);
+      expect(JMAPClient.activeSSEStreamCount()).toBe(JMAPClient.MAX_SSE_STREAMS);
+      // Setup order decides who gets a slot - the caller puts the active login first.
+      expect(clients[0].hasSSEStream()).toBe(true);
+      expect(clients[1].hasSSEStream()).toBe(true);
+      expect(clients[6].hasSSEStream()).toBe(false);
+
+      for (const c of clients) c.closePushNotifications();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(JMAPClient.activeSSEStreamCount()).toBe(0);
+    });
+
+    it('slow-polls the logins that did not get a stream so their counters still refresh', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: false });
+      const clients = await createClients(3);
+      const sse: AbortSignal[] = [];
+      fetchSpy.mockImplementation(trackingFetch(sse));
+
+      for (const c of clients) c.setupPushNotifications();
+      await vi.advanceTimersByTimeAsync(0);
+      // The budget-denied client primes its baseline immediately...
+      expect(statePollCount()).toBe(1);
+
+      fetchSpy.mockClear();
+      await vi.advanceTimersByTimeAsync(20_000);
+      // ...and polls on the slow 20s cadence, not the 3s outage fallback.
+      expect(statePollCount()).toBe(1);
+
+      for (const c of clients) c.closePushNotifications();
+    });
+
+    it('promotes a waiting login into the slot a closed stream releases', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: false });
+      const clients = await createClients(3);
+      const sse: AbortSignal[] = [];
+      fetchSpy.mockImplementation(trackingFetch(sse));
+
+      for (const c of clients) c.setupPushNotifications();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(clients[2].hasSSEStream()).toBe(false);
+
+      clients[0].closePushNotifications();
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(clients[0].hasSSEStream()).toBe(false);
+      expect(clients[2].hasSSEStream()).toBe(true);
+      expect(sse.filter((s) => !s.aborted)).toHaveLength(JMAPClient.MAX_SSE_STREAMS);
+
+      for (const c of clients) c.closePushNotifications();
+    });
+
+    it('does not promote a waiter that was closed in the same teardown (account-switch churn)', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: false });
+      const clients = await createClients(3);
+      const sse: AbortSignal[] = [];
+      fetchSpy.mockImplementation(trackingFetch(sse));
+
+      for (const c of clients) c.setupPushNotifications();
+      await vi.advanceTimersByTimeAsync(0);
+
+      // The push effect closes every client and re-runs setup synchronously.
+      for (const c of clients) c.closePushNotifications();
+      for (const c of [clients[2], clients[1], clients[0]]) c.setupPushNotifications();
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(JMAPClient.activeSSEStreamCount()).toBe(JMAPClient.MAX_SSE_STREAMS);
+      expect(clients[2].hasSSEStream()).toBe(true);
+      expect(clients[1].hasSSEStream()).toBe(true);
+      expect(clients[0].hasSSEStream()).toBe(false);
+      expect(sse.filter((s) => !s.aborted)).toHaveLength(JMAPClient.MAX_SSE_STREAMS);
+
+      for (const c of clients) c.closePushNotifications();
     });
   });
 

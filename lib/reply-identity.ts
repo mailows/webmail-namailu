@@ -95,6 +95,77 @@ export function findComposeIdentityId(
   return baseIdentity?.id ?? null;
 }
 
+/**
+ * Address whose identity `findComposeIdentityId` should preselect, based on the
+ * mailbox currently open.
+ *
+ * Selecting a shared/group folder in the "Shared" sidebar section does not move
+ * the active account - a delegated mailbox has no separate login, it is reached
+ * through the viewer's - so the composer fell back to the reaching login's
+ * primary address and started every new message as the wrong sender. The owner
+ * of the selected folder is the correct default there.
+ *
+ * `accountName` is the JMAP `Account.name`, which RFC 8620 describes as "e.g.,
+ * the email address of the account". Servers that put a human label there
+ * instead simply produce no identity match, and the caller keeps the primary
+ * identity - exactly the previous behaviour. The `@` test keeps that intent
+ * explicit rather than relying on the match to fail.
+ */
+export function resolveComposeAccountEmail(
+  mailboxes: Array<{ id: string; isShared?: boolean; accountName?: string }>,
+  selectedMailbox?: string | null,
+  activeAccountEmail?: string | null,
+): string | undefined {
+  const current = selectedMailbox
+    ? mailboxes.find((mailbox) => mailbox.id === selectedMailbox)
+    : undefined;
+
+  if (current?.isShared && current.accountName?.includes('@')) {
+    return current.accountName;
+  }
+
+  return activeAccountEmail ?? undefined;
+}
+
+/**
+ * Restore the identity a draft was composed with from its saved From. A draft
+ * stores only the From address+name, not an identityId, so when two identities
+ * share an address (a default + an alias with a different display name) the name
+ * has to disambiguate — an email-only match picks the wrong one. Falls back to
+ * email, then `+tag`-stripped email. Returns null when none match (caller keeps
+ * the default). Pass the same identity list the composer renders (the flat
+ * cross-account list when multi-account is on) so the returned id is usable
+ * there.
+ */
+export function findDraftIdentityId(
+  identities: Identity[],
+  from?: { email?: string | null; name?: string | null } | null,
+): string | null {
+  const email = from?.email?.trim();
+  if (identities.length === 0 || !email) {
+    return null;
+  }
+
+  const wantEmail = normalizeEmailAddress(email);
+  const wantName = (from?.name ?? '').trim();
+
+  const nameAndEmail = identities.find(
+    (i) => normalizeEmailAddress(i.email) === wantEmail && (i.name ?? '').trim() === wantName,
+  );
+  if (nameAndEmail) {
+    return nameAndEmail.id;
+  }
+
+  const exact = identities.find((i) => normalizeEmailAddress(i.email) === wantEmail);
+  if (exact) {
+    return exact.id;
+  }
+
+  const wantBase = normalizeBaseEmailAddress(email);
+  const base = identities.find((i) => normalizeBaseEmailAddress(i.email) === wantBase);
+  return base?.id ?? null;
+}
+
 export interface ReplyFromResolution {
   /** Identity to use for JMAP `identityId` and the SMTP envelope MAIL FROM. */
   identityId: string;

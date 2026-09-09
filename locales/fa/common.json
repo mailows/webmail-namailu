@@ -126,7 +126,8 @@
     "mobile": {
       "search": "جستجو",
       "compose": "ایمیل جدید",
-      "go_back": "بازگشت"
+      "go_back": "بازگشت",
+      "toggle_menu": "تغییر وضعیت منو"
     },
     "clear_search": "پاک کردن جستجو",
     "vacation_active": "پاسخ‌گوی خودکار فعال است",
@@ -134,6 +135,8 @@
     "demo_reset": "بازنشانی",
     "demo_tour": "تور",
     "tags": "برچسب‌ها",
+    "show_all_tags": "نمایش همه ({count})",
+    "show_fewer_tags": "نمایش کمتر",
     "folders": "پوشه‌ها",
     "shared": "اشتراکی",
     "mail": "ایمیل",
@@ -302,7 +305,12 @@
     "move": "انتقال",
     "print": "چاپ",
     "view_source": "مشاهده منبع",
+
+    "fullscreen": "تمام‌صفحه",
+
+    "exit_fullscreen": "خروج از تمام‌صفحه",
     "export_email": "خروجی .eml",
+    "forward_as_attachment": "Forward as attachment",
     "import_email": "وارد کردن .eml یا .zip",
     "keyboard_shortcuts": "میانبرهای صفحه کلید (?)",
     "email_source": "منبع ایمیل",
@@ -329,13 +337,15 @@
     "view_contact": "مشاهده مخاطب",
     "message_details": "جزئیات پیام",
     "more_reply_options": "گزینه‌های بیشتر پاسخ",
-    "set_color": "تنظیم برچسب",
+    "set_tag": "تنظیم برچسب",
     "tag": "برچسب",
     "more_actions": "عملیات بیشتر",
     "previous": "قبلی",
     "next": "بعدی",
     "move_to": "انتقال به...",
-    "remove_color": "حذف برچسب",
+    "remove_tag": "حذف برچسب",
+    "tag_filter_placeholder": "فیلتر برچسب‌ها",
+    "tag_no_matches": "برچسب مطابقی یافت نشد",
     "more_count": "+{count} بیشتر",
     "characters_count": "{count} کاراکتر",
     "quick_reply_placeholder": "پاسخ سریع بنویسید...",
@@ -428,17 +438,6 @@
       "received": "دریافت شده",
       "message_id": "شناسه پیام",
       "list_info": "اطلاعات لیست"
-    },
-    "color_tag": {
-      "title": "برچسب رنگی",
-      "red": "قرمز",
-      "orange": "نارنجی",
-      "yellow": "زرد",
-      "green": "سبز",
-      "blue": "آبی",
-      "purple": "بنفش",
-      "pink": "صورتی",
-      "none": "هیچکدام"
     },
     "tooltips": {
       "reply": "پاسخ (r)",
@@ -584,6 +583,7 @@
     "read_receipt_on": "درخواست تأیید خواندن فعال (کلیک برای غیرفعال کردن)",
     "read_receipt_off": "درخواست تأیید خواندن",
     "new_message": "پیام جدید",
+    "signature_edit_hint": "برای ویرایش امضا دوبار کلیک کنید",
     "reply": "پاسخ",
     "reply_all": "پاسخ به همه",
     "forward": "ارسال مجدد",
@@ -646,7 +646,6 @@
     "save_as_template": "ذخیره به عنوان قالب",
     "validation": {
       "recipient_required": "یک گیرنده اضافه کنید",
-      "subject_required": "یک موضوع اضافه کنید",
       "body_required": "پیامی بنویسید یا فایلی پیوست کنید",
       "attachments_uploading": "پیوست‌ها هنوز در حال بارگذاری هستند — پس از اتمام ارسال می‌شود",
       "attachment_upload_failed": "ارسال نشد - بارگذاری یک پیوست ناموفق بود. آن را حذف کنید و دوباره تلاش کنید."
@@ -657,6 +656,7 @@
     "drop_files": "فایل‌ها را اینجا رها کنید",
     "show_less": "نمایش کمتر",
     "send_failed": "ارسال ایمیل ناموفق بود",
+    "send_timeout": "سرور دیگر پاسخ نمی‌دهد. پیش از ارسال دوباره، پوشهٔ ارسال‌شده‌ها را بررسی کنید — ممکن است پیام ارسال شده باشد.",
     "continue_draft": "ادامه پیش‌نویس",
     "close_draft_title": "ذخیره یا دور انداختن پیش‌نویس؟",
     "close_draft_message": "تغییرات ذخیره نشده دارید. ذخیره یا دور انداختن؟",
@@ -672,6 +672,13 @@
     "forgot_attachment": {
       "title": "آیا پیوست را فراموش کرده‌اید؟",
       "message": "پیام شما به \"{keyword}\" اشاره دارد اما فایلی پیوست نشده.",
+      "send_anyway": "ارسال به هر حال",
+      "back": "بازگشت به ویرایش"
+    },
+    "empty_subject": {
+      "title": "بدون موضوع ارسال شود؟",
+      "message": "این پیام موضوعی ندارد. با این حال ارسال شود؟",
+      "dont_ask_again": "دیگر نپرس",
       "send_anyway": "ارسال به هر حال",
       "back": "بازگشت به ویرایش"
     },
@@ -691,6 +698,38 @@
     "recipient_name_placeholder": "نام نمایشی",
     "autocomplete_search_server": "جستجو در سرور",
     "autocomplete_searching": "در حال جستجو...",
+    "toolbar": {
+      "bold": "پررنگ",
+      "italic": "کج",
+      "underline": "زیرخط‌دار",
+      "strikethrough": "خط‌خورده",
+      "text_color": "رنگ متن",
+      "remove_color": "حذف رنگ",
+      "heading_1": "سرفصل ۱",
+      "heading_2": "سرفصل ۲",
+      "bullet_list": "فهرست نشانه‌دار",
+      "ordered_list": "فهرست شماره‌دار",
+      "quote": "نقل‌قول",
+      "code_block": "بلوک کد",
+      "align_left": "تراز چپ",
+      "align_center": "وسط‌چین",
+      "align_right": "تراز راست",
+      "text_direction": "جهت متن (RTL/LTR)",
+      "link": "پیوند",
+      "table": "جدول",
+      "clear_formatting": "پاک کردن قالب‌بندی",
+      "undo": "واگرد",
+      "redo": "انجام دوباره",
+      "add_row_above": "افزودن ردیف در بالا",
+      "add_row_below": "افزودن ردیف در پایین",
+      "add_column_before": "افزودن ستون قبل",
+      "add_column_after": "افزودن ستون بعد",
+      "delete_row": "حذف ردیف",
+      "delete_column": "حذف ستون",
+      "toggle_header_row": "تغییر وضعیت ردیف سرصفحه",
+      "delete_table": "حذف جدول",
+      "pick_size": "انتخاب اندازه"
+    },
     "send_filing_warning": "ارسال شد - اما پاک‌سازی پس از ارسال ناموفق بود، ممکن است پیش‌نویس قدیمی باقی بماند."
   },
   "confirm_dialog": {
@@ -719,7 +758,10 @@
     "rate_limited_title": "احراز هویت سرور موقتاً محدود شده است.",
     "rate_limited_detail": "{appName} درخواست‌های پس‌زمینه را متوقف کرده است. تلاش مجدد در {seconds} ثانیه.",
     "rate_limited_action_title": "درخواست برای جلوگیری از قفل متوقف شد.",
-    "rate_limited_action_detail": "{appName} منتظر پایان زمان انتظار سرور است. در {seconds} ثانیه دوباره تلاش کنید."
+    "rate_limited_action_detail": "{appName} منتظر پایان زمان انتظار سرور است. در {seconds} ثانیه دوباره تلاش کنید.",
+    "pull_to_refresh": "برای تازه‌سازی بکشید",
+    "release_to_refresh": "برای تازه‌سازی رها کنید",
+    "refreshing": "در حال تازه‌سازی…"
   },
   "notifications": {
     "email_sent": "ایمیل با موفقیت ارسال شد",
@@ -826,7 +868,10 @@
     "zh": "简体中文",
     "fa": "فارسی",
     "farsi": "فارسی",
-    "switch_to_farsi": "تغییر به فارسی"
+    "switch_to_farsi": "تغییر به فارسی",
+    "mn": "Монгол",
+    "mongolian": "Монгол",
+    "switch_to_mongolian": "تغییر به مغولی"
   },
   "settings": {
     "title": "تنظیمات",
@@ -884,6 +929,56 @@
       "advanced": "پیشرفته"
     },
     "appearance": {
+      "message_list_order": {
+        "label": "ترتیب فهرست پیام‌ها",
+        "description": "نحوهٔ مرتب‌سازی پیام‌ها در فهرست. مرتب‌سازی را سرور انجام می‌دهد، بنابراین کل پوشه را در بر می‌گیرد، نه فقط پیام‌های بارگذاری‌شده را.",
+        "preset": {
+          "chronological": "زمانی (جدیدترین ابتدا)",
+          "unread_first": "خوانده‌نشده‌ها ابتدا",
+          "starred_first": "ستاره‌دارها ابتدا",
+          "tagged_first": "برچسب‌دارها ابتدا",
+          "custom": "سفارشی"
+        },
+        "tag_label": "برچسب",
+        "advanced_show": "پیشرفته: ویرایش سطوح مرتب‌سازی",
+        "advanced_hide": "پنهان کردن پیشرفته",
+        "criterion_label": "معیار سطح {n}",
+        "direction_label": "جهت سطح {n}",
+        "criteria": {
+          "unread": "خوانده‌نشده",
+          "starred": "ستاره‌دار",
+          "tag": "برچسب",
+          "receivedAt": "تاریخ دریافت",
+          "sentAt": "تاریخ ارسال",
+          "from": "فرستنده",
+          "subject": "موضوع",
+          "size": "اندازه"
+        },
+        "direction": {
+          "unread_first": "خوانده‌نشده‌ها ابتدا",
+          "read_first": "خوانده‌شده‌ها ابتدا",
+          "starred_first": "ستاره‌دارها ابتدا",
+          "unstarred_first": "بدون ستاره ابتدا",
+          "tagged_first": "برچسب‌دارها ابتدا",
+          "untagged_first": "بدون برچسب ابتدا",
+          "newest_first": "جدیدترین ابتدا",
+          "oldest_first": "قدیمی‌ترین ابتدا",
+          "a_to_z": "الف → ی",
+          "z_to_a": "ی → الف",
+          "largest_first": "بزرگ‌ترین ابتدا",
+          "smallest_first": "کوچک‌ترین ابتدا"
+        },
+        "add_level": "افزودن سطح",
+        "remove_level": "حذف سطح",
+        "move_up": "انتقال به بالا",
+        "move_down": "انتقال به پایین",
+        "tiebreak_note": "حداکثر سه سطح؛ سطوح بعدی در صورت تساوی تصمیم می‌گیرند. «جدیدترین ابتدا» همیشه در آخر اعمال می‌شود.",
+        "scope": {
+          "label": "اعمال بر همهٔ پوشه‌ها",
+          "description": "در حالت خاموش، ترتیب فقط بر صندوق ورودی اعمال می‌شود؛ پوشه‌های دیگر زمانی می‌مانند."
+        },
+        "unsupported_note": "سرور ایمیل شما مرتب‌سازی بر اساس وضعیت خواندن، ستاره یا برچسب را پشتیبانی نمی‌کند. این سطوح نادیده گرفته می‌شوند و فهرست زمانی می‌ماند."
+      },
       "title": "ظاهر",
       "description": "ظاهر و حس ایمیل تحت وب خود را سفارشی کنید",
       "theme": {
@@ -991,7 +1086,6 @@
       "title": "برچسب‌های ایمیل",
       "description": "برچسب‌ها را برای سازمان‌دهی ایمیل‌ها تعریف کنید",
       "add_keyword": "افزودن برچسب",
-      "reset_defaults": "بازنشانی به پیش‌فرض",
       "label_field": "نام نمایشی",
       "label_placeholder": "مثال: کاری، شخصی، فوری",
       "id_field": "شناسه برچسب",
@@ -1004,7 +1098,34 @@
       "add": "افزودن",
       "cancel": "انصراف",
       "migrating": "در حال به‌روزرسانی برچسب روی ایمیل‌های موجود…",
-      "migration_error": "به‌روزرسانی برچسب ناموفق بود"
+      "migration_error": "به‌روزرسانی برچسب ناموفق بود",
+      "nesting": {
+        "label": "برچسب‌های تودرتو",
+        "description": "برچسب‌ها را زیر برچسب‌های دیگر قرار دهید و آن‌ها را به‌صورت درختی در نوار کناری نمایش دهید."
+      },
+      "parent_field": "برچسب والد",
+      "no_parent": "بدون برچسب والد",
+      "too_long": "این مسیر برچسب خیلی طولانی است (حداکثر {max} نویسه)",
+      "has_children_locked": "برچسب‌های دیگری زیر این برچسب قرار دارند، بنابراین نام و برچسب والد آن قفل است. ابتدا آن‌ها را جابه‌جا یا حذف کنید.",
+      "has_children_delete": "ابتدا برچسب‌های زیرمجموعهٔ این برچسب را حذف کنید",
+      "visibility_field": "نمایش در نوار کناری",
+      "visibility": {
+        "show": "نمایش",
+        "unread": "نمایش در صورت وجود خوانده‌نشده",
+        "hide": "پنهان کردن"
+      },
+      "unrecognized": {
+        "title": "بازیابی برچسب‌ها از سرور",
+        "description": "نام و رنگ برچسب‌ها در این مرورگر ذخیره می‌شود، اما خود برچسب‌ها به‌صورت کلیدواژه‌های JMAP روی ایمیل‌های شما قرار دارند. ایمیل‌ها را برای یافتن کلیدواژه‌هایی که هیچ برچسبی اینجا ندارند بررسی کنید و آن‌ها را دوباره اضافه کنید.",
+        "scan": "جست‌وجوی برچسب‌ها",
+        "rescan": "بررسی دوباره",
+        "scanning": "در حال بررسی… {scanned} از {total} ایمیل",
+        "none": "همهٔ برچسب‌های ایمیل‌های شما از قبل اینجا تعریف شده‌اند.",
+        "messages": "{count, plural, one {# ایمیل} other {# ایمیل}}",
+        "add_all": "افزودن همه ({count})",
+        "partial": "فقط {scanned} ایمیل جدیدتر از مجموع {total} بررسی شد. برچسب‌هایی که تنها در ایمیل‌های قدیمی‌تر به کار رفته‌اند ممکن است نمایش داده نشوند.",
+        "error": "بررسی ایمیل‌ها برای یافتن برچسب‌ها ناموفق بود."
+      }
     },
     "notifications": {
       "test_sound": "تست صدای اعلان",
@@ -1022,7 +1143,6 @@
         "relay_desc": "پیش‌فرض رله میزبانی شده Bulwark",
         "relay_locked": "تنظیم شده توسط مدیر",
         "relay_locked_desc": "قابل تغییر نیست",
-        "relay_placeholder": "https://notifications.relay.example.com",
         "status_active": "فعال روی این دستگاه",
         "status_inactive": "فعال نشده",
         "status_unsupported": "مرورگر پشتیبانی نمی‌کند",
@@ -1032,7 +1152,24 @@
         "disable": "غیرفعال کردن",
         "confirm_disable_title": "غیرفعال کردن اعلان‌های پس‌زمینه؟",
         "confirm_disable_message": "این دستگاه دیگر هشدار دریافت نمی‌کند",
-        "ios_hint": "در iOS ابتدا سایت را به صفحه اصلی اضافه کنید"
+        "dismiss_aria": "رد کردن پیشنهاد اعلان‌ها",
+        "ios_hint": "در iOS ابتدا سایت را به صفحه اصلی اضافه کنید",
+        "devices_title": "دستگاه‌های ثبت‌شده",
+        "devices_desc": "همهٔ دستگاه‌هایی که برای دریافت اعلان‌های پس‌زمینهٔ این حساب ثبت شده‌اند. با لغو یک دستگاه، دریافت بی‌درنگ متوقف می‌شود.",
+        "devices_loading": "در حال بارگذاری دستگاه‌های ثبت‌شده…",
+        "devices_empty": "هیچ دستگاهی برای اعلان‌های پس‌زمینه ثبت نشده است.",
+        "devices_error": "بارگذاری دستگاه‌های ثبت‌شده ممکن نشد.",
+        "devices_refresh": "بازخوانی",
+        "device_this": "این دستگاه",
+        "device_other": "دستگاه دیگر",
+        "device_status_active": "در حال تحویل اعلان‌ها",
+        "device_status_inactive": "هرگز اعلانی تحویل نداده است",
+        "device_status_unknown": "برای این بازپخش ناشناس",
+        "device_expires": "انقضا در {date}",
+        "revoke": "لغو",
+        "confirm_revoke_title": "این دستگاه لغو شود؟",
+        "confirm_revoke_message": "بی‌درنگ دریافت اعلان‌های پس‌زمینه را متوقف می‌کند. با روشن‌کردن دوبارهٔ پوش روی آن دستگاه، دوباره ثبت می‌شود.",
+        "confirm_revoke_message_this": "این دستگاه بی‌درنگ دریافت اعلان‌های پس‌زمینه را متوقف می‌کند."
       },
       "sound_selection": {
         "title": "صدای اعلان",
@@ -1097,6 +1234,12 @@
         "description": "یکشنبه یا دوشنبه",
         "sunday": "یکشنبه",
         "monday": "دوشنبه"
+      },
+      "time_zone": {
+        "label": "Time zone",
+        "description": "Show email and calendar times in this time zone instead of the one reported by your browser",
+        "auto": "Automatic ({zone})",
+        "preview_now": "Now:"
       }
     },
     "email_behavior": {
@@ -1135,6 +1278,12 @@
         "auto": "خودکار (پیشنهادی)",
         "always": "همیشه فاصله اضافه شود",
         "edge": "لبه به لبه"
+      },
+      "plain_text_font": {
+        "label": "قلم متن ساده",
+        "description": "قلم مورد استفاده برای ایمیل‌های متن ساده",
+        "mono": "تک‌عرض",
+        "sans": "معمولی (مانند برنامه)"
       },
       "archive_mode": {
         "label": "بایگانی در",
@@ -1283,6 +1432,10 @@
         "add": "افزودن",
         "remove": "حذف"
       },
+      "empty_subject_warning": {
+        "label": "هشدار موضوع خالی",
+        "description": "پیش از ارسال پیام بدون موضوع تأیید بگیرید."
+      },
       "hide_inline_image_attachments": {
         "label": "مخفی کردن تصاویر داخلی",
         "description": "عدم نمایش به عنوان پیوست"
@@ -1301,6 +1454,22 @@
       "return_to_list_after_action": {
         "label": "بازگشت به فهرست پس از حذف یا علامت‌گذاری به‌عنوان خوانده‌نشده",
         "description": "پس از حذف یا علامت‌گذاری پیام باز به‌عنوان خوانده‌نشده، به‌جای باز کردن پیام بعدی به فهرست پیام‌ها بازگردید."
+      },
+      "swipe_right_action": {
+        "label": "عملکرد کشیدن به راست (موبایل)",
+        "description": "در دستگاه‌های لمسی، عملی که هنگام کشیدن یک پیام به راست در فهرست انجام می‌شود."
+      },
+      "swipe_left_action": {
+        "label": "عملکرد کشیدن به چپ (موبایل)",
+        "description": "در دستگاه‌های لمسی، عملی که هنگام کشیدن یک پیام به چپ در فهرست انجام می‌شود."
+      },
+      "swipe_actions": {
+        "none": "هیچ",
+        "archive": "بایگانی",
+        "delete": "حذف",
+        "mark_read": "تغییر وضعیت خوانده‌شده",
+        "star": "تغییر وضعیت ستاره",
+        "spam": "علامت‌گذاری به عنوان هرزنامه"
       },
       "rtl_editing": {
         "label": "پشتیبانی از ویرایش راست‌به‌چپ",
@@ -1490,7 +1659,16 @@
         "inactive": "غیرفعال",
         "enabled": "فعال شد",
         "disabled_success": "غیرفعال شد",
-        "error": "خطا"
+        "error": "خطا",
+        "algorithm_label": "الگوریتم رمزنگاری",
+        "encrypt_on_append": "رمزنگاری ایمیل‌های جدید هنگام بارگذاری",
+        "allow_spam_training": "اجازه به آموزش هرزنامه پیش از رمزنگاری ایمیل‌ها",
+        "enable_encryption": "فعال‌سازی رمزنگاری",
+        "enable_tooltip": "فعال‌سازی رمزنگاری با این کلید",
+        "configure_title": "فعال‌سازی رمزنگاری با این کلید",
+        "enable_button": "فعال‌سازی",
+        "disable_tooltip": "غیرفعال‌سازی رمزنگاری",
+        "enabled_success": "فعال شد"
       },
       "email_client": {
         "title": "تنظیم برنامه ایمیل",
@@ -1510,6 +1688,13 @@
         "expired": "منقضی شده",
         "generating": "در حال تولید…",
         "error": "خطا"
+      },
+      "public_keys": {
+        "name_label": "نام کلید عمومی",
+        "name_placeholder": "مثال: کلید من",
+        "key_label": "کلید عمومی (S/MIME یا PGP با قالب ASCII)",
+        "key_placeholder": "کلید عمومی خود را اینجا بچسبانید",
+        "none": "هیچ کلید عمومی‌ای تنظیم نشده است"
       }
     },
     "identities": {
@@ -1594,6 +1779,7 @@
       "create_subfolder": "ایجاد زیرپوشه",
       "reorder": "برای تغییر ترتیب بکشید",
       "reorder_error": "تغییر ترتیب پوشه‌ها ناموفق بود",
+      "move_error": "انتقال پوشه ناموفق بود",
       "subfolder_of": "داخل {name}",
       "subfolder_name": "نام زیرپوشه",
       "new_folder_name": "نام پوشه",
@@ -2008,8 +2194,7 @@
     "delete": "حذف",
     "mark_as_spam": "گزارش هرزنامه",
     "not_spam": "هرزنامه نیست",
-    "color_tag": "برچسب",
-    "remove_color": "حذف برچسب",
+    "tag": "برچسب",
     "items_selected": "{count} ایمیل انتخاب شده",
     "edit_draft": "ویرایش پیش‌نویس",
     "cancel_scheduled_send": "لغو ارسال",
@@ -2344,6 +2529,9 @@
       "section_address_book": "دفترچه",
       "select_address_book": "انتخاب دفترچه...",
       "section_identity": "نام و هویت",
+      "contact_type": "نوع مخاطب",
+      "type_person": "شخص",
+      "type_organization": "سازمان",
       "section_work": "کار و سازمان",
       "prefix": "پیشوند",
       "prefix_placeholder": "دکتر، مهندس",
@@ -2428,7 +2616,7 @@
       "cancel": "انصراف",
       "creating": "در حال ایجاد...",
       "updating": "در حال به‌روزرسانی...",
-      "name_required": "حداقل نام یا نام خانوادگی الزامی است",
+      "name_required": "نام، نام خانوادگی یا سازمان را وارد کنید",
       "email_invalid": "لطفاً یک آدرس ایمیل معتبر وارد کنید",
       "email_error_inline": "فرمت ایمیل نامعتبر است",
       "save_failed": "ذخیره مخاطب ناموفق بود",
@@ -2873,7 +3061,12 @@
       "copy_url": "کپی آدرس CalDAV",
       "url_copied": "آدرس CalDAV در کلیپ‌بورد کپی شد",
       "share": "اشتراک‌گذاری تقویم",
-      "new_event_in_calendar": "رویداد جدید در این تقویم"
+      "new_event_in_calendar": "رویداد جدید در این تقویم",
+      "kind": "محتوا",
+      "kind_events": "رویدادها",
+      "kind_tasks": "وظایف",
+      "kind_both": "رویدادها و وظایف",
+      "kind_hint": "تعیین می‌کند کدام برنامه‌ها این تقویم را هنگام همگام‌سازی از طریق CalDAV می‌بینند. بعداً قابل تغییر نیست."
     },
     "subscription": {
       "title": "اشتراک iCal",
@@ -3006,7 +3199,12 @@
     "search_hint": "از فیلترهای پیشرفته برای جستجوی دقیق استفاده کنید",
     "advanced_filters_tooltip": "فیلترهای جستجوی پیشرفته",
     "results_found": "{count, plural, =0 {نتیجه‌ای یافت نشد} one {# نتیجه یافت شد} other {# نتیجه یافت شد}}",
-    "results_found_more": "+{count} نتیجه یافت شد"
+    "results_found_more": "+{count} نتیجه یافت شد",
+    "suggestions_recent": "جستجوهای اخیر",
+    "suggestions_people": "افراد",
+    "suggestions_from": "جستجوی ایمیل‌های از {address}",
+    "suggestions_to": "جستجوی ایمیل‌های به {address}",
+    "suggestions_remove_recent": "حذف از جستجوهای اخیر"
   },
   "welcome": {
     "title": "به صندوق پستی خود خوش آمدید",
@@ -3289,5 +3487,18 @@
     "install": "نصب",
     "dont_remind": "دیگر یادآوری نکن",
     "dismiss_aria": "رد کردن پیشنهاد نصب"
+  },
+  "deep_link": {
+    "message_not_found": "این پیام دیگر در دسترس نیست.",
+    "thread_not_found": "این گفتگو دیگر در دسترس نیست.",
+    "folder_not_found": "این پوشه دیگر در دسترس نیست.",
+    "event_not_found": "این رویداد دیگر در دسترس نیست.",
+    "file_not_found": "این فایل دیگر در دسترس نیست.",
+    "account_unavailable": "برای باز کردن این پیوند، به آن حساب وارد شوید.",
+    "copy_message": "کپی پیوند پیام",
+    "copy_conversation": "کپی پیوند گفتگو",
+    "copy_event": "کپی پیوند رویداد",
+    "copied": "پیوند کپی شد",
+    "copy_failed": "کپی پیوند ممکن نشد"
   }
 }

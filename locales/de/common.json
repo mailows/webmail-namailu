@@ -126,7 +126,8 @@
     "mobile": {
       "search": "Suchen",
       "compose": "Verfassen",
-      "go_back": "Zurück"
+      "go_back": "Zurück",
+      "toggle_menu": "Menü umschalten"
     },
     "clear_search": "Suche löschen",
     "vacation_active": "Abwesenheitsnotiz ist aktiv",
@@ -134,6 +135,8 @@
     "demo_reset": "Zurücksetzen",
     "demo_tour": "Tour",
     "tags": "Tags",
+    "show_all_tags": "Alle anzeigen ({count})",
+    "show_fewer_tags": "Weniger anzeigen",
     "folders": "Ordner",
     "mail": "E-Mail",
     "nav_label": "Navigation",
@@ -302,7 +305,12 @@
     "move": "Verschieben",
     "print": "Drucken",
     "view_source": "Quelltext anzeigen",
+
+    "fullscreen": "Vollbild",
+
+    "exit_fullscreen": "Vollbild beenden",
     "export_email": "Als .eml exportieren",
+    "forward_as_attachment": "Forward as attachment",
     "import_email": ".eml oder .zip importieren",
     "keyboard_shortcuts": "Tastaturkürzel (?)",
     "email_source": "E-Mail-Quelltext",
@@ -329,11 +337,13 @@
     "view_contact": "Kontakt anzeigen",
     "message_details": "Nachrichtendetails",
     "more_reply_options": "Weitere Antwortoptionen",
-    "set_color": "Label setzen",
+    "set_tag": "Label setzen",
     "tag": "Label",
     "more_actions": "Weitere Aktionen",
     "move_to": "Verschieben nach...",
-    "remove_color": "Label entfernen",
+    "remove_tag": "Label entfernen",
+    "tag_filter_placeholder": "Labels filtern",
+    "tag_no_matches": "Keine passenden Labels",
     "more_count": "+{count} weitere",
     "characters_count": "{count} Zeichen",
     "quick_reply_placeholder": "Eine kurze Antwort schreiben...",
@@ -401,17 +411,6 @@
       "received": "Empfangen",
       "message_id": "Nachrichten-ID",
       "list_info": "Listeninformationen"
-    },
-    "color_tag": {
-      "title": "Farb-Tag",
-      "red": "Rot",
-      "orange": "Orange",
-      "yellow": "Gelb",
-      "green": "Grün",
-      "blue": "Blau",
-      "purple": "Violett",
-      "pink": "Rosa",
-      "none": "Keine"
     },
     "tooltips": {
       "reply": "Antworten",
@@ -584,6 +583,7 @@
     "read_receipt_on": "Lesebestätigung angefordert (klicken zum Deaktivieren)",
     "read_receipt_off": "Lesebestätigung anfordern",
     "new_message": "Neue Nachricht",
+    "signature_edit_hint": "Doppelklick, um die Signatur zu bearbeiten",
     "reply": "Antworten",
     "reply_all": "Allen antworten",
     "forward": "Weiterleiten",
@@ -643,7 +643,6 @@
     "save_as_template": "Als Vorlage speichern",
     "validation": {
       "recipient_required": "Empfänger hinzufügen zum Senden",
-      "subject_required": "Betreff hinzufügen",
       "body_required": "Nachricht schreiben oder Datei anhängen",
       "attachments_uploading": "Anhänge werden noch hochgeladen – wird gesendet, sobald sie fertig sind",
       "attachment_upload_failed": "Nicht gesendet - ein Anhang konnte nicht hochgeladen werden. Entfernen Sie ihn und versuchen Sie es erneut."
@@ -661,6 +660,7 @@
     "smime_unlock_message": "Geben Sie die Passphrase ein, um Ihren S/MIME-Schlüssel zu entsperren.",
     "smime_unlock_button": "Entsperren",
     "smime_passphrase_placeholder": "S/MIME-Passphrase",
+    "send_timeout": "Der Server antwortet nicht mehr. Prüfen Sie den Ordner „Gesendet“, bevor Sie erneut senden – die Nachricht wurde möglicherweise bereits verschickt.",
     "continue_draft": "Entwurf fortsetzen",
     "close_draft_title": "Entwurf speichern oder verwerfen?",
     "close_draft_message": "Sie haben ungespeicherte Änderungen. Möchten Sie diese als Entwurf speichern oder verwerfen?",
@@ -669,6 +669,13 @@
     "forgot_attachment": {
       "title": "Haben Sie den Anhang vergessen?",
       "message": "Ihre Nachricht enthält \"{keyword}\", aber es ist keine Datei angehängt. Trotzdem senden?",
+      "send_anyway": "Trotzdem senden",
+      "back": "Zurück zur Bearbeitung"
+    },
+    "empty_subject": {
+      "title": "Ohne Betreff senden?",
+      "message": "Diese Nachricht hat keinen Betreff. Trotzdem senden?",
+      "dont_ask_again": "Nicht mehr fragen",
       "send_anyway": "Trotzdem senden",
       "back": "Zurück zur Bearbeitung"
     },
@@ -691,6 +698,38 @@
     "recipient_name_placeholder": "Anzeigename",
     "autocomplete_search_server": "Auf dem Server suchen",
     "autocomplete_searching": "Suche läuft...",
+    "toolbar": {
+      "bold": "Fett",
+      "italic": "Kursiv",
+      "underline": "Unterstrichen",
+      "strikethrough": "Durchgestrichen",
+      "text_color": "Textfarbe",
+      "remove_color": "Farbe entfernen",
+      "heading_1": "Überschrift 1",
+      "heading_2": "Überschrift 2",
+      "bullet_list": "Aufzählung",
+      "ordered_list": "Nummerierte Liste",
+      "quote": "Zitat",
+      "code_block": "Codeblock",
+      "align_left": "Linksbündig",
+      "align_center": "Zentriert",
+      "align_right": "Rechtsbündig",
+      "text_direction": "Schreibrichtung (RTL/LTR)",
+      "link": "Link",
+      "table": "Tabelle",
+      "clear_formatting": "Formatierung löschen",
+      "undo": "Rückgängig",
+      "redo": "Wiederholen",
+      "add_row_above": "Zeile oberhalb einfügen",
+      "add_row_below": "Zeile unterhalb einfügen",
+      "add_column_before": "Spalte davor einfügen",
+      "add_column_after": "Spalte danach einfügen",
+      "delete_row": "Zeile löschen",
+      "delete_column": "Spalte löschen",
+      "toggle_header_row": "Kopfzeile umschalten",
+      "delete_table": "Tabelle löschen",
+      "pick_size": "Größe wählen"
+    },
     "send_filing_warning": "Gesendet - aber das Aufräumen danach schlug fehl, evtl. bleibt ein alter Entwurf sichtbar."
   },
   "confirm_dialog": {
@@ -719,7 +758,10 @@
     "rate_limited_title": "Die Serverauthentifizierung ist vorubergehend begrenzt.",
     "rate_limited_detail": "{appName} hat Hintergrundanfragen pausiert, um eine Sperre zu vermeiden. Neuer Versuch in {seconds}s.",
     "rate_limited_action_title": "Anfrage pausiert, um eine Sperre zu vermeiden.",
-    "rate_limited_action_detail": "{appName} wartet, bis die Serverabklingzeit endet, bevor weitere authentifizierte Anfragen gesendet werden. Versuchen Sie es in {seconds}s erneut."
+    "rate_limited_action_detail": "{appName} wartet, bis die Serverabklingzeit endet, bevor weitere authentifizierte Anfragen gesendet werden. Versuchen Sie es in {seconds}s erneut.",
+    "pull_to_refresh": "Zum Aktualisieren ziehen",
+    "release_to_refresh": "Zum Aktualisieren loslassen",
+    "refreshing": "Wird aktualisiert…"
   },
   "notifications": {
     "email_sent": "E-Mail erfolgreich gesendet",
@@ -826,7 +868,10 @@
     "zh": "简体中文",
     "fa": "فارسی",
     "farsi": "فارسی",
-    "switch_to_farsi": "Zu Farsi wechseln"
+    "switch_to_farsi": "Zu Farsi wechseln",
+    "mn": "Монгол",
+    "mongolian": "Монгол",
+    "switch_to_mongolian": "Zu Mongolisch wechseln"
   },
   "settings": {
     "title": "Einstellungen",
@@ -881,6 +926,56 @@
       "advanced": "Erweitert"
     },
     "appearance": {
+      "message_list_order": {
+        "label": "Reihenfolge der Nachrichtenliste",
+        "description": "Wie Nachrichten in der Liste sortiert werden. Die Sortierung erfolgt auf dem Server und gilt damit für den ganzen Ordner, nicht nur für die geladenen Nachrichten.",
+        "preset": {
+          "chronological": "Chronologisch (neueste zuerst)",
+          "unread_first": "Ungelesene zuerst",
+          "starred_first": "Markierte zuerst",
+          "tagged_first": "Getaggte zuerst",
+          "custom": "Benutzerdefiniert"
+        },
+        "tag_label": "Tag",
+        "advanced_show": "Erweitert: Sortierebenen bearbeiten",
+        "advanced_hide": "Erweitert ausblenden",
+        "criterion_label": "Kriterium für Ebene {n}",
+        "direction_label": "Richtung für Ebene {n}",
+        "criteria": {
+          "unread": "Ungelesen",
+          "starred": "Markiert",
+          "tag": "Tag",
+          "receivedAt": "Empfangsdatum",
+          "sentAt": "Sendedatum",
+          "from": "Absender",
+          "subject": "Betreff",
+          "size": "Größe"
+        },
+        "direction": {
+          "unread_first": "Ungelesene zuerst",
+          "read_first": "Gelesene zuerst",
+          "starred_first": "Markierte zuerst",
+          "unstarred_first": "Nicht markierte zuerst",
+          "tagged_first": "Getaggte zuerst",
+          "untagged_first": "Nicht getaggte zuerst",
+          "newest_first": "Neueste zuerst",
+          "oldest_first": "Älteste zuerst",
+          "a_to_z": "A → Z",
+          "z_to_a": "Z → A",
+          "largest_first": "Größte zuerst",
+          "smallest_first": "Kleinste zuerst"
+        },
+        "add_level": "Ebene hinzufügen",
+        "remove_level": "Ebene entfernen",
+        "move_up": "Nach oben",
+        "move_down": "Nach unten",
+        "tiebreak_note": "Bis zu drei Ebenen; spätere Ebenen entscheiden bei Gleichstand. Neueste zuerst gilt immer als letzte Ebene.",
+        "scope": {
+          "label": "Auf alle Ordner anwenden",
+          "description": "Wenn ausgeschaltet, gilt die Reihenfolge nur für den Posteingang; andere Ordner bleiben chronologisch."
+        },
+        "unsupported_note": "Dein Mailserver unterstützt keine Sortierung nach Lesestatus, Markierung oder Tags. Diese Ebenen werden ignoriert und die Liste bleibt chronologisch."
+      },
       "title": "Darstellung",
       "description": "Passen Sie das Aussehen Ihres Webmails an",
       "theme": {
@@ -988,7 +1083,6 @@
       "title": "E-Mail-Labels",
       "description": "Labels definieren, um Ihre E-Mails mit Farben zu organisieren. Diese werden als JMAP-Keywords auf dem Server gespeichert.",
       "add_keyword": "Label hinzufügen",
-      "reset_defaults": "Auf Standard zurücksetzen",
       "label_field": "Anzeigename",
       "label_placeholder": "z.B. Arbeit, Privat, Dringend",
       "id_field": "Label-ID",
@@ -1001,7 +1095,34 @@
       "add": "Hinzufügen",
       "cancel": "Abbrechen",
       "migrating": "Label auf vorhandenen E-Mails aktualisieren…",
-      "migration_error": "Label auf vorhandenen E-Mails konnte nicht aktualisiert werden"
+      "migration_error": "Label auf vorhandenen E-Mails konnte nicht aktualisiert werden",
+      "nesting": {
+        "label": "Verschachtelte Labels",
+        "description": "Labels unter anderen Labels verschachteln und als Baum in der Seitenleiste anzeigen."
+      },
+      "parent_field": "Übergeordnetes Label",
+      "no_parent": "Kein übergeordnetes Label",
+      "too_long": "Dieser Label-Pfad ist zu lang (höchstens {max} Zeichen)",
+      "has_children_locked": "Unter diesem Label sind andere Labels verschachtelt, daher sind Name und übergeordnetes Label gesperrt. Verschieben oder entfernen Sie diese zuerst.",
+      "has_children_delete": "Entfernen Sie zuerst die Labels, die unter diesem verschachtelt sind",
+      "visibility_field": "Sichtbarkeit in der Seitenleiste",
+      "visibility": {
+        "show": "Anzeigen",
+        "unread": "Bei Ungelesenen anzeigen",
+        "hide": "Ausblenden"
+      },
+      "unrecognized": {
+        "title": "Labels vom Server wiederherstellen",
+        "description": "Labelnamen und -farben werden in diesem Browser gespeichert, die Labels selbst liegen jedoch als JMAP-Keywords auf Ihren E-Mails. Durchsuchen Sie Ihre E-Mails nach Keywords, zu denen es hier kein Label gibt, und fügen Sie diese wieder hinzu.",
+        "scan": "Nach Labels suchen",
+        "rescan": "Erneut suchen",
+        "scanning": "Suche läuft… {scanned} von {total} E-Mails",
+        "none": "Alle Labels auf Ihren E-Mails sind hier bereits definiert.",
+        "messages": "{count, plural, one {# E-Mail} other {# E-Mails}}",
+        "add_all": "Alle {count} hinzufügen",
+        "partial": "Es wurden nur die {scanned} neuesten von {total} E-Mails durchsucht. Labels, die nur in älteren E-Mails vorkommen, fehlen möglicherweise.",
+        "error": "Ihre E-Mails konnten nicht nach Labels durchsucht werden."
+      }
     },
     "notifications": {
       "test_sound": "Benachrichtigungston testen",
@@ -1042,18 +1163,34 @@
         "description": "Systembenachrichtigungen für neue E-Mails empfangen, wenn diese Seite geschlossen ist. Zustellung über das Bulwark Push-Relay; das Relay sieht niemals E-Mail-Inhalte.",
         "disable": "Deaktivieren",
         "enable": "Aktivieren",
+        "dismiss_aria": "Benachrichtigungshinweis schließen",
         "ios_hint": "Installieren Sie die Seite unter iOS zuerst auf dem Startbildschirm – Safari liefert Web Push nur an installierte PWAs.",
         "reenable": "Neu registrieren",
         "relay_desc": "Standardmäßig wird das gehostete Bulwark-Relay verwendet. Nur ändern, wenn Sie selbst hosten.",
         "relay_label": "Push-Relay",
         "relay_locked": "Vom Administrator festgelegt",
         "relay_locked_desc": "Die Push-Relay-URL wurde von Ihrem Administrator festgelegt und kann nicht geändert werden.",
-        "relay_placeholder": "https://notifications.relay.example.com",
         "status_active": "Auf diesem Gerät aktiv",
         "status_busy": "Wird verarbeitet…",
         "status_inactive": "Auf diesem Gerät nicht aktiviert",
         "status_unsupported": "Dieser Browser unterstützt Web Push nicht",
-        "title": "Hintergrundbenachrichtigungen"
+        "title": "Hintergrundbenachrichtigungen",
+        "devices_title": "Registrierte Geräte",
+        "devices_desc": "Alle Geräte, die Hintergrundbenachrichtigungen für dieses Konto erhalten. Wird eines widerrufen, empfängt es sofort keine mehr.",
+        "devices_loading": "Registrierte Geräte werden geladen…",
+        "devices_empty": "Für Hintergrundbenachrichtigungen ist kein Gerät registriert.",
+        "devices_error": "Registrierte Geräte konnten nicht geladen werden.",
+        "devices_refresh": "Aktualisieren",
+        "device_this": "Dieses Gerät",
+        "device_other": "Anderes Gerät",
+        "device_status_active": "Stellt Benachrichtigungen zu",
+        "device_status_inactive": "Hat nie eine Benachrichtigung zugestellt",
+        "device_status_unknown": "Diesem Relay nicht bekannt",
+        "device_expires": "Läuft am {date} ab",
+        "revoke": "Widerrufen",
+        "confirm_revoke_title": "Dieses Gerät widerrufen?",
+        "confirm_revoke_message": "Es empfängt sofort keine Hintergrundbenachrichtigungen mehr. Wird Push auf diesem Gerät erneut aktiviert, wird es neu registriert.",
+        "confirm_revoke_message_this": "Dieses Gerät empfängt sofort keine Hintergrundbenachrichtigungen mehr."
       }
     },
     "language_region": {
@@ -1094,6 +1231,12 @@
         "description": "Woche am Sonntag oder Montag beginnen",
         "sunday": "Sonntag",
         "monday": "Montag"
+      },
+      "time_zone": {
+        "label": "Time zone",
+        "description": "Show email and calendar times in this time zone instead of the one reported by your browser",
+        "auto": "Automatic ({zone})",
+        "preview_now": "Now:"
       }
     },
     "email_behavior": {
@@ -1132,6 +1275,12 @@
         "auto": "Automatisch (empfohlen)",
         "always": "Immer Abstand hinzufügen",
         "edge": "Randlos"
+      },
+      "plain_text_font": {
+        "label": "Schriftart für Nur-Text",
+        "description": "Schriftart für Nur-Text-E-Mails",
+        "mono": "Monospace",
+        "sans": "Normal (wie die App)"
       },
       "archive_mode": {
         "label": "Nachrichten archivieren in",
@@ -1280,6 +1429,10 @@
         "add": "Hinzufügen",
         "remove": "Entfernen"
       },
+      "empty_subject_warning": {
+        "label": "Warnung bei leerem Betreff",
+        "description": "Vor dem Senden einer Nachricht ohne Betreff nachfragen."
+      },
       "hide_inline_image_attachments": {
         "label": "Eingebettete Bilder in Anhangsliste ausblenden",
         "description": "Im Nachrichtentext eingebettete Bilder werden nicht als separate Anhänge aufgeführt"
@@ -1298,6 +1451,22 @@
       "return_to_list_after_action": {
         "label": "Nach Löschen oder Ungelesen-Markieren zur Liste zurückkehren",
         "description": "Nach dem Löschen oder Als-ungelesen-Markieren der geöffneten E-Mail zurück zur Liste, statt die nächste E-Mail zu öffnen."
+      },
+      "swipe_right_action": {
+        "label": "Aktion beim Wischen nach rechts (mobil)",
+        "description": "Auf Touch-Geräten die Aktion, die ausgeführt wird, wenn eine Nachricht in der Liste nach rechts gewischt wird."
+      },
+      "swipe_left_action": {
+        "label": "Aktion beim Wischen nach links (mobil)",
+        "description": "Auf Touch-Geräten die Aktion, die ausgeführt wird, wenn eine Nachricht in der Liste nach links gewischt wird."
+      },
+      "swipe_actions": {
+        "none": "Keine",
+        "archive": "Archivieren",
+        "delete": "Löschen",
+        "mark_read": "Gelesen umschalten",
+        "star": "Stern umschalten",
+        "spam": "Als Spam markieren"
       },
       "rtl_editing": {
         "label": "Unterstützung für Rechts-nach-links-Bearbeitung",
@@ -1483,7 +1652,16 @@
         "inactive": "Deaktiviert",
         "enabled": "Verschlüsselung im Ruhezustand aktiviert",
         "disabled_success": "Verschlüsselung im Ruhezustand deaktiviert",
-        "error": "Verschlüsselungseinstellungen konnten nicht aktualisiert werden"
+        "error": "Verschlüsselungseinstellungen konnten nicht aktualisiert werden",
+        "algorithm_label": "Verschlüsselungsalgorithmus",
+        "encrypt_on_append": "Neue E-Mails beim Hochladen verschlüsseln",
+        "allow_spam_training": "Spam-Training zulassen, bevor E-Mails verschlüsselt werden",
+        "enable_encryption": "Verschlüsselung aktivieren",
+        "enable_tooltip": "Verschlüsselung mit diesem Schlüssel aktivieren",
+        "configure_title": "Verschlüsselung mit diesem Schlüssel aktivieren",
+        "enable_button": "Aktivieren",
+        "disable_tooltip": "Verschlüsselung deaktivieren",
+        "enabled_success": "Verschlüsselung im Ruhezustand aktiviert"
       },
       "email_client": {
         "title": "E-Mail-Client-Einrichtung",
@@ -1503,6 +1681,13 @@
         "expired": "Dieser Code ist abgelaufen.",
         "generating": "Wird erstellt…",
         "error": "Kopplungscode konnte nicht erstellt werden. Bitte versuchen Sie es erneut."
+      },
+      "public_keys": {
+        "name_label": "Name des öffentlichen Schlüssels",
+        "name_placeholder": "z.B. Mein Schlüssel",
+        "key_label": "Öffentlicher Schlüssel (S/MIME oder PGP im ASCII-Format)",
+        "key_placeholder": "Fügen Sie hier Ihren öffentlichen Schlüssel ein",
+        "none": "Keine öffentlichen Schlüssel konfiguriert"
       }
     },
     "identities": {
@@ -1587,6 +1772,7 @@
       "create_subfolder": "Unterordner erstellen",
       "reorder": "Zum Neuanordnen ziehen",
       "reorder_error": "Ordner konnten nicht neu angeordnet werden",
+      "move_error": "Ordner konnte nicht verschoben werden",
       "subfolder_of": "In {name}",
       "subfolder_name": "Name des Unterordners",
       "new_folder_name": "Ordnername",
@@ -2008,8 +2194,7 @@
     "delete": "Löschen",
     "mark_as_spam": "Spam melden",
     "not_spam": "Kein Spam",
-    "color_tag": "Label",
-    "remove_color": "Label entfernen",
+    "tag": "Label",
     "items_selected": "{count} E-Mails ausgewählt",
     "edit_draft": "Entwurf bearbeiten",
     "cancel_scheduled_send": "Senden abbrechen",
@@ -2343,6 +2528,9 @@
       "section_address_book": "Verzeichnis",
       "select_address_book": "Verzeichnis auswählen...",
       "section_identity": "Name & Identität",
+      "contact_type": "Kontakttyp",
+      "type_person": "Person",
+      "type_organization": "Organisation",
       "section_work": "Beruf & Organisation",
       "prefix": "Anrede",
       "prefix_placeholder": "Dr., Herr, Frau",
@@ -2427,7 +2615,7 @@
       "cancel": "Abbrechen",
       "creating": "Wird erstellt...",
       "updating": "Wird aktualisiert...",
-      "name_required": "Mindestens ein Vor- oder Nachname ist erforderlich",
+      "name_required": "Bitte Vorname, Nachname oder Organisation angeben",
       "email_invalid": "Bitte geben Sie eine gültige E-Mail-Adresse ein",
       "email_error_inline": "Ungültiges E-Mail-Format",
       "save_failed": "Kontakt konnte nicht gespeichert werden",
@@ -2846,7 +3034,12 @@
       "events_cleared": "{count} Ereignisse gelöscht",
       "error_clear": "Kalenderereignisse konnten nicht gelöscht werden",
       "share": "Kalender freigeben",
-      "new_event_in_calendar": "Neuer Termin in diesem Kalender"
+      "new_event_in_calendar": "Neuer Termin in diesem Kalender",
+      "kind": "Inhalt",
+      "kind_events": "Termine",
+      "kind_tasks": "Aufgaben",
+      "kind_both": "Termine und Aufgaben",
+      "kind_hint": "Legt fest, welche Apps diesen Kalender sehen, wenn er über CalDAV synchronisiert wird. Kann später nicht mehr geändert werden."
     },
     "subscription": {
       "title": "iCal-Abonnement",
@@ -2983,7 +3176,12 @@
     "search_hint": "Verwenden Sie erweiterte Filter für eine präzise Suche",
     "advanced_filters_tooltip": "Erweiterte Suchfilter",
     "results_found": "{count, plural, =0 {Keine Ergebnisse gefunden} one {# Ergebnis gefunden} other {# Ergebnisse gefunden}}",
-    "results_found_more": "{count}+ Ergebnisse gefunden"
+    "results_found_more": "{count}+ Ergebnisse gefunden",
+    "suggestions_recent": "Letzte Suchen",
+    "suggestions_people": "Personen",
+    "suggestions_from": "E-Mails von {address} suchen",
+    "suggestions_to": "E-Mails an {address} suchen",
+    "suggestions_remove_recent": "Aus den letzten Suchen entfernen"
   },
   "welcome": {
     "title": "Willkommen in Ihrem Postfach",
@@ -3289,5 +3487,18 @@
     "install": "Installieren",
     "dont_remind": "Nicht mehr erinnern",
     "dismiss_aria": "Installationshinweis schließen"
+  },
+  "deep_link": {
+    "message_not_found": "Diese Nachricht ist nicht mehr verfügbar.",
+    "thread_not_found": "Diese Unterhaltung ist nicht mehr verfügbar.",
+    "folder_not_found": "Dieser Ordner ist nicht mehr verfügbar.",
+    "event_not_found": "Dieser Termin ist nicht mehr verfügbar.",
+    "file_not_found": "Diese Datei ist nicht mehr verfügbar.",
+    "account_unavailable": "Melde dich bei diesem Konto an, um den Link zu öffnen.",
+    "copy_message": "Link zur Nachricht kopieren",
+    "copy_conversation": "Link zur Unterhaltung kopieren",
+    "copy_event": "Link zum Termin kopieren",
+    "copied": "Link kopiert",
+    "copy_failed": "Link konnte nicht kopiert werden"
   }
 }

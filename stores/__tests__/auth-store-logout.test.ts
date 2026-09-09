@@ -45,7 +45,7 @@ describe('auth-store logout redirects', () => {
   // FORK (namailu.cz): záměrné odhlášení nekončí na loginu webmailu, ale řetězem přes portál
   // (/logout-remote → landing), aby nepřežila portálová session. Session-expiry testy níž
   // dál ověřují, že NEplatná session pořád vede na login s hláškou — to se nezměnilo.
-  it('redirects full logout through the portal single-logout chain', () => {
+  it('redirects full logout through the portal single-logout chain', async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
     vi.stubGlobal('fetch', fetchMock);
     const replaceSpy = vi.spyOn(browserNavigation, 'replaceWindowLocation').mockImplementation(() => {});
@@ -53,7 +53,7 @@ describe('auth-store logout redirects', () => {
     window.history.pushState({}, '', '/fr/calendar');
     useAuthStore.setState({ isAuthenticated: true, authMode: 'basic' });
 
-    useAuthStore.getState().logout();
+    await useAuthStore.getState().logout();
 
     expect(replaceSpy).toHaveBeenCalledWith('/api/auth/logout');
     expect(fetchMock).not.toHaveBeenCalledWith('/api/auth/session?slot=0', { method: 'DELETE', keepalive: true });
@@ -70,7 +70,7 @@ describe('auth-store logout redirects', () => {
     window.history.pushState({}, '', '/cs/settings');
     useAuthStore.setState({ isAuthenticated: true, authMode: 'basic' });
 
-    useAuthStore.getState().logout();
+    await useAuthStore.getState().logout();
     // Přesně to, co udělá stráž na stránce, jakmile uvidí isAuthenticated=false:
     const { redirectToLogin } = await import('@/stores/auth-store');
     redirectToLogin();
@@ -79,7 +79,7 @@ describe('auth-store logout redirects', () => {
     expect(replaceSpy).not.toHaveBeenCalledWith('/cs/login');
   });
 
-  it('uses full SLO when a stale persisted account cannot be restored', () => {
+  it('uses full SLO when a stale persisted account cannot be restored', async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
     vi.stubGlobal('fetch', fetchMock);
     const replaceSpy = vi.spyOn(browserNavigation, 'replaceWindowLocation').mockImplementation(() => {});
@@ -97,7 +97,7 @@ describe('auth-store logout redirects', () => {
     accountStore.setActiveAccount(activeId);
     useAuthStore.setState({ isAuthenticated: true, authMode: 'oauth', activeAccountId: activeId });
 
-    useAuthStore.getState().logout();
+    await useAuthStore.getState().logout();
 
     expect(replaceSpy).toHaveBeenCalledWith('/api/auth/logout');
     expect(fetchMock).not.toHaveBeenCalledWith('/api/auth/session?slot=0', { method: 'DELETE', keepalive: true });
@@ -110,7 +110,7 @@ describe('auth-store logout redirects', () => {
       const url = String(input);
       const method = init?.method ?? 'GET';
 
-      if (url === '/api/auth/token?slot=0' && method === 'PUT') {
+      if (url === '/api/auth/token?slot=0&force=true' && method === 'PUT') {
         return { ok: false, status: 401, json: async () => ({}) };
       }
 
@@ -150,7 +150,7 @@ describe('auth-store logout redirects', () => {
       const url = String(input);
       const method = init?.method ?? 'GET';
 
-      if (url === '/api/auth/token?slot=0' && method === 'PUT') {
+      if (url === '/api/auth/token?slot=0&force=true' && method === 'PUT') {
         return { ok: false, status: 503, json: async () => ({}) };
       }
 
@@ -174,7 +174,7 @@ describe('auth-store logout redirects', () => {
     expect(replaceSpy).not.toHaveBeenCalled();
 
     const countPuts = () => fetchMock.mock.calls.filter(
-      ([input, init]) => String(input) === '/api/auth/token?slot=0' && init?.method === 'PUT',
+      ([input, init]) => String(input) === '/api/auth/token?slot=0&force=true' && init?.method === 'PUT',
     ).length;
 
     // A retry is armed: advancing past the ~30 s window fires a second PUT.
@@ -197,7 +197,7 @@ describe('auth-store logout redirects', () => {
       const url = String(input);
       const method = init?.method ?? 'GET';
 
-      if (url === '/api/auth/token?slot=0' && method === 'PUT') {
+      if (url === '/api/auth/token?slot=0&force=true' && method === 'PUT') {
         return new Promise((resolve) => { resolveInFlight = resolve; });
       }
       if (method === 'DELETE') {
@@ -217,13 +217,13 @@ describe('auth-store logout redirects', () => {
 
     // Refresh goes in flight, then the user signs out before it settles.
     const pending = useAuthStore.getState().refreshAccessToken();
-    useAuthStore.getState().logout();
+    await useAuthStore.getState().logout();
     resolveInFlight!({ ok: false, status: 503, json: async () => ({}) });
     await pending;
 
     // The failure lands after the sign-out - no retry may be re-armed.
     const countPuts = () => fetchMock.mock.calls.filter(
-      ([input, init]) => String(input) === '/api/auth/token?slot=0' && init?.method === 'PUT',
+      ([input, init]) => String(input) === '/api/auth/token?slot=0&force=true' && init?.method === 'PUT',
     ).length;
     expect(countPuts()).toBe(1);
     await vi.advanceTimersByTimeAsync(600_000);
@@ -237,7 +237,7 @@ describe('auth-store logout redirects', () => {
       const url = String(input);
       const method = init?.method ?? 'GET';
 
-      if (url === '/api/auth/token?slot=0' && method === 'PUT') {
+      if (url === '/api/auth/token?slot=0&force=true' && method === 'PUT') {
         throw new TypeError('Failed to fetch');
       }
 

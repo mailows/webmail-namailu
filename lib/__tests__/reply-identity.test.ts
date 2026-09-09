@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { findComposeIdentityId, findReplyIdentityId, resolveReplyFrom } from '../reply-identity';
+import { findComposeIdentityId, findDraftIdentityId, findReplyIdentityId, resolveComposeAccountEmail, resolveReplyFrom } from '../reply-identity';
 import type { Identity } from '../jmap/types';
 
 const identities: Identity[] = [
@@ -16,6 +16,36 @@ const identities: Identity[] = [
     mayDelete: false,
   },
 ];
+
+describe('findDraftIdentityId', () => {
+  // Two identities on the SAME address, differing only by display name — the
+  // reopen-draft regression: an email-only match picks the default, not the one
+  // the draft was written with.
+  const sameAddress: Identity[] = [
+    { id: 'default', name: 'Harry Primary', email: 'harry@primary.com', mayDelete: false },
+    { id: 'team', name: 'Harry Team', email: 'harry@primary.com', mayDelete: false },
+  ];
+
+  it('restores the exact identity by name when several share an address', () => {
+    expect(findDraftIdentityId(sameAddress, { name: 'Harry Team', email: 'harry@primary.com' })).toBe('team');
+    expect(findDraftIdentityId(sameAddress, { name: 'Harry Primary', email: 'harry@primary.com' })).toBe('default');
+  });
+
+  it('matches by email (normalized) when the name is absent or unique', () => {
+    expect(findDraftIdentityId(identities, { email: 'HARRY@Secondary.com' })).toBe('secondary');
+    expect(findDraftIdentityId(identities, { name: 'Whatever', email: 'harry@secondary.com' })).toBe('secondary');
+  });
+
+  it('falls back to the +tag-stripped base address', () => {
+    expect(findDraftIdentityId(identities, { email: 'harry+promo@secondary.com' })).toBe('secondary');
+  });
+
+  it('returns null when nothing matches or there is no From', () => {
+    expect(findDraftIdentityId(identities, { email: 'nobody@elsewhere.com' })).toBeNull();
+    expect(findDraftIdentityId(identities, null)).toBeNull();
+    expect(findDraftIdentityId([], { email: 'harry@primary.com' })).toBeNull();
+  });
+});
 
 describe('findReplyIdentityId', () => {
   it('matches the identity that received the original message', () => {
@@ -106,5 +136,54 @@ describe('resolveReplyFrom', () => {
   it('returns null when recipients are on foreign domains', () => {
     expect(resolveReplyFrom(identities, { to: [{ email: 'nobody@elsewhere.com' }] }))
       .toBeNull();
+  });
+});
+
+describe('resolveComposeAccountEmail', () => {
+  // Selecting a shared/group folder in the "Shared" sidebar does not move the
+  // active account, so the composer used to preselect the reaching login's
+  // primary identity and start every new message as the wrong sender.
+  const mailboxes = [
+    { id: 'a-inbox' },
+    { id: 'owner-x:x-inbox', isShared: true, accountName: 'team@shared.example' },
+    { id: 'owner-y:y-inbox', isShared: true, accountName: 'Support Team' },
+  ];
+
+  it('uses the shared folder owner address when a shared folder is selected', () => {
+    expect(resolveComposeAccountEmail(mailboxes, 'owner-x:x-inbox', 'me@primary.example'))
+      .toBe('team@shared.example');
+  });
+
+  it('keeps the active account address for an own folder', () => {
+    expect(resolveComposeAccountEmail(mailboxes, 'a-inbox', 'me@primary.example'))
+      .toBe('me@primary.example');
+  });
+
+  it('falls back to the active account when the account name is not an address', () => {
+    // RFC 8620 suggests the address for Account.name, but a server may put a
+    // human label there; that must not become a From address.
+    expect(resolveComposeAccountEmail(mailboxes, 'owner-y:y-inbox', 'me@primary.example'))
+      .toBe('me@primary.example');
+  });
+
+  it('handles an unknown or empty selection', () => {
+    expect(resolveComposeAccountEmail(mailboxes, 'nope', 'me@primary.example')).toBe('me@primary.example');
+    expect(resolveComposeAccountEmail(mailboxes, null, 'me@primary.example')).toBe('me@primary.example');
+    expect(resolveComposeAccountEmail(mailboxes, 'owner-x:x-inbox', null)).toBe('team@shared.example');
+    expect(resolveComposeAccountEmail(mailboxes, 'a-inbox', null)).toBeUndefined();
+  });
+
+  it('preselects the shared identity end-to-end (the reported repro)', () => {
+    // Shared folder selected -> resolved address -> matching send-as identity.
+    const identities: Identity[] = [
+      { id: 'primary', name: 'D R', email: 'me@primary.example', mayDelete: false },
+      { id: 'shared', name: 'D R', email: 'team@shared.example', mayDelete: false },
+    ];
+    const address = resolveComposeAccountEmail(mailboxes, 'owner-x:x-inbox', 'me@primary.example');
+    expect(findComposeIdentityId(identities, address)).toBe('shared');
+
+    // Same call on an own folder keeps the primary identity.
+    const own = resolveComposeAccountEmail(mailboxes, 'a-inbox', 'me@primary.example');
+    expect(findComposeIdentityId(identities, own)).toBe('primary');
   });
 });

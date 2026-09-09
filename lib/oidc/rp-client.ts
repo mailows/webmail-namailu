@@ -60,11 +60,14 @@ export function __resetRpSession(): void {
  * s vypnutým flagem síťové kolo do cesty, kterou fáze 3 neměla čeho dotknout —
  * a přesně tohle je místo, kde „produkce beze změny ani o bit" znamená doslova.
  */
-export async function fetchAccessToken(slot: number): Promise<Response> {
+export async function fetchAccessToken(slot: number, opts?: { force?: boolean }): Promise<Response> {
   if (rpSession || isRpModeActiveSync()) {
     return apiFetch(OIDC_SESSION_ENDPOINT, { method: 'GET', credentials: 'include' });
   }
-  return apiFetch(`/api/auth/token?slot=${slot}`, { method: 'PUT' });
+  // Upstream 1.9.2: `force=true` přeskočí server-side cache tokenu (volající ví, že
+  // token je nepoužitelný); session restore posílá `force: false`.
+  const force = opts?.force === false ? '' : '&force=true';
+  return apiFetch(`/api/auth/token?slot=${slot}${force}`, { method: 'PUT' });
 }
 
 /** Přesměrování na IdP. Top-level navigace celé stránky — žádné popupy, žádný iframe. */

@@ -48,22 +48,39 @@ describe('JMAPClient contact methods', () => {
   });
 
   describe('supportsContacts', () => {
-    it('should return true when contacts capability exists', () => {
+    function withAccountCapabilities(
+      client: JMAPClient,
+      accountCapabilities: Record<string, unknown>,
+      isPersonal = true,
+    ) {
+      Object.assign(client, {
+        capabilities: { 'urn:ietf:params:jmap:contacts': {} },
+        accounts: { 'account-1': { name: 'test', isPersonal, accountCapabilities } },
+      });
+    }
+
+    it('should return true when the account advertises the contacts capability', () => {
       const client = createClient();
-      Object.assign(client, { capabilities: { 'urn:ietf:params:jmap:contacts': {} } });
+      withAccountCapabilities(client, { 'urn:ietf:params:jmap:contacts': {} });
       expect(client.supportsContacts()).toBe(true);
     });
 
-    it('should return false when contacts capability is missing', () => {
+    it('should return false when the server advertises contacts but the account does not', () => {
       const client = createClient();
-      Object.assign(client, { capabilities: {} });
+      withAccountCapabilities(client, { 'urn:ietf:params:jmap:mail': {} });
       expect(client.supportsContacts()).toBe(false);
     });
 
-    it('should throw when capabilities is undefined', () => {
+    it('should treat non-personal (shared/group) accounts as capable', () => {
       const client = createClient();
-      Object.assign(client, { capabilities: undefined });
-      expect(() => client.supportsContacts()).toThrow();
+      withAccountCapabilities(client, {}, /* isPersonal */ false);
+      expect(client.supportsContacts()).toBe(true);
+    });
+
+    it('should return false when no session has been loaded', () => {
+      const client = createClient();
+      Object.assign(client, { capabilities: undefined, accounts: {} });
+      expect(client.supportsContacts()).toBe(false);
     });
   });
 
@@ -116,6 +133,31 @@ describe('JMAPClient contact methods', () => {
 
       const result = await client.getAddressBooks();
       expect(result).toEqual([]);
+    });
+
+    it('should throw on network error when throwOnError is set', async () => {
+      const client = createClient();
+      vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Network error'));
+
+      await expect(client.getAddressBooks({ throwOnError: true })).rejects.toThrow('Network error');
+    });
+
+    it('should throw on a JMAP method error when throwOnError is set', async () => {
+      const client = createClient();
+      mockFetch({
+        methodResponses: [['error', { type: 'serverFail', description: 'Too many requests' }, '0']],
+      });
+
+      await expect(client.getAddressBooks({ throwOnError: true })).rejects.toThrow('Too many requests');
+    });
+
+    it('should still resolve to an empty list for a genuinely empty account', async () => {
+      const client = createClient();
+      mockFetch({
+        methodResponses: [['AddressBook/get', { list: [] }, '0']],
+      });
+
+      await expect(client.getAddressBooks({ throwOnError: true })).resolves.toEqual([]);
     });
   });
 

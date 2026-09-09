@@ -6,6 +6,7 @@ import { addYears, format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { CalendarRecurrenceRule } from "@/lib/jmap/types";
+import { createRecurrenceRule } from "@/lib/recurrence-rule";
 
 type EditorFrequency = "daily" | "weekly" | "monthly" | "yearly";
 type MonthlyMode = "day" | "nth";
@@ -210,25 +211,11 @@ export function RecurrenceEditor({ rule, eventStart, onSave, onCancel }: Recurre
   };
 
   const buildRule = (): CalendarRecurrenceRule => {
-    const built: CalendarRecurrenceRule = {
-      "@type": "RecurrenceRule",
-      frequency,
+    const built: CalendarRecurrenceRule = createRecurrenceRule(frequency, {
       interval: Math.max(1, interval),
-      rscale: "gregorian",
-      skip: "omit",
-      firstDayOfWeek: "mo",
-      byDay: null,
-      byMonthDay: null,
-      byMonth: null,
-      byYearDay: null,
-      byWeekNo: null,
-      byHour: null,
-      byMinute: null,
-      bySecond: null,
-      bySetPosition: null,
       count: endsMode === "after" ? Math.max(1, count) : null,
       until: endsMode === "on" && untilDate ? `${untilDate}T23:59:59` : null,
-    };
+    });
 
     if (frequency === "weekly") {
       const days = weekDays.length ? weekDays : [startDay];

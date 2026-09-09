@@ -40,6 +40,9 @@ export async function sendOnce(opts?: { reason?: string }): Promise<{
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(5000),
+      // Never follow redirects: the endpoint guard only vetted the URL we
+      // were given, so a 3xx to an internal host would bypass it.
+      redirect: 'manual',
     });
     const ok = res.ok;
     if (ok) {

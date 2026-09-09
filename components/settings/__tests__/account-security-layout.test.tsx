@@ -65,6 +65,13 @@ const storeState = {
   removeApiKey: vi.fn(),
   changePassword: vi.fn(),
   updateDisplayName: vi.fn(),
+  // upstream 1.9.2: sekce veřejných klíčů (šifrování at rest)
+  publicKeys: [],
+  encryptionConfig: { type: 'Disabled', publicKeyId: null },
+  isLoadingAuth: false,
+  createPublicKey: vi.fn(),
+  removePublicKey: vi.fn(),
+  updateEncryptionAtRest: vi.fn(),
 };
 
 vi.mock('@/stores/account-security-store', () => ({

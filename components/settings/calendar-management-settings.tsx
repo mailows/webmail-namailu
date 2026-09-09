@@ -3,6 +3,8 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { useCalendarStore } from '@/stores/calendar-store';
+import { CALENDAR_KIND_COMPONENTS, CalendarKindPicker, type CalendarKind } from '@/components/calendar/calendar-kind-picker';
+import type { CalendarComponentType } from '@/lib/jmap/types';
 import { useAuthStore } from '@/stores/auth-store';
 import { getActiveAccountSlotHeaders } from '@/lib/auth/active-account-slot';
 import { toast } from '@/stores/toast-store';
@@ -75,15 +77,23 @@ export function CalendarEditForm({
   isLoading,
 }: {
   initial?: { name: string; color: string };
-  onSave: (data: { name: string; color: string }) => void;
+  onSave: (data: { name: string; color: string; components?: CalendarComponentType[] }) => void;
   onCancel: () => void;
   isLoading: boolean;
 }) {
   const t = useTranslations('calendar.management');
   const [name, setName] = useState(initial?.name || '');
   const [color, setColor] = useState(initial?.color || '#3b82f6');
+  // Only meaningful when creating: the component set is fixed once the
+  // collection exists (#760).
+  const [kind, setKind] = useState<CalendarKind>('events');
 
   const isValid = name.trim().length > 0;
+  const submit = () => onSave({
+    name: name.trim(),
+    color,
+    ...(initial ? {} : { components: CALENDAR_KIND_COMPONENTS[kind] }),
+  });
 
   return (
     <div className="space-y-3 p-3 rounded-md border border-primary/30 bg-accent/30">
@@ -96,7 +106,7 @@ export function CalendarEditForm({
           value={name}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && isValid) onSave({ name: name.trim(), color });
+            if (e.key === 'Enter' && isValid) submit();
             if (e.key === 'Escape') onCancel();
           }}
           placeholder={t('name_placeholder')}
@@ -113,9 +123,13 @@ export function CalendarEditForm({
         <CalendarColorPicker value={color} onChange={setColor} allowCustom />
       </div>
 
+      {!initial && (
+        <CalendarKindPicker value={kind} onChange={setKind} disabled={isLoading} />
+      )}
+
       <div className="flex items-center gap-2 pt-1">
         <button
-          onClick={() => isValid && onSave({ name: name.trim(), color })}
+          onClick={() => isValid && submit()}
           disabled={isLoading || !isValid}
           className="px-3 py-1.5 text-xs font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50"
         >
@@ -280,7 +294,7 @@ export function CalendarManagementSettings() {
     };
   }, [colorPickerId]);
 
-  const handleCreate = async (data: { name: string; color: string }) => {
+  const handleCreate = async (data: { name: string; color: string; components?: CalendarComponentType[] }) => {
     if (!client) return;
     setIsLoading(true);
     try {
@@ -289,7 +303,7 @@ export function CalendarManagementSettings() {
         color: data.color,
         isVisible: true,
         isSubscribed: true,
-      });
+      }, { components: data.components });
       setIsCreating(false);
       toast.success(t('calendar_created'));
     } catch {

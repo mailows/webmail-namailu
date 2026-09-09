@@ -131,3 +131,38 @@ describe('POST /api/webdav — proxying', () => {
     );
   });
 });
+
+describe('POST /api/webdav — calendar collections (#760)', () => {
+  it('MKCALENDAR targets the cal root and forwards the XML body', async () => {
+    const res = read(await POST(makeReq({
+      'X-WebDAV-Method': 'MKCALENDAR',
+      'X-WebDAV-Collection': 'cal',
+      'X-WebDAV-Path': 'abc123',
+      'Content-Type': 'application/xml; charset=utf-8',
+    })));
+    expect(fetchSpy).toHaveBeenCalledWith(
+      'https://mail.example.com/dav/cal/user%40example.com/abc123',
+      expect.objectContaining({
+        method: 'MKCALENDAR',
+        headers: expect.objectContaining({ Authorization: 'Basic abc', 'Content-Type': 'application/xml; charset=utf-8' }),
+        body: expect.any(ArrayBuffer),
+      }),
+    );
+    expect(res.status).toBe(207);
+  });
+
+  it('defaults to the file root when no collection header is given', async () => {
+    await POST(makeReq({ 'X-WebDAV-Method': 'MKCOL', 'X-WebDAV-Path': 'dir' }));
+    expect(fetchSpy).toHaveBeenCalledWith(
+      'https://mail.example.com/dav/file/user%40example.com/dir',
+      expect.objectContaining({ method: 'MKCOL' }),
+    );
+  });
+
+  it('400 on an unknown collection', async () => {
+    const res = read(await POST(makeReq({ 'X-WebDAV-Method': 'PROPFIND', 'X-WebDAV-Collection': 'card' })));
+    expect(res.status).toBe(400);
+    await expect(res.json!()).resolves.toEqual({ error: 'Invalid WebDAV collection' });
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+});

@@ -1,19 +1,39 @@
 "use client";
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { LanguageSwitcher } from '@/components/ui/language-switcher';
 import { useLocaleStore } from '@/stores/locale-store';
 import { useSettingsStore } from '@/stores/settings-store';
 import type { DateFormat, DateLocale, TimeFormat, FirstDayOfWeek } from '@/stores/settings-store';
 import { formatDate } from '@/lib/utils';
+import { AUTO_TIME_ZONE, getBrowserTimeZone, getEffectiveTimeZone, listTimeZones } from '@/lib/timezone';
 import { SettingsSection, SettingItem, Select, RadioGroup } from './settings-section';
 
 export function LanguageSettings() {
   const t = useTranslations('settings.language_region');
   const tDays = useTranslations('calendar.days');
 
-  const { dateFormat, dateLocale, timeFormat, firstDayOfWeek, updateSetting } = useSettingsStore();
+  const { dateFormat, dateLocale, timeFormat, firstDayOfWeek, timeZone, updateSetting } = useSettingsStore();
+
+  // Browser zone + zone list are read after mount: SSR has no browser, and a
+  // server/client mismatch in the option list would trip hydration.
+  const [browserTimeZone, setBrowserTimeZone] = useState('UTC');
+  const [timeZones, setTimeZones] = useState<string[]>([]);
+  useEffect(() => {
+    setBrowserTimeZone(getBrowserTimeZone());
+    setTimeZones(listTimeZones());
+  }, []);
+
+  const timeZoneOptions = useMemo(() => {
+    const options = [{ value: AUTO_TIME_ZONE, label: t('time_zone.auto', { zone: browserTimeZone }) }];
+    // A zone synced from another browser (newer tz database) may be missing
+    // from this runtime's list; keep it selectable rather than snapping the
+    // <select> to the first entry.
+    const zones = timeZone !== AUTO_TIME_ZONE && !timeZones.includes(timeZone) ? [...timeZones, timeZone].sort() : timeZones;
+    for (const zone of zones) options.push({ value: zone, label: zone.replace(/_/g, ' ') });
+    return options;
+  }, [t, browserTimeZone, timeZones, timeZone]);
 
   // Subscribe to locale changes so the preview re-renders on language switch
   // (formatDate reads it via getState() and would otherwise stay stale).
@@ -23,7 +43,7 @@ export function LanguageSettings() {
     // Build sample timestamps for each bucket so users see what their pick
     // will look like in practice. Use offsets relative to "now" so the
     // bucketing is stable even though the wall-clock keeps moving.
-    void locale; void dateFormat; void dateLocale; void timeFormat;
+    void locale; void dateFormat; void dateLocale; void timeFormat; void timeZone;
     const now = new Date();
     const today = new Date(now);
     today.setHours(15, 31, 0, 0);
@@ -38,7 +58,23 @@ export function LanguageSettings() {
       thisWeek: formatDate(thisWeek),
       older: formatDate(older),
     };
-  }, [locale, dateFormat, dateLocale, timeFormat]);
+  }, [locale, dateFormat, dateLocale, timeFormat, timeZone]);
+
+  // Current wall-clock in the effective zone so a pick can be sanity-checked.
+  const timeZonePreview = useMemo(() => {
+    void timeZone; void timeFormat; void locale;
+    try {
+      return new Date().toLocaleTimeString(locale && locale !== 'auto' ? locale : undefined, {
+        timeZone: getEffectiveTimeZone(),
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: timeFormat === '12h',
+        timeZoneName: 'short',
+      });
+    } catch {
+      return '';
+    }
+  }, [timeZone, timeFormat, locale]);
 
   return (
     <SettingsSection title={t('title')} description={t('description')}>
@@ -96,6 +132,23 @@ export function LanguageSettings() {
             { value: '24h', label: t('time_format.24h') },
           ]}
         />
+      </SettingItem>
+
+      <SettingItem label={t('time_zone.label')} description={t('time_zone.description')}>
+        <div className="flex flex-col items-end gap-2">
+          <Select
+            value={timeZone}
+            onChange={(value) => updateSetting('timeZone', value)}
+            options={timeZoneOptions}
+            className="max-w-[16rem]"
+          />
+          {timeZonePreview && (
+            <div className="text-xs text-muted-foreground text-end font-mono">
+              <span className="opacity-70">{t('time_zone.preview_now')} </span>
+              <span className="text-foreground/90">{timeZonePreview}</span>
+            </div>
+          )}
+        </div>
       </SettingItem>
 
       <SettingItem label={t('first_day.label')} description={t('first_day.description')}>

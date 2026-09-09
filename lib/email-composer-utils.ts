@@ -1,4 +1,5 @@
 import { isValidEmail } from "@/lib/validation";
+import { splitMailbox } from "@/lib/rfc5322-mailbox";
 import { htmlToPlainText } from "@/lib/html-to-text";
 import { emailHooks } from "@/lib/plugin-hooks";
 import { Ellipsis, Lock, TriangleAlert } from "lucide-react";
@@ -70,6 +71,46 @@ export const INLINE_IMAGE_PLACEHOLDER =
   "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
 
 /**
+ * Sniffs the real image MIME type from a blob's leading magic bytes, returning
+ * null when the bytes aren't a recognizable image.
+ *
+ * Some clients (notably Foxmail 7.2) embed inline images as
+ * `Content-Type: application/octet-stream` with no `Content-Disposition:
+ * inline` - the cid reference in the HTML is the only signal they're meant to
+ * render in-body (#543). The declared type can't be trusted in that case, so
+ * the composer looks at the bytes themselves to build a usable data URL and to
+ * re-attach the part with a correct `image/*` type when the reply is sent.
+ */
+export function sniffImageMime(bytes: Uint8Array): string | null {
+  if (!bytes || bytes.length < 4) return null;
+  // PNG: 89 50 4E 47
+  if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) {
+    return "image/png";
+  }
+  // JPEG: FF D8 FF
+  if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
+    return "image/jpeg";
+  }
+  // GIF: 47 49 46 38 ("GIF8")
+  if (bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x38) {
+    return "image/gif";
+  }
+  // WebP: "RIFF" ....  "WEBP"
+  if (
+    bytes.length >= 12 &&
+    bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 &&
+    bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50
+  ) {
+    return "image/webp";
+  }
+  // BMP: 42 4D ("BM")
+  if (bytes[0] === 0x42 && bytes[1] === 0x4d) {
+    return "image/bmp";
+  }
+  return null;
+}
+
+/**
  * Rewrites `<img src="cid:xxx">` references into `<img src="<placeholder>" data-cid="xxx">`
  * so TipTap can render the editor (the original cid: URL would 404) while still
  * carrying the cid through edits. The placeholder is swapped to the actual
@@ -91,6 +132,27 @@ export function rewriteCidImagesForEditor(html: string): string {
     touched = true;
   });
   return touched ? doc.body.innerHTML : html;
+}
+
+/**
+ * Collects the cids of every `<img data-cid="...">` in a composer body, i.e.
+ * exactly the inline images the quoted original actually renders.
+ *
+ * Used to decide which cid attachments are worth fetching (and, on forward,
+ * which ones are already embedded in the body and so must not be listed as
+ * separate attachments too). Matching on the body rather than on the part's
+ * declared type/disposition is what makes Foxmail-style
+ * `application/octet-stream` inline images work.
+ */
+export function collectInlineImageCids(html: string): Set<string> {
+  const cids = new Set<string>();
+  if (!html || html.indexOf("data-cid") === -1) return cids;
+  const doc = new DOMParser().parseFromString(`<body>${html}</body>`, "text/html");
+  doc.querySelectorAll("img[data-cid]").forEach((img) => {
+    const cid = img.getAttribute("data-cid");
+    if (cid) cids.add(cid);
+  });
+  return cids;
 }
 
 /**
@@ -181,6 +243,26 @@ export async function enrichChipsWithColorsAndIcons(chips: Recipient[]): Promise
 };
 
 /**
+ * True when the angle run that is open at `from` closes before the next one
+ * opens. `from` is the index of the character under test (a separator, or the
+ * opening `<` itself); the scan starts after it either way. A `>` inside a
+ * quoted display name does not close anything, and a `<` with no `>` of its own
+ * (or whose `>` sits past a later `<`) can never be an address delimiter, so
+ * separators after it must stay separators.
+ */
+function angleRunCloses(value: string, from: number): boolean {
+  let inQuotes = false;
+  for (let i = from + 1; i < value.length; i++) {
+    const ch = value[i];
+    if (ch === '"') inQuotes = !inQuotes;
+    else if (inQuotes) continue;
+    else if (ch === '>') return true;
+    else if (ch === '<') return false;
+  }
+  return false;
+}
+
+/**
  * Splits a recipient string into individual entries on any character in
  * `separators`, treating those characters as literal when they sit inside a
  * quoted display name (`"Doo, John" <john@doo.org>`) or angle brackets
@@ -196,7 +278,8 @@ export function splitRecipients(value: string, separators = ','): string[] {
   let inQuotes = false;
   let inAngle = false;
   let inGroup = false;
-  for (const ch of value) {
+  for (let i = 0; i < value.length; i++) {
+    const ch = value[i];
     if (ch === '"') {
       inQuotes = !inQuotes;
       current += ch;
@@ -206,6 +289,14 @@ export function splitRecipients(value: string, separators = ','): string[] {
     } else if (ch === '>' && !inQuotes) {
       inAngle = false;
       current += ch;
+    } else if (separators.includes(ch) && inAngle && !inQuotes && !inGroup && !angleRunCloses(value, i)) {
+      // An unclosed `<` would otherwise swallow every later separator, folding
+      // the whole list into one entry that is not an address at all. Inside a
+      // group the separators belong to the group, so `inGroup` still wins.
+      inAngle = false;
+      const trimmed = current.trim();
+      if (trimmed) result.push(trimmed);
+      current = '';
     } else if (ch === ':' && !inQuotes && !inAngle) {
       // RFC 5322 group syntax ("Team: a@x, b@y;") - keep the whole group,
       // separators inside it included, as a single entry. A colon inside a
@@ -355,6 +446,11 @@ function splitPasteEntries(value: string): string[] {
   return splitRecipients(value, ',;\n\r');
 }
 
+/** True when a whitespace/semicolon token of `value` is an address in its own right. */
+function carriesAddress(value: string): boolean {
+  return value.split(/[\s;]+/).some((t) => isValidEmail(t.trim().replace(/^<|>$/g, '')));
+}
+
 /**
  * Splits pasted text into recipient candidates and partitions them: valid email
  * addresses become `Recipient`s (deduped case-insensitively against
@@ -368,6 +464,8 @@ function splitPasteEntries(value: string): string[] {
  *   semicolon/newline separated) split into one chip per address.
  * - A token wrapped in angle brackets (`<a@x.com>`) is unwrapped before
  *   validating, so an `a <a@x.com>` fragment still yields the address.
+ * - `Name <email` entries that lost their closing bracket keep both the name
+ *   and the address instead of falling apart into bare words.
  */
 export function splitPastedRecipients(
   text: string,
@@ -399,7 +497,19 @@ export function splitPastedRecipients(
     const unwrapped = unquoteName(entry);
     if (unwrapped !== entry && tryAdd(parseRecipient(unwrapped))) continue;
 
-    // 2. Fallback: a bare-address run (`a@x.com b@y.com`) or a
+    // 2. `Name <email` with the closing bracket lost - splitMailbox tolerates
+    //    the missing `>`, so the display name survives the paste. It keeps the
+    //    last angle run only, so everything ahead of it would become display
+    //    name: skip this step when that prefix carries an address of its own
+    //    (`a@x.com <b@y.com`) rather than silently swallowing it.
+    const lastOpenAngle = entry.lastIndexOf('<');
+    if (
+      lastOpenAngle !== -1 &&
+      !carriesAddress(entry.slice(0, lastOpenAngle)) &&
+      tryAdd(splitMailbox(entry))
+    ) continue;
+
+    // 3. Fallback: a bare-address run (`a@x.com b@y.com`) or a
     //    `John Doe <j@x.com>` fragment where only the <addr> is valid.
     //    Whitespace/semicolon-tokenize; leftover tokens stay behind.
     for (const token of entry.split(/[\s;]+/).map((t) => t.trim()).filter(Boolean)) {

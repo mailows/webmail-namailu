@@ -9,6 +9,7 @@ import { evictAll } from '@/lib/account-state-manager';
 //  - 'settings-storage' / 'theme-storage' / 'locale-storage' → user prefs
 //  - 'template-storage' / 'smime-preferences' → user-created content
 const CACHE_STORAGE_KEYS = [
+  'email-snapshot',
   'identity-storage',
   'contact-storage',
   'calendar-storage',

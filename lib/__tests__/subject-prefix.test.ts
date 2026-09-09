@@ -3,6 +3,7 @@ import {
   stripSubjectPrefixes,
   buildReplySubject,
   buildForwardSubject,
+  buildComposeTabTitle,
 } from '@/lib/subject-prefix';
 
 describe('stripSubjectPrefixes', () => {
@@ -52,5 +53,35 @@ describe('buildReplySubject / buildForwardSubject', () => {
   it('prepends to a clean subject and returns the bare prefix for empty input', () => {
     expect(buildReplySubject('foo', 'AW:')).toBe('AW: foo');
     expect(buildReplySubject('', 'AW:')).toBe('AW:');
+  });
+});
+
+describe('buildComposeTabTitle', () => {
+  const prefixes = { replyPrefix: 'Re:', forwardPrefix: 'Fwd:', fallback: 'New message' };
+
+  it('never inherits the selected email subject for a fresh compose (#856)', () => {
+    expect(buildComposeTabTitle({ mode: 'compose', sourceSubject: 'Invoice August 2026', ...prefixes }))
+      .toBe('New message');
+  });
+
+  it('uses the draft subject for a fresh compose when one exists (mailto, draft edit)', () => {
+    expect(buildComposeTabTitle({ mode: 'compose', draftSubject: 'Lunch?', sourceSubject: 'Invoice August 2026', ...prefixes }))
+      .toBe('Lunch?');
+  });
+
+  it('derives reply and forward titles from the source subject', () => {
+    expect(buildComposeTabTitle({ mode: 'reply', sourceSubject: 'Invoice August 2026', ...prefixes }))
+      .toBe('Re: Invoice August 2026');
+    expect(buildComposeTabTitle({ mode: 'replyAll', sourceSubject: 'AW: Invoice', ...prefixes }))
+      .toBe('Re: Invoice');
+    expect(buildComposeTabTitle({ mode: 'forward', sourceSubject: 'Invoice', ...prefixes }))
+      .toBe('Fwd: Invoice');
+  });
+
+  it('prefers a resumed draft subject over the source and falls back when both are blank', () => {
+    expect(buildComposeTabTitle({ mode: 'reply', draftSubject: 'Re: edited', sourceSubject: 'Original', ...prefixes }))
+      .toBe('Re: edited');
+    expect(buildComposeTabTitle({ mode: 'reply', sourceSubject: '   ', ...prefixes }))
+      .toBe('New message');
   });
 });

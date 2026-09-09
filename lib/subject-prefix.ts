@@ -119,3 +119,26 @@ export function buildForwardSubject(subject: string | undefined | null, prefix: 
   const stripped = stripSubjectPrefixes(subject);
   return stripped ? `${prefix} ${stripped}` : prefix;
 }
+
+/**
+ * Working title for a compose tab. Reply and forward derive it from the
+ * message they act on; a fresh compose must NOT inherit the subject of
+ * whatever email happens to be selected in the list (#856) - it starts on
+ * the fallback ("New message") until a draft subject exists.
+ */
+export function buildComposeTabTitle(opts: {
+  mode: 'compose' | 'reply' | 'replyAll' | 'forward';
+  draftSubject?: string | null;
+  sourceSubject?: string | null;
+  replyPrefix: string;
+  forwardPrefix: string;
+  fallback: string;
+}): string {
+  const draft = opts.draftSubject?.trim() ?? '';
+  const source = opts.mode === 'compose' ? '' : (opts.sourceSubject?.trim() ?? '');
+  const base = draft || source;
+  if (!base) return opts.fallback;
+  if (opts.mode === 'reply' || opts.mode === 'replyAll') return buildReplySubject(base, opts.replyPrefix);
+  if (opts.mode === 'forward') return buildForwardSubject(base, opts.forwardPrefix);
+  return base;
+}

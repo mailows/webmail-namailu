@@ -1,6 +1,7 @@
 import type { Email, Mailbox, UnifiedMailboxRole, CrossView } from '@/lib/jmap/types';
 import { CROSS_EXCLUDED_ROLES } from '@/lib/jmap/types';
 import type { IJMAPClient } from '@/lib/jmap/client-interface';
+import { compareEmails, type SortLevel } from '@/lib/message-list-order';
 
 export interface UnifiedAccountClient {
   // Display reference (avatar color / label). For personal entries this is the
@@ -91,6 +92,7 @@ export async function fetchUnifiedEmails(
   role: UnifiedMailboxRole,
   limit: number,
   position: number,
+  order: SortLevel[] = [],
 ): Promise<UnifiedFetchResult> {
   const errors = new Map<string, string>();
 
@@ -108,12 +110,11 @@ export async function fetchUnifiedEmails(
 
       const { jmapMailboxId, jmapAccountId } = resolveJmapTarget(account, mailbox);
       try {
-        const result = await account.client.getEmails(
-          jmapMailboxId,
-          jmapAccountId,
-          limit,
-          position,
-        );
+        // The configured list order (#718) rides along only when set, so the
+        // default call shape stays the four-argument one.
+        const result = order.length > 0
+          ? await account.client.getEmails(jmapMailboxId, jmapAccountId, limit, position, undefined, undefined, undefined, order)
+          : await account.client.getEmails(jmapMailboxId, jmapAccountId, limit, position);
         return { account, result };
       } catch (err) {
         errors.set(
@@ -155,12 +156,9 @@ export async function fetchUnifiedEmails(
     }
   }
 
-  // Sort merged emails by receivedAt descending.
-  mergedEmails.sort((a, b) => {
-    const dateA = new Date(a.receivedAt).getTime();
-    const dateB = new Date(b.receivedAt).getTime();
-    return dateB - dateA;
-  });
+  // Merge the per-account pages under the same order each server applied
+  // (receivedAt descending by default).
+  mergedEmails.sort(compareEmails(order));
 
   return {
     emails: mergedEmails,

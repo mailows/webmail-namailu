@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useLayoutEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { Mail, Calendar, BookUser, HardDrive, Settings, Keyboard, Plus, Shield, LogOut, Check, ExternalLink } from "lucide-react";
 import { AccountSwitcher } from "./account-switcher";
@@ -20,6 +20,7 @@ import { getActiveAccountSlotHeaders } from "@/lib/auth/active-account-slot";
 import { canAddIndependentAccount } from "@/lib/account-utils";
 import { isDocumentRTL } from "@/i18n/direction";
 import { cn, formatFileSize } from "@/lib/utils";
+import { useMenuNavigation } from "@/hooks/use-menu-navigation";
 import { PluginSlot } from "@/components/plugins/plugin-slot";
 import { KeyboardShortcutsModal } from "@/components/keyboard-shortcuts-modal";
 import { apiFetch, getPathPrefix, withBasePath } from "@/lib/browser-navigation";
@@ -87,9 +88,15 @@ function StorageQuotaCircle({ quota, usagePercent }: { quota: { used: number; to
     );
   }, []);
 
+  // Position before the first paint - the portalled popover would otherwise
+  // render one frame as an unpositioned block at the end of <body>, shifting
+  // the page layout for a split second.
+  useLayoutEffect(() => {
+    if (open) updatePosition();
+  }, [open, updatePosition]);
+
   useEffect(() => {
     if (!open) return;
-    updatePosition();
     const handleClick = (e: MouseEvent) => {
       if (
         buttonRef.current?.contains(e.target as Node) ||
@@ -99,7 +106,7 @@ function StorageQuotaCircle({ quota, usagePercent }: { quota: { used: number; to
     };
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
-  }, [open, updatePosition]);
+  }, [open]);
 
   // Usage can legitimately exceed the quota (e.g. limit lowered after the fact)
   const free = Math.max(0, quota.total - quota.used);
@@ -221,7 +228,14 @@ export function NavigationRail({
   const logoutAll = useAuthStore((s) => s.logoutAll);
   const [logoutMenuOpen, setLogoutMenuOpen] = useState(false);
   const logoutBtnRef = useRef<HTMLButtonElement>(null);
-  const logoutPopoverRef = useRef<HTMLDivElement>(null);
+  // Portalled to <body>, so without explicit focus handling the menu is
+  // unreachable for keyboard and screen reader users (#719).
+  const closeLogoutMenu = useCallback(() => setLogoutMenuOpen(false), []);
+  const { menuRef: logoutPopoverRef, onKeyDown: onLogoutMenuKeyDown } = useMenuNavigation<HTMLDivElement>({
+    open: logoutMenuOpen,
+    onClose: closeLogoutMenu,
+    triggerRef: logoutBtnRef,
+  });
   const [logoutPopoverStyle, setLogoutPopoverStyle] = useState<React.CSSProperties>({});
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
 
@@ -243,9 +257,13 @@ export function NavigationRail({
     );
   }, []);
 
+  // Position before the first paint (same reasoning as the quota popover above).
+  useLayoutEffect(() => {
+    if (logoutMenuOpen) updateLogoutPosition();
+  }, [logoutMenuOpen, updateLogoutPosition]);
+
   useEffect(() => {
     if (!logoutMenuOpen) return;
-    updateLogoutPosition();
     const handleClickOutside = (e: MouseEvent) => {
       if (
         logoutBtnRef.current?.contains(e.target as Node) ||
@@ -262,7 +280,7 @@ export function NavigationRail({
       document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("keydown", handleEscape);
     };
-  }, [logoutMenuOpen, updateLogoutPosition]);
+  }, [logoutMenuOpen, logoutPopoverRef]);
 
   useEffect(() => {
     let cancelled = false;
@@ -273,7 +291,9 @@ export function NavigationRail({
       .then(data => {
         if (cancelled || !data.stalwartAdmin) return;
         setIsStalwartAdmin(true);
-        if (!data.authenticated) {
+        // Only "auto" mode may mint the admin session here; in "password"
+        // mode the shield leads to /admin/login instead (#870).
+        if (!data.authenticated && data.stalwartAutoLogin === true) {
           // Pre-create admin session so /admin works even after full page navigation
           apiFetch('/api/admin/auth', {
             method: 'POST',
@@ -723,8 +743,9 @@ export function NavigationRail({
               onClick={() => setLogoutMenuOpen(!logoutMenuOpen)}
               className="flex items-center justify-center w-9 h-9 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               title={t("sign_out")}
+              aria-label={t("sign_out")}
               aria-expanded={logoutMenuOpen}
-              aria-haspopup="true"
+              aria-haspopup="menu"
             >
               <LogOut className="w-4 h-4" />
             </button>
@@ -732,9 +753,11 @@ export function NavigationRail({
             {logoutMenuOpen && createPortal(
               <div
                 ref={logoutPopoverRef}
+                onKeyDown={onLogoutMenuKeyDown}
                 style={logoutPopoverStyle}
                 className="w-56 rounded-lg border border-border bg-background text-foreground shadow-lg z-50 overflow-hidden"
                 role="menu"
+                aria-label={t("sign_out")}
               >
                 <a
                   href="https://id.namailu.cz/logout"

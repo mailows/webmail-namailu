@@ -2,7 +2,8 @@
 
 import { useMemo, useCallback, useState } from "react";
 import { useTranslations } from "next-intl";
-import { format, parseISO, isPast, isToday, isTomorrow } from "date-fns";
+import { format, parseISO, isBefore, isTomorrow } from "date-fns";
+import { displayNow, isDisplayToday } from "@/lib/timezone";
 import { Check, Flag, CalendarDays, ListTodo, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CalendarTask, Calendar } from "@/lib/jmap/types";
@@ -30,9 +31,9 @@ function getTaskPriorityIcon(priority: number) {
 
 function getDueDateLabel(due: string, showWithoutTime: boolean, t: ReturnType<typeof useTranslations>, timeFormat: string): { label: string; className: string } {
   const dueDate = parseISO(due);
-  const overdue = isPast(dueDate) && !isToday(dueDate);
+  const overdue = isBefore(dueDate, displayNow()) && !isDisplayToday(dueDate);
 
-  if (isToday(dueDate)) {
+  if (isDisplayToday(dueDate)) {
     return {
       label: t("tasks.due_today"),
       className: "text-blue-600 dark:text-blue-400",
@@ -96,7 +97,7 @@ export function TaskListView({
       case "overdue":
         result = result.filter(task => {
           if (!task.due || task.progress === "completed" || task.progress === "cancelled") return false;
-          return isPast(parseISO(task.due)) && !isToday(parseISO(task.due));
+          return isBefore(parseISO(task.due), displayNow()) && !isDisplayToday(parseISO(task.due));
         });
         break;
     }

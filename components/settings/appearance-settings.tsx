@@ -9,6 +9,7 @@ import { useTour } from '@/components/tour/tour-provider';
 import { Button } from '@/components/ui/button';
 import { PlayCircle } from 'lucide-react';
 import { usePolicyStore } from '@/stores/policy-store';
+import { MessageListOrderSettings } from './message-list-order-settings';
 
 const DENSITY_PREVIEW: Record<Density, { py: string; gap: string; showAvatar: boolean; showPreview: boolean }> = {
   'extra-compact': { py: 'py-0.5', gap: 'gap-1.5', showAvatar: false, showPreview: false },
@@ -116,6 +117,8 @@ export function AppearanceSettings() {
         <DensityPreview density={density} />
       </SettingItem>
       )}
+
+      <MessageListOrderSettings />
 
       {!isSettingHidden('animationsEnabled') && (
       <SettingItem label={t('animations.label')} description={t('animations.description')} locked={isSettingLocked('animationsEnabled')}>

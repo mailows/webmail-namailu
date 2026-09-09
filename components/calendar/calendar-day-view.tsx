@@ -1,13 +1,15 @@
 "use client";
 
 import { useMemo, useEffect, useRef, useState } from "react";
-import { useTranslations, useFormatter } from "next-intl";
-import { format, isSameDay, isToday, parseISO } from "date-fns";
+import { useTranslations } from "next-intl";
+import { useDisplayDateFormatter } from "@/hooks/use-display-date-formatter";
+import { format, isSameDay, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Check } from "lucide-react";
 import { EventCard } from "./event-card";
 import { QuickEventInput } from "./quick-event-input";
 import { formatSnapTime, getEventDayBounds, getPrimaryCalendarId, isTimedEventFullDayOnDate, layoutOverlappingEvents } from "@/lib/calendar-utils";
+import { displayNow, isDisplayToday } from "@/lib/timezone";
 import type { CalendarEvent, Calendar, CalendarTask } from "@/lib/jmap/types";
 import { useTimeGridInteractions } from "@/hooks/use-time-grid-interactions";
 import type { PendingEventPreview } from "./event-modal";
@@ -49,7 +51,9 @@ export function CalendarDayView({
   onToggleTaskComplete,
 }: CalendarDayViewProps) {
   const t = useTranslations("calendar");
-  const intlFormatter = useFormatter();
+  // Grid days / event dates are display dates (local fields = wall-clock in
+  // the user's zone); the app-wide formatter would shift them again (#755).
+  const intlFormatter = useDisplayDateFormatter();
   const scrollRef = useRef<HTMLDivElement>(null);
   const dayKey = format(selectedDate, "yyyy-MM-dd");
 
@@ -89,19 +93,20 @@ export function CalendarDayView({
 
   useEffect(() => {
     if (scrollRef.current) {
-      const now = new Date();
+      const now = displayNow();
       scrollRef.current.scrollTop = Math.max(0, (now.getHours() - 1) * HOUR_HEIGHT);
     }
   }, []);
 
-  const today = isToday(selectedDate);
+  const today = isDisplayToday(selectedDate);
   const [nowMinutes, setNowMinutes] = useState(() => {
-    const now = new Date();
+    const now = displayNow();
     return now.getHours() * 60 + now.getMinutes();
   });
   useEffect(() => {
     const interval = setInterval(() => {
-      setNowMinutes(new Date().getHours() * 60 + new Date().getMinutes());
+      const now = displayNow();
+      setNowMinutes(now.getHours() * 60 + now.getMinutes());
     }, 60000);
     return () => clearInterval(interval);
   }, []);

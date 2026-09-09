@@ -106,6 +106,8 @@ async function detectStalwartVersion(): Promise<string | null> {
     const res = await fetch(wellKnown, {
       method: 'GET',
       signal: AbortSignal.timeout(3000),
+      // See sender.ts: the guard vetted this URL, not wherever it redirects.
+      redirect: 'manual',
     });
     const server = res.headers.get('server') ?? '';
     const m = server.match(/(\d+\.\d+\.\d+(?:-[\w.]+)?)/);

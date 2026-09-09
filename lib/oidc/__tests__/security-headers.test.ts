@@ -17,7 +17,7 @@ vi.mock('next/server', () => ({
 }));
 vi.mock('next-intl/middleware', () => ({ default: () => () => null }));
 vi.mock('@/lib/admin/config-manager', () => ({
-  configManager: { get: (_k: string, d: unknown) => d, ensureLoaded: async () => {} },
+  configManager: { get: (_k: string, d: unknown) => d, ensureLoaded: async () => {}, getPolicy: () => ({}) },
 }));
 vi.mock('@/lib/admin/csp-frame-origins', () => ({ getEnabledPluginFrameOrigins: async () => [] }));
 vi.mock('@/lib/setup/state', () => ({ detectSetupState: () => 'configured' }));

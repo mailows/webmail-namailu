@@ -282,6 +282,20 @@ export function AuthTab() {
         <Toggle label="Auto SSO" description="Automatically redirect to SSO provider on load" configKey="autoSsoEnabled" value={currentValue('autoSsoEnabled') as boolean} source={config.autoSsoEnabled?.source} onChange={handleChange} onRevert={handleRevert} />
       </Section>
 
+      <Section title="Admin Dashboard">
+        <Select
+          label="Stalwart admin access"
+          description="What a Stalwart admin account grants in this dashboard. “Automatic” signs Stalwart admins in without the admin password; “Password required” keeps the shield but asks for the admin password; “Off” ignores Stalwart admin status entirely. The last two need an admin password to be configured."
+          configKey="stalwartAdminAccess"
+          value={currentValue('stalwartAdminAccess') as string}
+          source={config.stalwartAdminAccess?.source}
+          options={['auto', 'password', 'off']}
+          optionLabels={{ auto: 'Automatic (no password)', password: 'Password required', off: 'Off (separate admins)' }}
+          onChange={handleChange}
+          onRevert={handleRevert}
+        />
+      </Section>
+
       <Section title="Session & Security">
         <Select label="Cookie SameSite" configKey="cookieSameSite" value={currentValue('cookieSameSite') as string} source={config.cookieSameSite?.source} options={['lax', 'strict', 'none']} onChange={handleChange} onRevert={handleRevert} />
         <Text label="Allowed Frame Ancestors" configKey="allowedFrameAncestors" value={currentValue('allowedFrameAncestors') as string} source={config.allowedFrameAncestors?.source} onChange={handleChange} onRevert={handleRevert} placeholder="'none' or https://..." />
@@ -349,7 +363,8 @@ function Toggle({ label, description, configKey, value, source, onChange, onReve
         {description && <p className="text-xs text-muted-foreground mt-0.5">{description}</p>}
       </div>
       <div className="flex items-center gap-2 shrink-0">
-        <button onClick={() => onChange(configKey, !value)}
+        <button type="button" role="switch" aria-checked={value} aria-label={label}
+          onClick={() => onChange(configKey, !value)}
           className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${value ? 'bg-primary' : 'bg-muted-foreground/25 dark:bg-muted-foreground/50'}`}>
           <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-background shadow transition-transform ${value ? 'translate-x-[18px]' : 'translate-x-[3px]'}`} />
         </button>
@@ -361,20 +376,24 @@ function Toggle({ label, description, configKey, value, source, onChange, onReve
   );
 }
 
-function Select({ label, configKey, value, source, options, onChange, onRevert }: {
-  label: string; configKey: string; value: string; source?: string; options: string[];
+function Select({ label, description, configKey, value, source, options, optionLabels, onChange, onRevert }: {
+  label: string; description?: string; configKey: string; value: string; source?: string; options: string[];
+  optionLabels?: Record<string, string>;
   onChange: (k: string, v: unknown) => void; onRevert: (k: string) => void;
 }) {
   return (
     <div className="px-4 py-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-      <div className="flex items-center gap-2 min-w-0">
-        <span className="text-sm text-foreground">{label}</span>
-        <SourceBadge source={source} />
+      <div className="min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-foreground">{label}</span>
+          <SourceBadge source={source} />
+        </div>
+        {description && <p className="text-xs text-muted-foreground mt-0.5">{description}</p>}
       </div>
       <div className="flex items-center gap-2 shrink-0">
         <select value={value ?? ''} onChange={(e) => onChange(configKey, e.target.value)}
           className="h-8 rounded-md border border-input bg-background px-2.5 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-          {options.map(o => <option key={o} value={o}>{o}</option>)}
+          {options.map(o => <option key={o} value={o}>{optionLabels?.[o] ?? o}</option>)}
         </select>
         {source === 'admin' && (
           <button onClick={() => onRevert(configKey)} className="text-muted-foreground hover:text-foreground" title="Revert"><RotateCcw className="w-3.5 h-3.5" /></button>

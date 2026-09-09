@@ -126,7 +126,8 @@
     "mobile": {
       "search": "بحث",
       "compose": "إنشاء رسالة",
-      "go_back": "العودة"
+      "go_back": "العودة",
+      "toggle_menu": "تبديل القائمة"
     },
     "clear_search": "مسح البحث",
     "vacation_active": "الرد التلقائي أثناء الغياب مفعّل",
@@ -134,6 +135,8 @@
     "demo_reset": "إعادة تعيين",
     "demo_tour": "جولة",
     "tags": "الوسوم",
+    "show_all_tags": "إظهار الكل ({count})",
+    "show_fewer_tags": "إظهار أقل",
     "folders": "المجلدات",
     "shared": "مشترك",
     "mail": "البريد",
@@ -302,7 +305,12 @@
     "move": "نقل",
     "print": "طباعة",
     "view_source": "عرض المصدر",
+
+    "fullscreen": "ملء الشاشة",
+
+    "exit_fullscreen": "الخروج من ملء الشاشة",
     "export_email": "تصدير كملف ‎.eml",
+    "forward_as_attachment": "Forward as attachment",
     "import_email": "استيراد ملف ‎.eml أو ‎.zip",
     "keyboard_shortcuts": "اختصارات لوحة المفاتيح (؟)",
     "email_source": "مصدر الرسالة",
@@ -329,13 +337,15 @@
     "view_contact": "عرض جهة الاتصال",
     "message_details": "تفاصيل الرسالة",
     "more_reply_options": "خيارات رد إضافية",
-    "set_color": "تعيين وسم",
+    "set_tag": "تعيين وسم",
     "tag": "وسم",
     "more_actions": "المزيد من الإجراءات",
     "previous": "السابق",
     "next": "التالي",
     "move_to": "نقل إلى...",
-    "remove_color": "إزالة الوسم",
+    "remove_tag": "إزالة الوسم",
+    "tag_filter_placeholder": "تصفية الوسوم",
+    "tag_no_matches": "لا توجد وسوم مطابقة",
     "more_count": "+{count} أخرى",
     "characters_count": "{count} حرفًا",
     "quick_reply_placeholder": "اكتب ردًا سريعًا...",
@@ -428,17 +438,6 @@
       "received": "استُلمت",
       "message_id": "معرّف الرسالة",
       "list_info": "معلومات القائمة"
-    },
-    "color_tag": {
-      "title": "وسم لوني",
-      "red": "أحمر",
-      "orange": "برتقالي",
-      "yellow": "أصفر",
-      "green": "أخضر",
-      "blue": "أزرق",
-      "purple": "بنفسجي",
-      "pink": "وردي",
-      "none": "بلا"
     },
     "tooltips": {
       "reply": "رد (r)",
@@ -584,6 +583,7 @@
     "read_receipt_on": "إيصال القراءة مطلوب (انقر للتعطيل)",
     "read_receipt_off": "طلب إيصال قراءة",
     "new_message": "رسالة جديدة",
+    "signature_edit_hint": "انقر نقرًا مزدوجًا لتحرير التوقيع",
     "reply": "رد",
     "reply_all": "الرد على الجميع",
     "forward": "إعادة توجيه",
@@ -646,7 +646,6 @@
     "save_as_template": "حفظ كقالب",
     "validation": {
       "recipient_required": "أضف مستلمًا للإرسال",
-      "subject_required": "أضف موضوعًا",
       "body_required": "اكتب رسالة أو أرفق ملفًا",
       "attachments_uploading": "المرفقات لا تزال قيد الرفع — سيتم الإرسال فور انتهائها",
       "attachment_upload_failed": "لم يتم الإرسال — فشل رفع أحد المرفقات. أزله وحاول مرة أخرى."
@@ -657,6 +656,7 @@
     "drop_files": "أفلت الملفات لإرفاقها",
     "show_less": "إظهار أقل",
     "send_failed": "فشل إرسال الرسالة",
+    "send_timeout": "توقف الخادم عن الاستجابة. تحقق من مجلد المُرسَل قبل إعادة الإرسال — فقد تكون الرسالة قد أُرسلت بالفعل.",
     "continue_draft": "متابعة المسودة",
     "close_draft_title": "حفظ المسودة أم تجاهلها؟",
     "close_draft_message": "لديك تغييرات غير محفوظة. هل تريد حفظها كمسودة أم تجاهلها؟",
@@ -672,6 +672,13 @@
     "forgot_attachment": {
       "title": "هل نسيت مرفقًا؟",
       "message": "رسالتك تذكر \"{keyword}\" لكن لا يوجد ملف مرفق. هل تريد الإرسال على أي حال؟",
+      "send_anyway": "الإرسال على أي حال",
+      "back": "العودة إلى التعديل"
+    },
+    "empty_subject": {
+      "title": "إرسال بدون موضوع؟",
+      "message": "لا يحتوي هذا البريد على موضوع. هل تريد إرساله على أي حال؟",
+      "dont_ask_again": "عدم السؤال مرة أخرى",
       "send_anyway": "الإرسال على أي حال",
       "back": "العودة إلى التعديل"
     },
@@ -691,6 +698,38 @@
     "recipient_name_placeholder": "الاسم المعروض",
     "autocomplete_search_server": "البحث في الخادم",
     "autocomplete_searching": "جارٍ البحث...",
+    "toolbar": {
+      "bold": "غامق",
+      "italic": "مائل",
+      "underline": "تسطير",
+      "strikethrough": "يتوسطه خط",
+      "text_color": "لون النص",
+      "remove_color": "إزالة اللون",
+      "heading_1": "عنوان 1",
+      "heading_2": "عنوان 2",
+      "bullet_list": "قائمة نقطية",
+      "ordered_list": "قائمة مرقمة",
+      "quote": "اقتباس",
+      "code_block": "كتلة برمجية",
+      "align_left": "محاذاة لليسار",
+      "align_center": "توسيط",
+      "align_right": "محاذاة لليمين",
+      "text_direction": "اتجاه النص (RTL/LTR)",
+      "link": "رابط",
+      "table": "جدول",
+      "clear_formatting": "مسح التنسيق",
+      "undo": "تراجع",
+      "redo": "إعادة",
+      "add_row_above": "إضافة صف بالأعلى",
+      "add_row_below": "إضافة صف بالأسفل",
+      "add_column_before": "إضافة عمود قبل",
+      "add_column_after": "إضافة عمود بعد",
+      "delete_row": "حذف الصف",
+      "delete_column": "حذف العمود",
+      "toggle_header_row": "تبديل صف الرأس",
+      "delete_table": "حذف الجدول",
+      "pick_size": "اختيار الحجم"
+    },
     "send_filing_warning": "تم الإرسال - لكن التنظيف بعد الإرسال فشل، وقد تبقى مسودة قديمة."
   },
   "confirm_dialog": {
@@ -719,7 +758,10 @@
     "rate_limited_title": "مصادقة الخادم مقيّدة مؤقتًا بحد المعدل.",
     "rate_limited_detail": "أوقف {appName} الطلبات في الخلفية مؤقتًا لتجنب الحظر. ستتم إعادة المحاولة خلال {seconds} ثانية.",
     "rate_limited_action_title": "تم إيقاف الطلب مؤقتًا لتجنب الحظر.",
-    "rate_limited_action_detail": "ينتظر {appName} انتهاء فترة تهدئة الخادم قبل إرسال المزيد من الطلبات الموثّقة. حاول مرة أخرى خلال {seconds} ثانية."
+    "rate_limited_action_detail": "ينتظر {appName} انتهاء فترة تهدئة الخادم قبل إرسال المزيد من الطلبات الموثّقة. حاول مرة أخرى خلال {seconds} ثانية.",
+    "pull_to_refresh": "اسحب للتحديث",
+    "release_to_refresh": "أفلت للتحديث",
+    "refreshing": "جارٍ التحديث…"
   },
   "notifications": {
     "email_sent": "تم إرسال الرسالة بنجاح",
@@ -826,7 +868,10 @@
     "zh": "简体中文",
     "fa": "فارسی",
     "farsi": "فارسی",
-    "switch_to_farsi": "التبديل إلى الفارسية"
+    "switch_to_farsi": "التبديل إلى الفارسية",
+    "mn": "Монгол",
+    "mongolian": "Монгол",
+    "switch_to_mongolian": "التبديل إلى المنغولية"
   },
   "settings": {
     "title": "الإعدادات",
@@ -884,6 +929,56 @@
       "advanced": "متقدم"
     },
     "appearance": {
+      "message_list_order": {
+        "label": "ترتيب قائمة الرسائل",
+        "description": "كيفية ترتيب الرسائل في القائمة. يقوم الخادم بالترتيب، لذا يشمل المجلد بأكمله وليس الرسائل المحمّلة فقط.",
+        "preset": {
+          "chronological": "زمني (الأحدث أولاً)",
+          "unread_first": "غير المقروءة أولاً",
+          "starred_first": "المميزة بنجمة أولاً",
+          "tagged_first": "الموسومة أولاً",
+          "custom": "مخصص"
+        },
+        "tag_label": "الوسم",
+        "advanced_show": "متقدم: تحرير مستويات الترتيب",
+        "advanced_hide": "إخفاء الخيارات المتقدمة",
+        "criterion_label": "معيار المستوى {n}",
+        "direction_label": "اتجاه المستوى {n}",
+        "criteria": {
+          "unread": "غير مقروءة",
+          "starred": "مميزة بنجمة",
+          "tag": "الوسم",
+          "receivedAt": "تاريخ الاستلام",
+          "sentAt": "تاريخ الإرسال",
+          "from": "المرسل",
+          "subject": "الموضوع",
+          "size": "الحجم"
+        },
+        "direction": {
+          "unread_first": "غير المقروءة أولاً",
+          "read_first": "المقروءة أولاً",
+          "starred_first": "المميزة بنجمة أولاً",
+          "unstarred_first": "غير المميزة أولاً",
+          "tagged_first": "الموسومة أولاً",
+          "untagged_first": "غير الموسومة أولاً",
+          "newest_first": "الأحدث أولاً",
+          "oldest_first": "الأقدم أولاً",
+          "a_to_z": "أ → ي",
+          "z_to_a": "ي → أ",
+          "largest_first": "الأكبر أولاً",
+          "smallest_first": "الأصغر أولاً"
+        },
+        "add_level": "إضافة مستوى",
+        "remove_level": "إزالة المستوى",
+        "move_up": "نقل لأعلى",
+        "move_down": "نقل لأسفل",
+        "tiebreak_note": "حتى ثلاثة مستويات؛ تحسم المستويات اللاحقة حالات التعادل. يُطبَّق «الأحدث أولاً» دائمًا في النهاية.",
+        "scope": {
+          "label": "تطبيق على جميع المجلدات",
+          "description": "عند الإيقاف، يُطبَّق الترتيب على صندوق الوارد فقط؛ وتبقى المجلدات الأخرى مرتبة زمنيًا."
+        },
+        "unsupported_note": "خادم البريد لديك لا يدعم الترتيب حسب حالة القراءة أو النجمة أو الوسوم. يتم تجاهل هذه المستويات وتبقى القائمة مرتبة زمنيًا."
+      },
       "title": "المظهر",
       "description": "تخصيص شكل ومظهر البريد الإلكتروني على الويب",
       "theme": {
@@ -991,7 +1086,6 @@
       "title": "وسوم البريد",
       "description": "عرّف وسومًا لتنظيم رسائلك بالألوان. تُخزَّن هذه ككلمات مفتاحية JMAP على الخادم.",
       "add_keyword": "إضافة وسم",
-      "reset_defaults": "إعادة التعيين للافتراضي",
       "label_field": "الاسم المعروض",
       "label_placeholder": "مثال: عمل، شخصي، عاجل",
       "id_field": "معرّف الوسم",
@@ -1004,7 +1098,34 @@
       "add": "إضافة",
       "cancel": "إلغاء",
       "migrating": "جارٍ تحديث الوسم على الرسائل الحالية…",
-      "migration_error": "فشل تحديث الوسم على الرسائل الحالية"
+      "migration_error": "فشل تحديث الوسم على الرسائل الحالية",
+      "nesting": {
+        "label": "وسوم متداخلة",
+        "description": "ضع الوسوم داخل وسوم أخرى واعرضها كشجرة في الشريط الجانبي."
+      },
+      "parent_field": "الوسم الأصل",
+      "no_parent": "بدون وسم أصل",
+      "too_long": "مسار الوسم طويل جدًا ({max} حرفًا على الأكثر)",
+      "has_children_locked": "توجد وسوم أخرى متداخلة تحت هذا الوسم، لذا فإن اسمه ووسمه الأصل مقفلان. انقلها أو احذفها أولًا.",
+      "has_children_delete": "احذف أولًا الوسوم المتداخلة تحت هذا الوسم",
+      "visibility_field": "الظهور في الشريط الجانبي",
+      "visibility": {
+        "show": "إظهار",
+        "unread": "إظهار عند وجود غير مقروء",
+        "hide": "إخفاء"
+      },
+      "unrecognized": {
+        "title": "استعادة الوسوم من الخادم",
+        "description": "تُخزَّن أسماء الوسوم وألوانها في هذا المتصفح، لكن الوسوم نفسها موجودة على رسائلك ككلمات مفتاحية JMAP. افحص بريدك بحثًا عن كلمات مفتاحية لا يفسّرها أي وسم هنا، ثم أعِد إضافتها.",
+        "scan": "البحث عن الوسوم",
+        "rescan": "إعادة الفحص",
+        "scanning": "جارٍ الفحص… {scanned} من {total} رسالة",
+        "none": "كل وسم على رسائلك معرَّف هنا بالفعل.",
+        "messages": "{count, plural, one {رسالة واحدة} other {# رسالة}}",
+        "add_all": "إضافة الكل ({count})",
+        "partial": "تم فحص أحدث {scanned} رسالة فقط من أصل {total}. قد تكون الوسوم المستخدمة في البريد الأقدم فقط غير مدرجة.",
+        "error": "تعذّر فحص بريدك بحثًا عن الوسوم."
+      }
     },
     "notifications": {
       "test_sound": "اختبار صوت الإشعار",
@@ -1022,7 +1143,6 @@
         "relay_desc": "يستخدم افتراضيًا خادم ترحيل Bulwark المستضاف. غيّره فقط إذا كنت تستضيف بنفسك.",
         "relay_locked": "تم تعيينه بواسطة المسؤول",
         "relay_locked_desc": "تم تعيين رابط خادم الترحيل بواسطة المسؤول ولا يمكن تغييره.",
-        "relay_placeholder": "https://notifications.relay.example.com",
         "status_active": "نشط على هذا الجهاز",
         "status_inactive": "غير مفعّل على هذا الجهاز",
         "status_unsupported": "هذا المتصفح لا يدعم Web Push",
@@ -1032,7 +1152,24 @@
         "disable": "تعطيل",
         "confirm_disable_title": "تعطيل الإشعارات في الخلفية؟",
         "confirm_disable_message": "سيتوقف هذا الجهاز عن تلقي التنبيهات عند إغلاق الموقع.",
-        "ios_hint": "على iOS، ثبّت الموقع على الشاشة الرئيسية أولًا - يقدّم Safari خدمة Web Push فقط لتطبيقات PWA المثبّتة."
+        "dismiss_aria": "تجاهل مطالبة الإشعارات",
+        "ios_hint": "على iOS، ثبّت الموقع على الشاشة الرئيسية أولًا - يقدّم Safari خدمة Web Push فقط لتطبيقات PWA المثبّتة.",
+        "devices_title": "الأجهزة المسجّلة",
+        "devices_desc": "كل الأجهزة المسجّلة لتلقّي الإشعارات في الخلفية لهذا الحساب. إلغاء أي جهاز يوقف تلقّيه فورًا.",
+        "devices_loading": "جارٍ تحميل الأجهزة المسجّلة…",
+        "devices_empty": "لا توجد أجهزة مسجّلة للإشعارات في الخلفية.",
+        "devices_error": "تعذّر تحميل الأجهزة المسجّلة.",
+        "devices_refresh": "تحديث",
+        "device_this": "هذا الجهاز",
+        "device_other": "جهاز آخر",
+        "device_status_active": "يسلّم الإشعارات",
+        "device_status_inactive": "لم يسلّم أي إشعار قط",
+        "device_status_unknown": "غير معروف لهذا المُرحّل",
+        "device_expires": "ينتهي في {date}",
+        "revoke": "إلغاء التسجيل",
+        "confirm_revoke_title": "إلغاء تسجيل هذا الجهاز؟",
+        "confirm_revoke_message": "سيتوقّف فورًا عن تلقّي الإشعارات في الخلفية. تفعيل الدفع مجددًا على ذلك الجهاز سيسجّله من جديد.",
+        "confirm_revoke_message_this": "سيتوقّف هذا الجهاز فورًا عن تلقّي الإشعارات في الخلفية."
       },
       "sound_selection": {
         "title": "صوت الإشعار",
@@ -1097,6 +1234,12 @@
         "description": "ابدأ الأسبوع بالأحد أو الاثنين",
         "sunday": "الأحد",
         "monday": "الاثنين"
+      },
+      "time_zone": {
+        "label": "Time zone",
+        "description": "Show email and calendar times in this time zone instead of the one reported by your browser",
+        "auto": "Automatic ({zone})",
+        "preview_now": "Now:"
       }
     },
     "email_behavior": {
@@ -1135,6 +1278,12 @@
         "auto": "تلقائي (مستحسن)",
         "always": "إضافة تباعد دائمًا",
         "edge": "من الحافة إلى الحافة"
+      },
+      "plain_text_font": {
+        "label": "خط النص العادي",
+        "description": "الخط المستخدم لرسائل النص العادي",
+        "mono": "أحادي المسافة",
+        "sans": "عادي (مثل التطبيق)"
       },
       "archive_mode": {
         "label": "الأرشفة في",
@@ -1283,6 +1432,10 @@
         "add": "إضافة",
         "remove": "إزالة"
       },
+      "empty_subject_warning": {
+        "label": "تحذير الموضوع الفارغ",
+        "description": "طلب تأكيد قبل إرسال رسالة بدون موضوع."
+      },
       "hide_inline_image_attachments": {
         "label": "إخفاء الصور المضمّنة من المرفقات",
         "description": "الصور المضمّنة في نص الرسالة لا تُدرج كمرفقات منفصلة"
@@ -1301,6 +1454,22 @@
       "return_to_list_after_action": {
         "label": "العودة إلى القائمة بعد الحذف أو التمييز كغير مقروء",
         "description": "بعد حذف الرسالة المفتوحة أو تمييزها كغير مقروءة، العودة إلى قائمة الرسائل بدلًا من فتح الرسالة التالية."
+      },
+      "swipe_right_action": {
+        "label": "إجراء السحب لليمين (الجوال)",
+        "description": "على أجهزة اللمس، الإجراء الذي يُنفَّذ عند سحب رسالة إلى اليمين في القائمة."
+      },
+      "swipe_left_action": {
+        "label": "إجراء السحب لليسار (الجوال)",
+        "description": "على أجهزة اللمس، الإجراء الذي يُنفَّذ عند سحب رسالة إلى اليسار في القائمة."
+      },
+      "swipe_actions": {
+        "none": "لا شيء",
+        "archive": "أرشفة",
+        "delete": "حذف",
+        "mark_read": "تبديل حالة القراءة",
+        "star": "تبديل النجمة",
+        "spam": "تمييز كبريد مزعج"
       },
       "rtl_editing": {
         "label": "دعم الكتابة من اليمين إلى اليسار",
@@ -1490,7 +1659,16 @@
         "inactive": "معطّل",
         "enabled": "تم تفعيل التشفير أثناء التخزين",
         "disabled_success": "تم تعطيل التشفير أثناء التخزين",
-        "error": "فشل تحديث إعدادات التشفير"
+        "error": "فشل تحديث إعدادات التشفير",
+        "algorithm_label": "خوارزمية التشفير",
+        "encrypt_on_append": "تشفير الرسائل الجديدة عند رفعها",
+        "allow_spam_training": "السماح بتدريب مرشّح البريد العشوائي قبل تشفير الرسائل",
+        "enable_encryption": "تفعيل التشفير",
+        "enable_tooltip": "تفعيل التشفير باستخدام هذا المفتاح",
+        "configure_title": "تفعيل التشفير باستخدام هذا المفتاح",
+        "enable_button": "تفعيل",
+        "disable_tooltip": "تعطيل التشفير",
+        "enabled_success": "تم تفعيل التشفير أثناء التخزين"
       },
       "email_client": {
         "title": "إعداد عميل البريد الإلكتروني",
@@ -1510,6 +1688,13 @@
         "expired": "انتهت صلاحية هذا الرمز.",
         "generating": "جارٍ التوليد…",
         "error": "تعذّر إنشاء رمز الاقتران. يرجى المحاولة مرة أخرى."
+      },
+      "public_keys": {
+        "name_label": "اسم المفتاح العام",
+        "name_placeholder": "مثال: مفتاحي",
+        "key_label": "المفتاح العام (S/MIME أو PGP بترميز ASCII)",
+        "key_placeholder": "الصق مفتاحك العام هنا",
+        "none": "لا توجد مفاتيح عامة مُعدّة"
       }
     },
     "identities": {
@@ -1594,6 +1779,7 @@
       "create_subfolder": "إنشاء مجلد فرعي",
       "reorder": "اسحب لإعادة الترتيب",
       "reorder_error": "فشل في إعادة ترتيب المجلدات",
+      "move_error": "فشل في نقل المجلد",
       "subfolder_of": "داخل {name}",
       "subfolder_name": "اسم المجلد الفرعي",
       "new_folder_name": "اسم المجلد",
@@ -2008,8 +2194,7 @@
     "delete": "حذف",
     "mark_as_spam": "الإبلاغ عن بريد مزعج",
     "not_spam": "ليس مزعجًا",
-    "color_tag": "وسم",
-    "remove_color": "إزالة الوسم",
+    "tag": "وسم",
     "items_selected": "{count} رسالة محددة",
     "edit_draft": "تعديل المسودة",
     "cancel_scheduled_send": "إلغاء الإرسال",
@@ -2344,6 +2529,9 @@
       "section_address_book": "الدليل",
       "select_address_book": "اختر دليلًا...",
       "section_identity": "الاسم والهوية",
+      "contact_type": "نوع جهة الاتصال",
+      "type_person": "شخص",
+      "type_organization": "المؤسسة",
       "section_work": "العمل والمؤسسة",
       "prefix": "اللقب",
       "prefix_placeholder": "د.، أ.، السيدة",
@@ -2428,7 +2616,7 @@
       "cancel": "إلغاء",
       "creating": "جارٍ الإنشاء...",
       "updating": "جارٍ التحديث...",
-      "name_required": "يلزم إدخال الاسم الأول أو اسم العائلة على الأقل",
+      "name_required": "أدخل اسمًا أول أو اسم عائلة أو مؤسسة",
       "email_invalid": "يرجى إدخال عنوان بريد إلكتروني صالح",
       "email_error_inline": "تنسيق البريد الإلكتروني غير صالح",
       "save_failed": "فشل حفظ جهة الاتصال",
@@ -2873,7 +3061,12 @@
       "copy_url": "نسخ رابط CalDAV",
       "url_copied": "تم نسخ رابط CalDAV إلى الحافظة",
       "share": "مشاركة التقويم",
-      "new_event_in_calendar": "حدث جديد في هذا التقويم"
+      "new_event_in_calendar": "حدث جديد في هذا التقويم",
+      "kind": "المحتوى",
+      "kind_events": "الأحداث",
+      "kind_tasks": "المهام",
+      "kind_both": "الأحداث والمهام",
+      "kind_hint": "يحدد التطبيقات التي ترى هذا التقويم عند مزامنته عبر CalDAV. لا يمكن تغييره لاحقًا."
     },
     "subscription": {
       "title": "اشتراك iCal",
@@ -3006,7 +3199,12 @@
     "search_hint": "استخدم المرشحات المتقدمة لبحث دقيق",
     "advanced_filters_tooltip": "مرشحات البحث المتقدم",
     "results_found": "{count, plural, =0 {لم يتم العثور على نتائج} one {تم العثور على # نتيجة} other {تم العثور على # نتيجة}}",
-    "results_found_more": "تم العثور على {count}+ نتيجة"
+    "results_found_more": "تم العثور على {count}+ نتيجة",
+    "suggestions_recent": "عمليات البحث الأخيرة",
+    "suggestions_people": "الأشخاص",
+    "suggestions_from": "البحث في البريد من {address}",
+    "suggestions_to": "البحث في البريد إلى {address}",
+    "suggestions_remove_recent": "إزالة من عمليات البحث الأخيرة"
   },
   "welcome": {
     "title": "مرحبًا بك في صندوق بريدك",
@@ -3289,5 +3487,18 @@
     "install": "تثبيت",
     "dont_remind": "عدم التذكير مرة أخرى",
     "dismiss_aria": "تجاهل مطالبة التثبيت"
+  },
+  "deep_link": {
+    "message_not_found": "لم تعد هذه الرسالة متاحة.",
+    "thread_not_found": "لم تعد هذه المحادثة متاحة.",
+    "folder_not_found": "لم يعد هذا المجلد متاحًا.",
+    "event_not_found": "لم يعد هذا الحدث متاحًا.",
+    "file_not_found": "لم يعد هذا الملف متاحًا.",
+    "account_unavailable": "سجّل الدخول إلى ذلك الحساب لفتح هذا الرابط.",
+    "copy_message": "نسخ رابط الرسالة",
+    "copy_conversation": "نسخ رابط المحادثة",
+    "copy_event": "نسخ رابط الحدث",
+    "copied": "تم نسخ الرابط",
+    "copy_failed": "تعذّر نسخ الرابط"
   }
 }

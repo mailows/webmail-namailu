@@ -12,6 +12,7 @@ import { clearCachedData } from '@/lib/clear-cached-data';
 export function AboutDataSettings() {
   const t = useTranslations('settings.advanced');
   const tCommon = useTranslations('common');
+  const tSettings = useTranslations('settings');
   const { settingsSyncDisabled, updateSetting, resetToDefaults, exportSettings, importSettings } =
     useSettingsStore();
   const { settingsSyncEnabled } = useConfig();
@@ -45,9 +46,9 @@ export function AboutDataSettings() {
       const json = event.target?.result as string;
       const success = importSettings(json);
       if (success) {
-        alert(t('../../settings.import_success'));
+        alert(tSettings('import_success'));
       } else {
-        alert(t('../../settings.import_error'));
+        alert(tSettings('import_error'));
       }
     };
     reader.readAsText(file);
@@ -66,7 +67,7 @@ export function AboutDataSettings() {
     if (showResetConfirm) {
       resetToDefaults();
       setShowResetConfirm(false);
-      alert(t('../../settings.save_success'));
+      alert(tSettings('save_success'));
     } else {
       setShowResetConfirm(true);
       setTimeout(() => setShowResetConfirm(false), 5000);

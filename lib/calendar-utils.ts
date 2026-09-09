@@ -1,6 +1,7 @@
 import { addDays, differenceInCalendarDays, parseISO, startOfDay, subMilliseconds } from "date-fns";
 import { parseDuration } from "@/components/calendar/event-card";
 import type { CalendarEvent } from "@/lib/jmap/types";
+import { toDisplayDate } from "@/lib/timezone";
 
 export interface CalendarWeekSegment {
   event: CalendarEvent;
@@ -21,6 +22,13 @@ export interface TimedEventLayout {
   continuesAfter: boolean;
 }
 
+/**
+ * Start of an event as a *display date*: a Date whose local getters read as
+ * the wall-clock in the user's effective time zone, which is what the grid
+ * math (getHours(), startOfDay, ...) and every view render. Identical to the
+ * real instant unless a time zone override is active (#755); convert back
+ * with `fromDisplayDate` before turning grid positions into instants.
+ */
 export function getEventStartDate(
   event: Pick<CalendarEvent, 'start' | 'utcStart' | 'showWithoutTime'>,
 ): Date {
@@ -29,7 +37,7 @@ export function getEventStartDate(
   // Invalid Date that crashed downstream format() calls (#316).
   if (!event.showWithoutTime && event.utcStart) {
     const utc = parseISO(event.utcStart);
-    if (!isNaN(utc.getTime())) return utc;
+    if (!isNaN(utc.getTime())) return toDisplayDate(utc);
   }
   return parseISO(event.start);
 }
@@ -60,10 +68,11 @@ export function packWeekSegments(rawSegments: CalendarWeekSegment[]): CalendarWe
   });
 }
 
+/** End of an event as a display date - see `getEventStartDate`. */
 export function getEventEndDate(event: CalendarEvent): Date {
   if (!event.showWithoutTime && event.utcEnd) {
     const utc = parseISO(event.utcEnd);
-    if (!isNaN(utc.getTime())) return utc;
+    if (!isNaN(utc.getTime())) return toDisplayDate(utc);
   }
 
   const start = getEventStartDate(event);

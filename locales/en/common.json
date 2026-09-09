@@ -127,7 +127,8 @@
     "mobile": {
       "search": "Search",
       "compose": "Compose",
-      "go_back": "Go back"
+      "go_back": "Go back",
+      "toggle_menu": "Toggle menu"
     },
     "clear_search": "Clear search",
     "vacation_active": "Vacation responder is active",
@@ -135,6 +136,8 @@
     "demo_reset": "Reset",
     "demo_tour": "Tour",
     "tags": "Tags",
+    "show_all_tags": "Show all ({count})",
+    "show_fewer_tags": "Show less",
     "folders": "Folders",
     "shared": "Shared",
     "mail": "Mail",
@@ -302,7 +305,12 @@
     "move": "Move",
     "print": "Print",
     "view_source": "View source",
+
+    "fullscreen": "Fullscreen",
+
+    "exit_fullscreen": "Exit fullscreen",
     "export_email": "Export as .eml",
+    "forward_as_attachment": "Forward as attachment",
     "import_email": "Import .eml or .zip",
     "keyboard_shortcuts": "Keyboard shortcuts (?)",
     "email_source": "Email Source",
@@ -329,13 +337,15 @@
     "view_contact": "View contact",
     "message_details": "Message Details",
     "more_reply_options": "More reply options",
-    "set_color": "Set tag",
+    "set_tag": "Set tag",
     "tag": "Tag",
     "more_actions": "More actions",
     "previous": "Prev",
     "next": "Next",
     "move_to": "Move to...",
-    "remove_color": "Remove tag",
+    "remove_tag": "Remove tag",
+    "tag_filter_placeholder": "Filter tags",
+    "tag_no_matches": "No matching tags",
     "more_count": "+{count} more",
     "characters_count": "{count} characters",
     "quick_reply_placeholder": "Write a quick reply...",
@@ -428,17 +438,6 @@
       "received": "Received",
       "message_id": "Message ID",
       "list_info": "List Information"
-    },
-    "color_tag": {
-      "title": "Color Tag",
-      "red": "Red",
-      "orange": "Orange",
-      "yellow": "Yellow",
-      "green": "Green",
-      "blue": "Blue",
-      "purple": "Purple",
-      "pink": "Pink",
-      "none": "None"
     },
     "tooltips": {
       "reply": "Reply (r)",
@@ -584,6 +583,7 @@
     "read_receipt_on": "Read receipt requested (click to disable)",
     "read_receipt_off": "Request a read receipt",
     "new_message": "New Message",
+    "signature_edit_hint": "Double-click to edit the signature",
     "reply": "Reply",
     "reply_all": "Reply All",
     "forward": "Forward",
@@ -646,7 +646,6 @@
     "save_as_template": "Save as Template",
     "validation": {
       "recipient_required": "Add a recipient to send",
-      "subject_required": "Add a subject",
       "body_required": "Write a message or attach a file",
       "attachments_uploading": "Attachments are still uploading — sending as soon as they finish",
       "attachment_upload_failed": "Not sent — an attachment failed to upload. Remove it and try again."
@@ -657,6 +656,7 @@
     "drop_files": "Drop files to attach",
     "show_less": "Show less",
     "send_failed": "Failed to send email",
+    "send_timeout": "The server stopped responding. Check your Sent folder before sending again — the message may have gone out.",
     "continue_draft": "Continue draft",
     "close_draft_title": "Save or discard draft?",
     "close_draft_message": "You have unsaved changes. Would you like to save this as a draft or discard it?",
@@ -672,6 +672,13 @@
     "forgot_attachment": {
       "title": "Did you forget an attachment?",
       "message": "Your message mentions \"{keyword}\" but no file is attached. Send anyway?",
+      "send_anyway": "Send anyway",
+      "back": "Back to editing"
+    },
+    "empty_subject": {
+      "title": "Send without a subject?",
+      "message": "This message has no subject. Send it anyway?",
+      "dont_ask_again": "Don't ask again",
       "send_anyway": "Send anyway",
       "back": "Back to editing"
     },
@@ -691,6 +698,38 @@
     "recipient_name_placeholder": "Display name",
     "autocomplete_search_server": "Search the server",
     "autocomplete_searching": "Searching...",
+    "toolbar": {
+      "bold": "Bold",
+      "italic": "Italic",
+      "underline": "Underline",
+      "strikethrough": "Strikethrough",
+      "text_color": "Text color",
+      "remove_color": "Remove color",
+      "heading_1": "Heading 1",
+      "heading_2": "Heading 2",
+      "bullet_list": "Bullet list",
+      "ordered_list": "Ordered list",
+      "quote": "Quote",
+      "code_block": "Code block",
+      "align_left": "Align left",
+      "align_center": "Align center",
+      "align_right": "Align right",
+      "text_direction": "Text direction (RTL/LTR)",
+      "link": "Link",
+      "table": "Table",
+      "clear_formatting": "Clear formatting",
+      "undo": "Undo",
+      "redo": "Redo",
+      "add_row_above": "Add row above",
+      "add_row_below": "Add row below",
+      "add_column_before": "Add column before",
+      "add_column_after": "Add column after",
+      "delete_row": "Delete row",
+      "delete_column": "Delete column",
+      "toggle_header_row": "Toggle header row",
+      "delete_table": "Delete table",
+      "pick_size": "Pick size"
+    },
     "send_filing_warning": "Sent - but the post-send cleanup failed, a stale draft may remain."
   },
   "confirm_dialog": {
@@ -719,7 +758,10 @@
     "rate_limited_title": "Server authentication is temporarily rate limited.",
     "rate_limited_detail": "{appName} has paused background requests to avoid lockout. Retrying in {seconds}s.",
     "rate_limited_action_title": "Request paused to avoid lockout.",
-    "rate_limited_action_detail": "{appName} is waiting for the server cooldown to end before sending more authenticated requests. Try again in {seconds}s."
+    "rate_limited_action_detail": "{appName} is waiting for the server cooldown to end before sending more authenticated requests. Try again in {seconds}s.",
+    "pull_to_refresh": "Pull to refresh",
+    "release_to_refresh": "Release to refresh",
+    "refreshing": "Refreshing…"
   },
   "notifications": {
     "email_sent": "Email sent successfully",
@@ -826,7 +868,10 @@
     "zh": "简体中文",
     "fa": "فارسی",
     "farsi": "فارسی",
-    "switch_to_farsi": "Switch to Farsi"
+    "switch_to_farsi": "Switch to Farsi",
+    "mn": "Монгол",
+    "mongolian": "Монгол",
+    "switch_to_mongolian": "Switch to Mongolian"
   },
   "settings": {
     "title": "Settings",
@@ -884,6 +929,56 @@
       "advanced": "Advanced"
     },
     "appearance": {
+      "message_list_order": {
+        "label": "Message list order",
+        "description": "How messages are ordered in the list. The server does the ordering, so it covers the whole folder, not just the loaded messages.",
+        "preset": {
+          "chronological": "Chronological (newest first)",
+          "unread_first": "Unread first",
+          "starred_first": "Starred first",
+          "tagged_first": "Tagged first",
+          "custom": "Custom"
+        },
+        "tag_label": "Tag",
+        "advanced_show": "Advanced: edit sort levels",
+        "advanced_hide": "Hide advanced",
+        "criterion_label": "Level {n} criterion",
+        "direction_label": "Level {n} direction",
+        "criteria": {
+          "unread": "Unread",
+          "starred": "Starred",
+          "tag": "Tag",
+          "receivedAt": "Date received",
+          "sentAt": "Date sent",
+          "from": "Sender",
+          "subject": "Subject",
+          "size": "Size"
+        },
+        "direction": {
+          "unread_first": "Unread first",
+          "read_first": "Read first",
+          "starred_first": "Starred first",
+          "unstarred_first": "Unstarred first",
+          "tagged_first": "Tagged first",
+          "untagged_first": "Untagged first",
+          "newest_first": "Newest first",
+          "oldest_first": "Oldest first",
+          "a_to_z": "A → Z",
+          "z_to_a": "Z → A",
+          "largest_first": "Largest first",
+          "smallest_first": "Smallest first"
+        },
+        "add_level": "Add level",
+        "remove_level": "Remove level",
+        "move_up": "Move up",
+        "move_down": "Move down",
+        "tiebreak_note": "Up to three levels; later levels break ties. Newest first is always applied last.",
+        "scope": {
+          "label": "Apply to all folders",
+          "description": "When off, the order applies to the Inbox only; other folders stay chronological."
+        },
+        "unsupported_note": "Your mail server does not support ordering by read state, stars or tags. Those levels are ignored and the list stays chronological."
+      },
       "title": "Appearance",
       "description": "Customize the look and feel of your webmail",
       "theme": {
@@ -989,9 +1084,8 @@
     },
     "keywords": {
       "title": "Email Tags",
-      "description": "Define tags to organize your emails with colors. These are stored as JMAP keywords on the server.",
+      "description": "Define tags to organize your emails. These are stored as JMAP keywords on the server.",
       "add_keyword": "Add Tag",
-      "reset_defaults": "Reset to Defaults",
       "label_field": "Display Name",
       "label_placeholder": "e.g. Work, Personal, Urgent",
       "id_field": "Tag ID",
@@ -1004,7 +1098,34 @@
       "add": "Add",
       "cancel": "Cancel",
       "migrating": "Updating tag on existing emails…",
-      "migration_error": "Failed to update tag on existing emails"
+      "migration_error": "Failed to update tag on existing emails",
+      "nesting": {
+        "label": "Nested Tags",
+        "description": "Nest tags underneath other tags and show them as a tree in the sidebar."
+      },
+      "parent_field": "Parent Tag",
+      "no_parent": "No parent",
+      "too_long": "This tag path is too long (at most {max} characters)",
+      "has_children_locked": "Other tags are nested under this one, so its name and parent are locked. Move or remove them first.",
+      "has_children_delete": "Remove the tags nested under this one first",
+      "visibility_field": "Sidebar visibility",
+      "visibility": {
+        "show": "Show",
+        "unread": "Show if unread",
+        "hide": "Hide"
+      },
+      "unrecognized": {
+        "title": "Recover tags from the server",
+        "description": "Tag names and colors are stored in this browser, but the tags themselves live on your messages as JMAP keywords. Scan your mail for keywords no tag here explains, then add them back.",
+        "scan": "Scan for tags",
+        "rescan": "Scan again",
+        "scanning": "Scanning… {scanned} of {total} messages",
+        "none": "Every tag on your messages is already defined here.",
+        "messages": "{count, plural, one {# message} other {# messages}}",
+        "add_all": "Add all {count}",
+        "partial": "Only the {scanned} most recent of {total} messages were scanned. Tags used solely on older mail may be missing.",
+        "error": "Could not scan your mail for tags."
+      }
     },
     "notifications": {
       "test_sound": "Test notification sound",
@@ -1019,10 +1140,9 @@
         "title": "Background Notifications",
         "description": "Receive system notifications for new mail when this site is closed. Delivered via the Bulwark push relay; the relay never sees mail content.",
         "relay_label": "Push relay",
-        "relay_desc": "Defaults to the hosted Bulwark relay. Change only if you self-host.",
+        "relay_desc": "The server that delivers your notifications. Choose from the relays your administrator offers.",
         "relay_locked": "Set by administrator",
-        "relay_locked_desc": "The push relay URL has been set by your administrator and cannot be changed.",
-        "relay_placeholder": "https://notifications.relay.example.com",
+        "relay_locked_desc": "The push relay has been set by your administrator and cannot be changed.",
         "status_active": "Active on this device",
         "status_inactive": "Not enabled on this device",
         "status_unsupported": "This browser does not support Web Push",
@@ -1032,7 +1152,24 @@
         "disable": "Disable",
         "confirm_disable_title": "Disable background notifications?",
         "confirm_disable_message": "This device will stop receiving alerts when the site is closed.",
-        "ios_hint": "On iOS, install the site to your home screen first - Safari only delivers Web Push to installed PWAs."
+        "dismiss_aria": "Dismiss notification prompt",
+        "ios_hint": "On iOS, install the site to your home screen first - Safari only delivers Web Push to installed PWAs.",
+        "devices_title": "Registered devices",
+        "devices_desc": "Every device registered to receive background notifications for this account. Revoking one stops it receiving immediately.",
+        "devices_loading": "Loading registered devices…",
+        "devices_empty": "No devices are registered for background notifications.",
+        "devices_error": "Could not load registered devices.",
+        "devices_refresh": "Refresh",
+        "device_this": "This device",
+        "device_other": "Other device",
+        "device_status_active": "Delivering notifications",
+        "device_status_inactive": "Never delivered a notification",
+        "device_status_unknown": "Not known to this relay",
+        "device_expires": "Expires {date}",
+        "revoke": "Revoke",
+        "confirm_revoke_title": "Revoke this device?",
+        "confirm_revoke_message": "It will stop receiving background notifications immediately. Enabling push again on that device registers it anew.",
+        "confirm_revoke_message_this": "This device will stop receiving background notifications immediately."
       },
       "sound_selection": {
         "title": "Notification Sound",
@@ -1097,6 +1234,12 @@
         "description": "Start week on Sunday or Monday",
         "sunday": "Sunday",
         "monday": "Monday"
+      },
+      "time_zone": {
+        "label": "Time zone",
+        "description": "Show email and calendar times in this time zone instead of the one reported by your browser",
+        "auto": "Automatic ({zone})",
+        "preview_now": "Now:"
       }
     },
     "email_behavior": {
@@ -1135,6 +1278,12 @@
         "auto": "Auto (recommended)",
         "always": "Always add spacing",
         "edge": "Edge to edge"
+      },
+      "plain_text_font": {
+        "label": "Plain Text Font",
+        "description": "Font used for plain text emails",
+        "mono": "Monospace",
+        "sans": "Normal (same as the app)"
       },
       "archive_mode": {
         "label": "Archive in",
@@ -1283,6 +1432,10 @@
         "add": "Add",
         "remove": "Remove"
       },
+      "empty_subject_warning": {
+        "label": "Empty subject warning",
+        "description": "Ask for confirmation before sending a message with no subject."
+      },
       "hide_inline_image_attachments": {
         "label": "Hide inline images from attachments",
         "description": "Images embedded in the message body are not listed as separate attachments"
@@ -1301,6 +1454,22 @@
       "return_to_list_after_action": {
         "label": "Return to list after delete or mark unread",
         "description": "After deleting or marking the open message unread, go back to the message list instead of opening the next message."
+      },
+      "swipe_right_action": {
+        "label": "Swipe right action (mobile)",
+        "description": "On touch devices, the action performed when you swipe a message to the right in the list."
+      },
+      "swipe_left_action": {
+        "label": "Swipe left action (mobile)",
+        "description": "On touch devices, the action performed when you swipe a message to the left in the list."
+      },
+      "swipe_actions": {
+        "none": "None",
+        "archive": "Archive",
+        "delete": "Delete",
+        "mark_read": "Toggle read",
+        "star": "Toggle star",
+        "spam": "Mark as spam"
       },
       "rtl_editing": {
         "label": "Right-to-left editing support",
@@ -1490,7 +1659,23 @@
         "inactive": "Disabled",
         "enabled": "Encryption at rest enabled",
         "disabled_success": "Encryption at rest disabled",
-        "error": "Failed to update encryption settings"
+        "error": "Failed to update encryption settings",
+        "algorithm_label": "Encryption Algorithm",
+        "encrypt_on_append": "Encrypt new emails on upload",
+        "allow_spam_training": "Allow spam training before encrypting emails",
+        "enable_encryption": "Enable encryption",
+        "enable_tooltip": "Enable encryption with this key",
+        "configure_title": "Enable encryption with this key",
+        "enable_button": "Enable",
+        "disable_tooltip": "Disable encryption",
+        "enabled_success": "Encryption at rest enabled"
+      },
+      "public_keys":{
+        "name_label": "Public Key name",
+        "name_placeholder": "e.g. My Key",
+        "key_label": "Public Key (S/MIME or PGP ASCII-armored)",
+        "key_placeholder": "Paste your public key here",
+        "none": "No public keys configured"
       },
       "email_client": {
         "title": "Email Client Setup",
@@ -1592,8 +1777,9 @@
       "role_none": "None",
       "create_folder": "Create Folder",
       "create_subfolder": "Create Subfolder",
-      "reorder": "Drag to reorder",
+      "reorder": "Drag up or down to reorder, left or right to change the parent folder",
       "reorder_error": "Failed to reorder folders",
+      "move_error": "Failed to move folder",
       "subfolder_of": "Inside {name}",
       "subfolder_name": "Subfolder name",
       "new_folder_name": "Folder name",
@@ -2008,8 +2194,7 @@
     "delete": "Delete",
     "mark_as_spam": "Report spam",
     "not_spam": "Not spam",
-    "color_tag": "Tag",
-    "remove_color": "Remove tag",
+    "tag": "Tag",
     "items_selected": "{count} emails selected",
     "edit_draft": "Edit Draft",
     "cancel_scheduled_send": "Cancel send",
@@ -2344,6 +2529,9 @@
       "section_address_book": "Directory",
       "select_address_book": "Select a directory...",
       "section_identity": "Name & Identity",
+      "contact_type": "Contact type",
+      "type_person": "Person",
+      "type_organization": "Organization",
       "section_work": "Work & Organization",
       "prefix": "Prefix",
       "prefix_placeholder": "Dr., Mr., Mrs.",
@@ -2428,7 +2616,7 @@
       "cancel": "Cancel",
       "creating": "Creating...",
       "updating": "Updating...",
-      "name_required": "At least a first name or last name is required",
+      "name_required": "Enter a first name, last name, or organization",
       "email_invalid": "Please enter a valid email address",
       "email_error_inline": "Invalid email format",
       "save_failed": "Failed to save contact",
@@ -2873,7 +3061,12 @@
       "copy_url": "Copy CalDAV URL",
       "url_copied": "CalDAV URL copied to clipboard",
       "share": "Share calendar",
-      "new_event_in_calendar": "New event in this calendar"
+      "new_event_in_calendar": "New event in this calendar",
+      "kind": "Contents",
+      "kind_events": "Events",
+      "kind_tasks": "Tasks",
+      "kind_both": "Events and tasks",
+      "kind_hint": "Decides which apps see this calendar when it is synced over CalDAV. It cannot be changed later."
     },
     "subscription": {
       "title": "iCal Subscription",
@@ -3006,7 +3199,12 @@
     "search_hint": "Use advanced filters for precise search",
     "advanced_filters_tooltip": "Advanced search filters",
     "results_found": "{count, plural, =0 {No results found} one {# result found} other {# results found}}",
-    "results_found_more": "{count}+ results found"
+    "results_found_more": "{count}+ results found",
+    "suggestions_recent": "Recent searches",
+    "suggestions_people": "People",
+    "suggestions_from": "Search mail from {address}",
+    "suggestions_to": "Search mail to {address}",
+    "suggestions_remove_recent": "Remove from recent searches"
   },
   "welcome": {
     "title": "Welcome to your mailbox",
@@ -3289,5 +3487,18 @@
     "install": "Install",
     "dont_remind": "Don't remind me again",
     "dismiss_aria": "Dismiss install prompt"
+  },
+  "deep_link": {
+    "message_not_found": "This message is no longer available.",
+    "thread_not_found": "This conversation is no longer available.",
+    "folder_not_found": "This folder is no longer available.",
+    "event_not_found": "This event is no longer available.",
+    "file_not_found": "This file is no longer available.",
+    "account_unavailable": "Sign in to that account to open this link.",
+    "copy_message": "Copy link to message",
+    "copy_conversation": "Copy link to conversation",
+    "copy_event": "Copy link to event",
+    "copied": "Link copied",
+    "copy_failed": "Couldn't copy the link"
   }
 }

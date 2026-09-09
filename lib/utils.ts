@@ -6,6 +6,7 @@ import { debug } from "./debug";
 import { getEffectiveLocale } from '@/i18n/detect-locale';
 import { useSettingsStore } from "@/stores/settings-store";
 import type { DateLocale } from "@/stores/settings-store";
+import { getEffectiveTimeZone, getWallClock } from "./timezone";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -87,6 +88,11 @@ function resolveDateLocale<T extends string | undefined>(
  *
  * The locale (from the language picker), the region override and the 12h/24h
  * preference are all read via `getState()` so this stays SSR-safe.
+ *
+ * All output is rendered in the user's effective time zone (the `timeZone`
+ * setting when set, else the browser's), including the today / this-week
+ * bucketing - a browser pinned to UTC for anti-fingerprinting must not
+ * roll a 00:30 local mail into "yesterday" (#755).
  */
 export function formatDate(date: Date | string): string {
   const d = typeof date === "string" ? new Date(date) : date;
@@ -102,6 +108,7 @@ export function formatDate(date: Date | string): string {
   // (defaults to `auto` = the UI language, preserving prior behaviour). (#456)
   const numericLocale = resolveDateLocale(dateLocale, uiLocale);
   const hour12 = timeFormat === "12h";
+  const timeZone = getEffectiveTimeZone();
 
   if (dateFormat === "relative") {
     const diff = now.getTime() - d.getTime();
@@ -116,14 +123,16 @@ export function formatDate(date: Date | string): string {
     if (hours < 24) return rtf.format(-hours, "hour");
     if (days < 7) return rtf.format(-days, "day");
     return d.toLocaleDateString(uiLocale, {
+      timeZone,
       month: "short",
       day: "numeric",
-      year: d.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
+      year: getWallClock(d, timeZone).year !== getWallClock(now, timeZone).year ? "numeric" : undefined,
     });
   }
 
   if (dateFormat === "full") {
     return d.toLocaleString(numericLocale, {
+      timeZone,
       year: "numeric",
       month: "2-digit",
       day: "2-digit",
@@ -135,15 +144,19 @@ export function formatDate(date: Date | string): string {
 
   // 'smart' (default)
   const timeStr = d.toLocaleTimeString(uiLocale, {
+    timeZone,
     hour: "2-digit",
     minute: "2-digit",
     hour12,
   });
 
+  // Calendar-day comparison in the display zone, not the browser zone.
+  const dWall = getWallClock(d, timeZone);
+  const nowWall = getWallClock(now, timeZone);
   const isSameDay =
-    d.getFullYear() === now.getFullYear() &&
-    d.getMonth() === now.getMonth() &&
-    d.getDate() === now.getDate();
+    dWall.year === nowWall.year &&
+    dWall.month === nowWall.month &&
+    dWall.day === nowWall.day;
   if (isSameDay) return timeStr;
 
   const daysAgo = Math.floor((now.getTime() - d.getTime()) / 86400000);
@@ -151,12 +164,13 @@ export function formatDate(date: Date | string): string {
     // German Intl outputs "Fr." with a trailing dot for `weekday: 'short'`;
     // strip it so the result reads cleanly next to the time.
     const weekday = d
-      .toLocaleDateString(uiLocale, { weekday: "short" })
+      .toLocaleDateString(uiLocale, { timeZone, weekday: "short" })
       .replace(/\.$/, "");
     return `${weekday} ${timeStr}`;
   }
 
   return d.toLocaleDateString(numericLocale, {
+    timeZone,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -165,6 +179,7 @@ export function formatDate(date: Date | string): string {
 
 /**
  * Format a date/time string respecting the user's 12h/24h time format preference.
+ * Rendered in the effective time zone (user override, else browser) - #755.
  */
 export function formatDateTime(
   date: Date | string,
@@ -187,7 +202,7 @@ export function formatDateTime(
   const { dateLocale } = useSettingsStore.getState();
   const effectiveLocale = resolveDateLocale(dateLocale, undefined);
 
-  const localeOptions: Intl.DateTimeFormatOptions = {};
+  const localeOptions: Intl.DateTimeFormatOptions = { timeZone: getEffectiveTimeZone() };
   if (options?.weekday) localeOptions.weekday = options.weekday;
   if (options?.year) localeOptions.year = options.year;
   if (options?.month) localeOptions.month = options.month;
@@ -292,12 +307,12 @@ function deduplicateMailboxes(mailboxes: Mailbox[]): Mailbox[] {
     // Check if this root-level mailbox is a duplicate of a role-based mailbox in the SAME account
     const accountKey = mb.accountId || '';
     const accountRoles = rolesByAccount.get(accountKey) || [];
-    const lowerName = mb.name.toLowerCase();
-    const matchedRole = accountRoles.find(roleMb => {
-      const roleLowerName = roleMb.name.toLowerCase();
-      // Check for common duplicates: "Sent Mail" vs "Sent", etc.
-      return lowerName.includes(roleLowerName) || roleLowerName.includes(lowerName);
-    });
+    // Only an exact name collision counts as a duplicate. Substring matching
+    // silently hid legitimate user folders whose name merely contained a role
+    // folder's name - "Old Inbox", "2025 Archive", "Sent to Accounting".
+    // (GitHub #771)
+    const lowerName = mb.name.trim().toLowerCase();
+    const matchedRole = accountRoles.find(roleMb => roleMb.name.trim().toLowerCase() === lowerName);
     const isDuplicate = !!matchedRole;
 
     // Only keep if not a duplicate

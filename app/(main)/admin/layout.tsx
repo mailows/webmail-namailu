@@ -85,7 +85,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const activeTab = pathname === '/admin' ? storeActiveTab : null;
   const [authenticated, setAuthenticated] = useState<boolean | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
-  const [isStalwartAdmin, setIsStalwartAdmin] = useState(false);
+  const [isStalwartAutoLogin, setIsStalwartAutoLogin] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const { appLogoLightUrl, appLogoDarkUrl, loginLogoLightUrl, loginLogoDarkUrl } = useConfig();
   const filesEnabled = usePolicyStore((s) => s.isFeatureEnabled('filesEnabled'));
@@ -125,11 +125,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         const data = await res.json();
         if (cancelled) return;
 
-        const stalwartAdmin = data.stalwartAdmin === true;
-        setIsStalwartAdmin(stalwartAdmin);
+        // `stalwartAutoLogin` is only true in "auto" mode; in "password" mode
+        // a Stalwart admin still lands on the password form (#870).
+        const stalwartAutoLogin = data.stalwartAutoLogin === true;
+        setIsStalwartAutoLogin(stalwartAutoLogin);
 
-        // If neither password-based admin nor Stalwart admin, redirect away
-        if (!data.enabled && !stalwartAdmin) {
+        // If neither password-based admin nor Stalwart auto-login, redirect away
+        if (!data.enabled && !stalwartAutoLogin) {
           router.replace('/');
           return;
         }
@@ -139,8 +141,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           return;
         }
 
-        // If Stalwart admin but not yet authenticated, auto-login
-        if (stalwartAdmin) {
+        // If Stalwart admin (auto mode) but not yet authenticated, auto-login
+        if (stalwartAutoLogin) {
           const loginRes = await apiFetch('/api/admin/auth', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', ...jmapHeaders },
@@ -244,7 +246,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </div>
 
       <div className="px-2 py-2 border-t border-border space-y-0.5 shrink-0">
-        {!isStalwartAdmin && (
+        {!isStalwartAutoLogin && (
           <Link
             href="/admin/change-password"
             className={cn(

@@ -1,0 +1,50 @@
+import type { IJMAPClient } from '@/lib/jmap/client-interface';
+import { stalwartJmap, requireResult } from '@/lib/stalwart/jmap-passthrough';
+import { debug } from '@/lib/debug';
+
+export const STALWART_JMAP_CAPABILITY = 'urn:stalwart:jmap';
+
+interface PrincipalGetResponse {
+  list?: Array<{ description?: string | null }>;
+}
+
+/**
+ * Live "Full name" of the authenticated Stalwart principal (#900).
+ *
+ * Stalwart seeds the default JMAP Identity's `name` from the principal
+ * description only once, when the identity is first created. An admin
+ * renaming the user afterwards never propagates to `Identity/get`, so the
+ * identity name is a stale snapshot. The current value is only exposed by
+ * the management method `x:Account/get`, which goes through the server-side
+ * passthrough (the browser never holds the credentials).
+ *
+ * `slot` addresses the account's cookie slot explicitly so the lookup works
+ * for accounts that are being restored in the background, not just the
+ * active one.
+ *
+ * Returns null when the server is not Stalwart, the call is not permitted
+ * for this user, or the principal has no description - callers fall back to
+ * the identity name in that case.
+ */
+export async function fetchPrincipalDisplayName(
+  client: IJMAPClient,
+  slot?: number,
+): Promise<string | null> {
+  if (!client.hasAccountCapability?.(STALWART_JMAP_CAPABILITY)) return null;
+
+  try {
+    const accountId = client.getAccountId();
+    const responses = await stalwartJmap(
+      [['x:Account/get', { accountId, ids: [accountId] }, '0']],
+      { slot },
+    );
+    const result = requireResult<PrincipalGetResponse>(responses, 'x:Account/get');
+    const description = result.list?.[0]?.description;
+    const name = typeof description === 'string' ? description.trim() : '';
+    return name || null;
+  } catch (error) {
+    // Not fatal: the cached display name (or the identity name) stays in use.
+    debug.warn('auth', 'Failed to read principal display name:', error);
+    return null;
+  }
+}

@@ -1,15 +1,17 @@
 "use client";
 
 import { useMemo, useEffect, useRef, useState } from "react";
-import { useTranslations, useFormatter } from "next-intl";
+import { useTranslations } from "next-intl";
+import { useDisplayDateFormatter } from "@/hooks/use-display-date-formatter";
 import {
-  startOfWeek, addDays, format, isSameDay, isToday, parseISO,
+  startOfWeek, addDays, format, isSameDay, parseISO,
 } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Check } from "lucide-react";
 import { EventCard } from "./event-card";
 import { QuickEventInput } from "./quick-event-input";
 import { buildTimedFullDayWeekSegments, buildWeekSegmentsRaw, formatSnapTime, getEventDayBounds, getPrimaryCalendarId, isTimedEventFullDayOnDate, layoutOverlappingEvents, packWeekSegments } from "@/lib/calendar-utils";
+import { displayNow, isDisplayToday } from "@/lib/timezone";
 import type { CalendarEvent, Calendar, CalendarTask } from "@/lib/jmap/types";
 import { useTimeGridInteractions } from "@/hooks/use-time-grid-interactions";
 import type { PendingEventPreview } from "./event-modal";
@@ -55,7 +57,9 @@ export function CalendarWeekView({
   onToggleTaskComplete,
 }: CalendarWeekViewProps) {
   const t = useTranslations("calendar");
-  const intlFormatter = useFormatter();
+  // Grid days / event dates are display dates (local fields = wall-clock in
+  // the user's zone); the app-wide formatter would shift them again (#755).
+  const intlFormatter = useDisplayDateFormatter();
   const scrollRef = useRef<HTMLDivElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const weekStart = (firstDayOfWeek === 0 ? 0 : firstDayOfWeek === 6 ? 6 : 1) as 0 | 1 | 6;
@@ -143,12 +147,12 @@ export function CalendarWeekView({
 
   useEffect(() => {
     if (scrollRef.current) {
-      const now = new Date();
+      const now = displayNow();
       scrollRef.current.scrollTop = Math.max(0, (now.getHours() - 1) * HOUR_HEIGHT);
     }
     // On mobile, scroll horizontally to center today's column
     if (isMobile && rootRef.current) {
-      const todayIdx = weekDays.findIndex(d => isToday(d));
+      const todayIdx = weekDays.findIndex(d => isDisplayToday(d));
       if (todayIdx >= 0) {
         const gutter = 40;
         const colWidth = (rootRef.current.scrollWidth - gutter) / 7;
@@ -160,12 +164,13 @@ export function CalendarWeekView({
   }, []);
 
   const [nowMinutes, setNowMinutes] = useState(() => {
-    const now = new Date();
+    const now = displayNow();
     return now.getHours() * 60 + now.getMinutes();
   });
   useEffect(() => {
     const interval = setInterval(() => {
-      setNowMinutes(new Date().getHours() * 60 + new Date().getMinutes());
+      const now = displayNow();
+      setNowMinutes(now.getHours() * 60 + now.getMinutes());
     }, 60000);
     return () => clearInterval(interval);
   }, []);
@@ -308,7 +313,7 @@ export function CalendarWeekView({
         <div className={cn("flex-shrink-0", isMobile ? "w-10 sticky left-0 z-10 bg-background" : "w-14")} />
         <div className="flex-1 border-s border-border grid grid-cols-7">
           {weekDays.map((day) => {
-            const todayCol = isToday(day);
+            const todayCol = isDisplayToday(day);
             const selected = isSameDay(day, selectedDate);
             const fullLabel = intlFormatter.dateTime(day, { weekday: "long", month: "long", day: "numeric", year: "numeric" });
             return (
@@ -361,7 +366,7 @@ export function CalendarWeekView({
             {weekDays.map((day) => {
               const key = format(day, "yyyy-MM-dd");
               const dayEvents = timedEvents.get(key) || [];
-              const todayCol = isToday(day);
+              const todayCol = isDisplayToday(day);
               const layouted = layoutOverlappingEvents(dayEvents, day);
 
               return (

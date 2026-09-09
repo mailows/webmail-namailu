@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -556,6 +557,65 @@ body {
 /* Prevent overscroll bounce on iOS */
 .no-overscroll {
   overscroll-behavior: none;
+}
+
+/* iOS Safari zooms the viewport whenever a focused field computes below 16px,
+ * and leaves the page zoomed and panned once the keyboard closes (#838). Every
+ * field here is text-sm (0.875rem), so no --font-size-base setting escapes it:
+ * small 12.25px, medium 14px, large 15.75px. The viewport meta deliberately
+ * omits maximum-scale so pinch zoom keeps working, which leaves CSS as the
+ * only place to put the floor.
+ *
+ * max() raises the small fields to 16px while letting the "Large" setting go
+ * past it (18px) rather than pinning every field to the threshold, and
+ * pointer: coarse keeps desktop typography untouched. Checkbox and radio are
+ * excluded because their box is font-relative in Safari; the :not() chain also
+ * lifts specificity above .text-sm, so no !important is needed.
+ *
+ * Quoted replies are exempt by construction: they render inside a shadow root
+ * (components/email/quoted-html.ts) so they match the sent mail 1:1, and page
+ * CSS cannot reach in. */
+@media (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  textarea,
+  select,
+  [contenteditable="true"] {
+    font-size: max(16px, 1rem);
+  }
+}
+
+/* Shake animation (for rejected input) */
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20%,
+  60% {
+    transform: translateX(-4px);
+  }
+  40%,
+  80% {
+    transform: translateX(4px);
+  }
+}
+
+.animate-shake {
+  animation: shake 0.4s ease-in-out;
+}
+
+/* Fade in animation (for popovers) */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out;
 }
 
 /* Slide in from right animation (for mobile views) */

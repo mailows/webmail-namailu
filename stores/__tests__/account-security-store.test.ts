@@ -122,7 +122,7 @@ describe('account-security-store', () => {
 
       await useAccountSecurityStore.getState().fetchCryptoInfo();
 
-      expect(useAccountSecurityStore.getState().encryptionType).toBe('Aes256');
+      expect(useAccountSecurityStore.getState().encryptionConfig.type).toBe('Aes256');
     });
 
     it('defaults to Disabled when @type is missing or unknown', async () => {
@@ -132,7 +132,7 @@ describe('account-security-store', () => {
 
       await useAccountSecurityStore.getState().fetchCryptoInfo();
 
-      expect(useAccountSecurityStore.getState().encryptionType).toBe('Disabled');
+      expect(useAccountSecurityStore.getState().encryptionConfig.type).toBe('Disabled');
     });
   });
 
@@ -386,7 +386,7 @@ describe('account-security-store', () => {
         isStalwart: true,
         appPasswords: [{ id: 'p', description: 'd', createdAt: null, expiresAt: null, allowedIps: [] }],
         apiKeys: [{ id: 'k', description: 'd', createdAt: null, expiresAt: null, allowedIps: [] }],
-        encryptionType: 'Aes256',
+        encryptionConfig: { type: 'Disabled', publicKeyId: null, encryptOnAppend: false, allowSpamTraining: false },
         displayName: 'user',
         emails: ['a@b'],
         quota: 10,
@@ -400,7 +400,7 @@ describe('account-security-store', () => {
       expect(state.isStalwart).toBeNull();
       expect(state.appPasswords).toEqual([]);
       expect(state.apiKeys).toEqual([]);
-      expect(state.encryptionType).toBe('Disabled');
+      expect(state.encryptionConfig.type).toBe('Disabled');
       expect(state.displayName).toBe('');
       expect(state.emails).toEqual([]);
       expect(state.quota).toBe(0);

@@ -5,6 +5,7 @@ import { auditLog } from '@/lib/admin/audit';
 import { CONFIG_ENV_MAP, SENSITIVE_CONFIG_KEYS } from '@/lib/admin/types';
 import { parseJmapServers } from '@/lib/admin/jmap-servers';
 import { parseDomainBranding } from '@/lib/admin/domain-branding';
+import { initAdminPassword, isAdminEnabled } from '@/lib/admin/password';
 import { logger } from '@/lib/logger';
 
 // Strings that count as "no real secret configured" - used so the dashboard
@@ -70,6 +71,28 @@ export async function PATCH(request: NextRequest) {
     const invalidKeys = Object.keys(updates).filter(k => !validKeys.includes(k));
     if (invalidKeys.length > 0) {
       return NextResponse.json({ error: `Unknown config keys: ${invalidKeys.join(', ')}` }, { status: 400 });
+    }
+
+    // Enum keys only accept their declared values; a stray string would
+    // otherwise be persisted and fail closed (or open) at the read site.
+    for (const [key, value] of Object.entries(updates)) {
+      const mapping = CONFIG_ENV_MAP[key];
+      if (mapping.type === 'enum' && mapping.enumValues && !mapping.enumValues.includes(value as string)) {
+        return NextResponse.json({
+          error: `${key} must be one of: ${mapping.enumValues.join(', ')}`,
+        }, { status: 400 });
+      }
+    }
+
+    // Turning off Stalwart admin auto-login without a Bulwark admin password
+    // would leave the dashboard with no way in at all (#870).
+    if ('stalwartAdminAccess' in updates && updates.stalwartAdminAccess !== 'auto') {
+      await initAdminPassword();
+      if (!isAdminEnabled()) {
+        return NextResponse.json({
+          error: 'Set an admin password (ADMIN_PASSWORD) before restricting Stalwart admin access, or the dashboard would become unreachable.',
+        }, { status: 400 });
+      }
     }
 
     // Normalize jmapServers: pass through the parser so invalid entries are

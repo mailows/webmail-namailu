@@ -17,6 +17,7 @@ import { useContextMenu } from "@/hooks/use-context-menu";
 import { useConfirmDialog } from "@/hooks/use-confirm-dialog";
 import { useTranslations } from "next-intl";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { TagDisplayContext, useMeasuredTagDisplay } from "@/hooks/use-tag-display";
 import { SearchChips } from "@/components/search/search-chips";
 import { isFilterEmpty, DEFAULT_SEARCH_FILTERS } from "@/lib/jmap/search-utils";
 
@@ -33,19 +34,19 @@ interface EmailListProps {
   onReply?: (email: Email) => void;
   onReplyAll?: (email: Email) => void;
   onForward?: (email: Email) => void;
+  onForwardAsAttachment?: (email: Email) => void;
   onMarkAsRead?: (email: Email, read: boolean) => void;
   onToggleStar?: (email: Email) => void;
   onTogglePinned?: (email: Email) => void;
   onDelete?: (email: Email) => void;
   onArchive?: (email: Email) => void;
-  onSetColorTag?: (emailId: string, color: string | null) => void;
+  onSetTag?: (emailId: string, tagId: string | null) => void;
   onMoveToMailbox?: (emailId: string, mailboxId: string) => void;
   onMarkAsSpam?: (email: Email) => void;
   onUndoSpam?: (email: Email) => void;
   onEditDraft?: (email: Email) => void;
   isScheduledView?: boolean;
   onLoadMoreScheduled?: () => void;
-  onCancelScheduled?: (email: Email) => void | Promise<void>;
   onCancelScheduledForEdit?: (email: Email) => void | Promise<void>;
   onRescheduleScheduled?: (email: Email) => void | Promise<void>;
 }
@@ -63,23 +64,25 @@ export function EmailList({
   onReply,
   onReplyAll,
   onForward,
+  onForwardAsAttachment,
   onMarkAsRead,
   onToggleStar,
   onTogglePinned,
   onDelete,
   onArchive,
-  onSetColorTag,
+  onSetTag,
   onMarkAsSpam,
   onUndoSpam,
   onMoveToMailbox,
   onEditDraft,
   isScheduledView = false,
   onLoadMoreScheduled,
-  onCancelScheduled,
   onCancelScheduledForEdit,
   onRescheduleScheduled,
 }: EmailListProps) {
   const t = useTranslations('email_list');
+  const tContextMenu = useTranslations('context_menu');
+  const tSpam = useTranslations('email_viewer.spam');
   const { client } = useAuthStore();
   const {
     selectedEmailIds,
@@ -123,17 +126,33 @@ export function EmailList({
     ?? (isUnifiedView ? (unifiedRole ?? undefined) : undefined);
 
   const disableThreading = useSettingsStore((state) => state.disableThreading);
+  // The order the current folder view was fetched in (#718), so thread
+  // grouping mirrors the server order instead of re-sorting the page by date.
+  // Search results and cross-account views are always chronological.
+  const fetchedListOrder = useEmailStore((state) => state.listOrder);
+  const crossView = useEmailStore((state) => state.crossView);
 
   const threadGroups = useMemo(() => {
+    const listOrder = searchQuery || crossView || !isFilterEmpty(searchFilters) ? [] : fetchedListOrder;
     const groups = groupEmailsByThread(emails, disableThreading || isScheduledView, threadEmailCounts);
-    return sortThreadGroups(groups);
-  }, [emails, disableThreading, isScheduledView, threadEmailCounts]);
+    return sortThreadGroups(groups, listOrder);
+  }, [emails, disableThreading, isScheduledView, threadEmailCounts, fetchedListOrder, searchQuery, crossView, searchFilters]);
 
   const { contextMenu, openContextMenu, closeContextMenu, menuRef } = useContextMenu<Email>();
+  /**
+   * The row the menu was opened on, as the list currently has it. The menu holds
+   * the message it was handed when it opened, but tags can be applied from
+   * inside it without dismissing it, so what it draws has to keep up.
+   */
+  const contextMenuEmail = contextMenu.data
+    ? emails.find((email) => email.id === contextMenu.data!.id) ?? contextMenu.data
+    : null;
   const { dialogProps: confirmDialogProps, confirm: confirmDialog } = useConfirmDialog();
 
   const [isProcessing, setIsProcessing] = useState(false);
   const parentRef = useRef<HTMLDivElement>(null);
+  // One tag treatment for the whole list, measured from the scroll container.
+  const tagDisplay = useMeasuredTagDisplay(parentRef);
   const density = useSettingsStore((state) => state.density);
   const showPreview = useSettingsStore((state) => state.showPreview);
   const mailLayout = useSettingsStore((state) => state.mailLayout);
@@ -198,10 +217,10 @@ export function EmailList({
       const emailIds = Array.from(selectedEmailIds);
       await batchUndoSpam(client, emailIds);
       const { toast } = await import('sonner');
-      toast.success(t('../email_viewer.spam.toast_not_spam_batch', { count: emailIds.length }));
+      toast.success(tSpam('toast_not_spam_batch', { count: emailIds.length }));
     } catch {
       const { toast } = await import('sonner');
-      toast.error(t('../email_viewer.spam.error_not_spam'));
+      toast.error(tSpam('error_not_spam'));
     } finally {
       setTimeout(() => setIsProcessing(false), 500);
     }
@@ -330,6 +349,7 @@ export function EmailList({
   }, [density, isFocusedMailLayout, showPreview]);
 
   return (
+    <TagDisplayContext.Provider value={tagDisplay}>
     <div className={cn("flex flex-col min-h-0", className)}>
       {/* Batch Actions Toolbar */}
       <div
@@ -378,7 +398,7 @@ export function EmailList({
                 variant="ghost"
                 size="sm"
                 onClick={handleBatchUndoSpam}
-                title={t('../context_menu.not_spam')}
+                title={tContextMenu('not_spam')}
                 disabled={isProcessing}
                 className="text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100/50 dark:hover:bg-emerald-950/30 transition-colors disabled:opacity-50"
               >
@@ -541,7 +561,7 @@ export function EmailList({
                       onMarkAsRead={onMarkAsRead ? (email, read) => onMarkAsRead(email, read) : undefined}
                       onDelete={onDelete ? (email) => onDelete(email) : undefined}
                       onArchive={onArchive ? (email) => onArchive(email) : undefined}
-                      onSetColorTag={onSetColorTag}
+                      onSetTag={onSetTag}
                       onMarkAsSpam={onMarkAsSpam ? (email) => onMarkAsSpam(email) : undefined}
                       onUndoSpam={onUndoSpam ? (email) => onUndoSpam(email) : undefined}
                     />
@@ -568,9 +588,9 @@ export function EmailList({
       </div>
 
       {/* Context Menu */}
-      {contextMenu.data && (
+      {contextMenuEmail && (
         <EmailContextMenu
-          email={contextMenu.data}
+          email={contextMenuEmail}
           position={contextMenu.position}
           isOpen={contextMenu.isOpen}
           onClose={closeContextMenu}
@@ -578,24 +598,24 @@ export function EmailList({
           mailboxes={mailboxes}
           selectedMailbox={selectedMailbox}
           currentMailboxRole={effectiveMailboxRole}
-          isMultiSelect={selectedEmailIds.has(contextMenu.data.id)}
+          isMultiSelect={selectedEmailIds.has(contextMenuEmail.id)}
           selectedCount={selectedEmailIds.size}
-          onReply={() => onReply?.(contextMenu.data!)}
-          onReplyAll={() => onReplyAll?.(contextMenu.data!)}
-          onForward={() => onForward?.(contextMenu.data!)}
-          onMarkAsRead={(read) => onMarkAsRead?.(contextMenu.data!, read)}
-          onToggleStar={() => onToggleStar?.(contextMenu.data!)}
-          onTogglePinned={onTogglePinned ? () => onTogglePinned(contextMenu.data!) : undefined}
-          onDelete={() => onDelete?.(contextMenu.data!)}
-          onArchive={() => onArchive?.(contextMenu.data!)}
-          onSetColorTag={(color) => onSetColorTag?.(contextMenu.data!.id, color)}
-          onMoveToMailbox={(mailboxId) => onMoveToMailbox?.(contextMenu.data!.id, mailboxId)}
-          onMarkAsSpam={() => onMarkAsSpam?.(contextMenu.data!)}
-          onUndoSpam={() => onUndoSpam?.(contextMenu.data!)}
-          onEditDraft={() => onEditDraft?.(contextMenu.data!)}
-          onCancelScheduled={onCancelScheduled ? () => onCancelScheduled(contextMenu.data!) : undefined}
-          onCancelScheduledForEdit={onCancelScheduledForEdit ? () => onCancelScheduledForEdit(contextMenu.data!) : undefined}
-          onRescheduleScheduled={onRescheduleScheduled ? () => onRescheduleScheduled(contextMenu.data!) : undefined}
+          onReply={() => onReply?.(contextMenuEmail!)}
+          onReplyAll={() => onReplyAll?.(contextMenuEmail!)}
+          onForward={() => onForward?.(contextMenuEmail!)}
+          onForwardAsAttachment={() => onForwardAsAttachment?.(contextMenuEmail!)}
+          onMarkAsRead={(read) => onMarkAsRead?.(contextMenuEmail!, read)}
+          onToggleStar={() => onToggleStar?.(contextMenuEmail!)}
+          onTogglePinned={onTogglePinned ? () => onTogglePinned(contextMenuEmail!) : undefined}
+          onDelete={() => onDelete?.(contextMenuEmail!)}
+          onArchive={() => onArchive?.(contextMenuEmail!)}
+          onSetTag={(color) => onSetTag?.(contextMenuEmail!.id, color)}
+          onMoveToMailbox={(mailboxId) => onMoveToMailbox?.(contextMenuEmail!.id, mailboxId)}
+          onMarkAsSpam={() => onMarkAsSpam?.(contextMenuEmail!)}
+          onUndoSpam={() => onUndoSpam?.(contextMenuEmail!)}
+          onEditDraft={() => onEditDraft?.(contextMenuEmail!)}
+          onCancelScheduledForEdit={onCancelScheduledForEdit ? () => onCancelScheduledForEdit(contextMenuEmail!) : undefined}
+          onRescheduleScheduled={onRescheduleScheduled ? () => onRescheduleScheduled(contextMenuEmail!) : undefined}
           onBatchMarkAsRead={(read) => client && batchMarkAsRead(client, read)}
           onBatchDelete={() => client && batchDelete(client)}
           onBatchArchive={async () => {
@@ -614,11 +634,11 @@ export function EmailList({
                 await batchMarkAsSpam(client, emailIds);
                 const { toast } = await import('sonner');
                 toast.success(
-                  t('../email_viewer.spam.toast_batch', { count: emailIds.length })
+                  tSpam('toast_batch', { count: emailIds.length })
                 );
               } catch {
                 const { toast } = await import('sonner');
-                toast.error(t('../email_viewer.spam.error'));
+                toast.error(tSpam('error'));
               }
             }
           }}
@@ -629,11 +649,11 @@ export function EmailList({
                 await batchUndoSpam(client, emailIds);
                 const { toast } = await import('sonner');
                 toast.success(
-                  t('../email_viewer.spam.toast_not_spam_batch', { count: emailIds.length })
+                  tSpam('toast_not_spam_batch', { count: emailIds.length })
                 );
               } catch {
                 const { toast } = await import('sonner');
-                toast.error(t('../email_viewer.spam.error_not_spam'));
+                toast.error(tSpam('error_not_spam'));
               }
             }
           }}
@@ -642,5 +662,6 @@ export function EmailList({
 
       <ConfirmDialog {...confirmDialogProps} />
     </div>
+    </TagDisplayContext.Provider>
   );
 }

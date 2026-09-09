@@ -29,6 +29,7 @@ import type { FileResource } from "@/stores/file-store";
 import { ShareCollectionDialog } from "@/components/settings/share-collection-dialog";
 import type { IJMAPClient } from "@/lib/jmap/client-interface";
 import type { FileNodeRights } from "@/lib/jmap/types";
+import { getEffectiveTimeZone } from "@/lib/timezone";
 
 type SortKey = "name" | "size" | "modified";
 type SortDir = "asc" | "desc";
@@ -299,6 +300,7 @@ function formatDate(dateString: string): string {
   if (!dateString) return "";
   try {
     return new Date(dateString).toLocaleDateString(undefined, {
+      timeZone: getEffectiveTimeZone(),
       year: "numeric",
       month: "short",
       day: "numeric",

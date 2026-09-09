@@ -24,15 +24,31 @@ function buildError(message: string, status: number, methodError?: StalwartJmapE
   return err;
 }
 
+export interface StalwartJmapOptions {
+  /**
+   * Cookie slot whose stored credentials the passthrough should use.
+   * Defaults to the active account's slot; pass it explicitly when calling
+   * on behalf of an account that is not (yet) active, e.g. during a
+   * background multi-account restore.
+   */
+  slot?: number;
+}
+
 /**
  * Send a JMAP request to Stalwart via the server-side passthrough.
  * The passthrough injects the stored basic-auth header so credentials
  * stay in an httpOnly cookie.
  */
-export async function stalwartJmap(methodCalls: JmapMethodCall[]): Promise<JmapMethodResponse[]> {
+export async function stalwartJmap(
+  methodCalls: JmapMethodCall[],
+  options: StalwartJmapOptions = {},
+): Promise<JmapMethodResponse[]> {
+  const slotHeaders = typeof options.slot === 'number'
+    ? { 'X-JMAP-Cookie-Slot': String(options.slot) }
+    : getActiveAccountSlotHeaders();
   const response = await apiFetch('/api/account/stalwart/jmap', {
     method: 'POST',
-    headers: { ...getActiveAccountSlotHeaders(), 'Content-Type': 'application/json' },
+    headers: { ...slotHeaders, 'Content-Type': 'application/json' },
     body: JSON.stringify({ using: STALWART_JMAP_USING, methodCalls }),
   });
 

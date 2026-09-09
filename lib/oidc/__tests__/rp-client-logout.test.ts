@@ -78,7 +78,7 @@ describe('volba endpointu pro access token', () => {
   it('bez RP režimu zůstává upstreamové /api/auth/token', async () => {
     rpEnabled = false;
     await fetchAccessToken(2);
-    expect(fetchCalls[0].url).toBe('/api/auth/token?slot=2');
+    expect(fetchCalls[0].url).toBe('/api/auth/token?slot=2&force=true');
     expect(fetchCalls[0].init?.method).toBe('PUT');
   });
 

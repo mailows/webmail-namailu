@@ -80,6 +80,29 @@ login: heslo --Basic(plain)--> Stalwart (community, OK)
 5. **Seed z pipeline** — control-plane při `create_mailbox` (human) zapíše TÝŽ TOTP secret jako portál
    do úložiště z bodu 1 (formát/JMAP dohodnout s bodem 1). → jeden QR při registraci, portál i webmail.
 
+## Merge upstreamu 1.9.2 (10. 9. 2026)
+
+Fork stál na 1.7.8; upstream mezitím 309 commitů. Šlo to jako **merge**, ne rebase
+(68 forkových commitů by se přehrávalo jeden po druhém). 33 konfliktů, z toho podstatné:
+
+- upstream přesunul stránky do `components/*-app.tsx` — vzato upstream, do
+  `components/mail/mail-app.tsx` vrácen `appName` v `rate_limited_detail` a odstraněn
+  `TotpReauthDialog`; forkový `stripLocalePrefix` v redirectu nahradil upstreamový
+  `saveRedirectAfterLogin()` (dělá totéž na jednom místě);
+- `stores/auth-store.ts`: zůstává RP OIDC (`loginWithOidc`, `fetchAccessToken`), portálový
+  SLO řetěz (`deliberateLogoutInProgress`, `redirectToSingleLogout`) a záměrně vypnutý evict
+  účtu basic-bez-rememberMe. Převzato z upstreamu: `refreshAccessToken(options.allowCached)`
+  (→ `fetchAccessToken(slot, { force })`, RP session `force` ignoruje), `logout`/`logoutAll`
+  jsou **async** s `authHooks.onBeforeLogout/onAfterLogout` a `flushSync` nastavení;
+  `syncAccountDisplayName` po SSO/OIDC přihlášení v `finishBearerLogin`;
+- `account-security-settings`: upstreamová sekce veřejných klíčů (šifrování at rest) je pod
+  stejnou bránou `selfServiceCredentialsEnabled` jako hesla aplikací a API klíče;
+- locales: rebrand `{appName}` zachován, nové jazyky `ca`/`mn` dostaly 7 forkových klíčů (anglicky);
+- smazaná `app/api/auth/totp-token-exchange` zůstává smazaná (fork Stalwart-OTP cesty nemá).
+
+Testy forku upravené na upstream tvary: `&force=true` v URL obnovy tokenu, `await logout()`,
+mock `configManager.getPolicy`, mock store s `publicKeys`. 3388 testů zelených.
+
 ## Build / rebase / provoz
 - Build image: `docker build -t namailu/webmail:fork .` (Dockerfile je v repu). Compose test serveru
   pak `image: namailu/webmail:fork` na `104:3001`, jen admin IP (viz DEPLOY.md „test server", až přijde čas).

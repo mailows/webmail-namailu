@@ -126,7 +126,8 @@
     "mobile": {
       "search": "Buscar",
       "compose": "Redactar",
-      "go_back": "Volver"
+      "go_back": "Volver",
+      "toggle_menu": "Alternar menú"
     },
     "clear_search": "Limpiar búsqueda",
     "vacation_active": "Respuesta automática activa",
@@ -134,6 +135,8 @@
     "demo_reset": "Restablecer",
     "demo_tour": "Tour",
     "tags": "Etiquetas",
+    "show_all_tags": "Mostrar todo ({count})",
+    "show_fewer_tags": "Mostrar menos",
     "folders": "Carpetas",
     "mail": "Correo",
     "nav_label": "Navegación",
@@ -302,7 +305,12 @@
     "move": "Mover",
     "print": "Imprimir",
     "view_source": "Ver código fuente",
+
+    "fullscreen": "Pantalla completa",
+
+    "exit_fullscreen": "Salir de pantalla completa",
     "export_email": "Exportar como .eml",
+    "forward_as_attachment": "Forward as attachment",
     "import_email": "Importar .eml o .zip",
     "keyboard_shortcuts": "Atajos de teclado (?)",
     "email_source": "Código Fuente del Correo",
@@ -329,11 +337,13 @@
     "view_contact": "Ver contacto",
     "message_details": "Detalles del Mensaje",
     "more_reply_options": "Más opciones de respuesta",
-    "set_color": "Establecer etiqueta",
+    "set_tag": "Establecer etiqueta",
     "tag": "Etiqueta",
     "more_actions": "Más acciones",
     "move_to": "Mover a...",
-    "remove_color": "Eliminar etiqueta",
+    "remove_tag": "Eliminar etiqueta",
+    "tag_filter_placeholder": "Filtrar etiquetas",
+    "tag_no_matches": "No hay etiquetas coincidentes",
     "more_count": "+{count} más",
     "characters_count": "{count} caracteres",
     "quick_reply_placeholder": "Escriba una respuesta rápida...",
@@ -401,17 +411,6 @@
       "received": "Recibido",
       "message_id": "ID del Mensaje",
       "list_info": "Información de Lista"
-    },
-    "color_tag": {
-      "title": "Etiqueta de Color",
-      "red": "Rojo",
-      "orange": "Naranja",
-      "yellow": "Amarillo",
-      "green": "Verde",
-      "blue": "Azul",
-      "purple": "Morado",
-      "pink": "Rosa",
-      "none": "Ninguno"
     },
     "tooltips": {
       "reply": "Responder",
@@ -584,6 +583,7 @@
     "read_receipt_on": "Confirmación de lectura solicitada (haz clic para desactivar)",
     "read_receipt_off": "Solicitar confirmación de lectura",
     "new_message": "Nuevo Mensaje",
+    "signature_edit_hint": "Haz doble clic para editar la firma",
     "reply": "Responder",
     "reply_all": "Responder a Todos",
     "forward": "Reenviar",
@@ -643,7 +643,6 @@
     "save_as_template": "Guardar como plantilla",
     "validation": {
       "recipient_required": "Agregue un destinatario para enviar",
-      "subject_required": "Agregue un asunto",
       "body_required": "Escriba un mensaje o adjunte un archivo",
       "attachments_uploading": "Los archivos adjuntos aún se están subiendo; se enviará en cuanto terminen",
       "attachment_upload_failed": "No enviado: no se pudo subir un adjunto. Elimínalo e inténtalo de nuevo."
@@ -661,6 +660,7 @@
     "smime_unlock_message": "Introduce la contraseña para desbloquear tu clave S/MIME.",
     "smime_unlock_button": "Desbloquear",
     "smime_passphrase_placeholder": "Contraseña S/MIME",
+    "send_timeout": "El servidor dejó de responder. Compruebe la carpeta Enviados antes de volver a enviar: el mensaje puede haber salido.",
     "continue_draft": "Continuar borrador",
     "close_draft_title": "¿Guardar o descartar borrador?",
     "close_draft_message": "Tiene cambios sin guardar. ¿Desea guardar esto como borrador o descartarlo?",
@@ -669,6 +669,13 @@
     "forgot_attachment": {
       "title": "¿Olvidaste un archivo adjunto?",
       "message": "Tu mensaje menciona \"{keyword}\" pero no hay ningún archivo adjunto. ¿Enviar de todos modos?",
+      "send_anyway": "Enviar de todos modos",
+      "back": "Volver a editar"
+    },
+    "empty_subject": {
+      "title": "¿Enviar sin asunto?",
+      "message": "Este mensaje no tiene asunto. ¿Enviarlo de todos modos?",
+      "dont_ask_again": "No volver a preguntar",
       "send_anyway": "Enviar de todos modos",
       "back": "Volver a editar"
     },
@@ -691,6 +698,38 @@
     "recipient_name_placeholder": "Nombre para mostrar",
     "autocomplete_search_server": "Buscar en el servidor",
     "autocomplete_searching": "Buscando...",
+    "toolbar": {
+      "bold": "Negrita",
+      "italic": "Cursiva",
+      "underline": "Subrayado",
+      "strikethrough": "Tachado",
+      "text_color": "Color del texto",
+      "remove_color": "Quitar color",
+      "heading_1": "Encabezado 1",
+      "heading_2": "Encabezado 2",
+      "bullet_list": "Lista con viñetas",
+      "ordered_list": "Lista numerada",
+      "quote": "Cita",
+      "code_block": "Bloque de código",
+      "align_left": "Alinear a la izquierda",
+      "align_center": "Centrar",
+      "align_right": "Alinear a la derecha",
+      "text_direction": "Dirección del texto (RTL/LTR)",
+      "link": "Enlace",
+      "table": "Tabla",
+      "clear_formatting": "Borrar formato",
+      "undo": "Deshacer",
+      "redo": "Rehacer",
+      "add_row_above": "Añadir fila encima",
+      "add_row_below": "Añadir fila debajo",
+      "add_column_before": "Añadir columna antes",
+      "add_column_after": "Añadir columna después",
+      "delete_row": "Eliminar fila",
+      "delete_column": "Eliminar columna",
+      "toggle_header_row": "Alternar fila de encabezado",
+      "delete_table": "Eliminar tabla",
+      "pick_size": "Elegir tamaño"
+    },
     "send_filing_warning": "Enviado - pero la limpieza posterior falló, puede quedar un borrador obsoleto."
   },
   "confirm_dialog": {
@@ -719,7 +758,10 @@
     "rate_limited_title": "La autenticación del servidor está limitada temporalmente.",
     "rate_limited_detail": "{appName} ha pausado las solicitudes en segundo plano para evitar un bloqueo. Reintentando en {seconds}s.",
     "rate_limited_action_title": "Solicitud pausada para evitar el bloqueo.",
-    "rate_limited_action_detail": "{appName} está esperando a que termine el enfriamiento del servidor antes de enviar más solicitudes autenticadas. Inténtalo de nuevo en {seconds}s."
+    "rate_limited_action_detail": "{appName} está esperando a que termine el enfriamiento del servidor antes de enviar más solicitudes autenticadas. Inténtalo de nuevo en {seconds}s.",
+    "pull_to_refresh": "Desliza para actualizar",
+    "release_to_refresh": "Suelta para actualizar",
+    "refreshing": "Actualizando…"
   },
   "notifications": {
     "email_sent": "Correo enviado exitosamente",
@@ -826,7 +868,10 @@
     "zh": "简体中文",
     "fa": "فارسی",
     "farsi": "فارسی",
-    "switch_to_farsi": "Cambiar a farsi"
+    "switch_to_farsi": "Cambiar a farsi",
+    "mn": "Монгол",
+    "mongolian": "Монгол",
+    "switch_to_mongolian": "Cambiar a mongol"
   },
   "settings": {
     "title": "Configuración",
@@ -881,6 +926,56 @@
       "advanced": "Avanzado"
     },
     "appearance": {
+      "message_list_order": {
+        "label": "Orden de la lista de mensajes",
+        "description": "Cómo se ordenan los mensajes en la lista. El servidor realiza la ordenación, por lo que abarca toda la carpeta, no solo los mensajes cargados.",
+        "preset": {
+          "chronological": "Cronológico (más recientes primero)",
+          "unread_first": "No leídos primero",
+          "starred_first": "Destacados primero",
+          "tagged_first": "Etiquetados primero",
+          "custom": "Personalizado"
+        },
+        "tag_label": "Etiqueta",
+        "advanced_show": "Avanzado: editar niveles de orden",
+        "advanced_hide": "Ocultar avanzado",
+        "criterion_label": "Criterio del nivel {n}",
+        "direction_label": "Dirección del nivel {n}",
+        "criteria": {
+          "unread": "No leído",
+          "starred": "Destacado",
+          "tag": "Etiqueta",
+          "receivedAt": "Fecha de recepción",
+          "sentAt": "Fecha de envío",
+          "from": "Remitente",
+          "subject": "Asunto",
+          "size": "Tamaño"
+        },
+        "direction": {
+          "unread_first": "No leídos primero",
+          "read_first": "Leídos primero",
+          "starred_first": "Destacados primero",
+          "unstarred_first": "No destacados primero",
+          "tagged_first": "Etiquetados primero",
+          "untagged_first": "Sin etiqueta primero",
+          "newest_first": "Más recientes primero",
+          "oldest_first": "Más antiguos primero",
+          "a_to_z": "A → Z",
+          "z_to_a": "Z → A",
+          "largest_first": "Más grandes primero",
+          "smallest_first": "Más pequeños primero"
+        },
+        "add_level": "Añadir nivel",
+        "remove_level": "Eliminar nivel",
+        "move_up": "Subir",
+        "move_down": "Bajar",
+        "tiebreak_note": "Hasta tres niveles; los niveles posteriores deshacen empates. «Más recientes primero» se aplica siempre al final.",
+        "scope": {
+          "label": "Aplicar a todas las carpetas",
+          "description": "Si está desactivado, el orden solo se aplica a la bandeja de entrada; las demás carpetas siguen siendo cronológicas."
+        },
+        "unsupported_note": "Tu servidor de correo no admite ordenar por estado de lectura, destacados o etiquetas. Esos niveles se ignoran y la lista sigue siendo cronológica."
+      },
       "title": "Apariencia",
       "description": "Personalice la apariencia de su correo web",
       "theme": {
@@ -988,7 +1083,6 @@
       "title": "Etiquetas de correo",
       "description": "Define etiquetas para organizar tus correos con colores. Se almacenan como palabras clave JMAP en el servidor.",
       "add_keyword": "Añadir etiqueta",
-      "reset_defaults": "Restablecer valores predeterminados",
       "label_field": "Nombre para mostrar",
       "label_placeholder": "ej. Trabajo, Personal, Urgente",
       "id_field": "ID de etiqueta",
@@ -1001,7 +1095,34 @@
       "add": "Añadir",
       "cancel": "Cancelar",
       "migrating": "Actualizando etiqueta en correos existentes…",
-      "migration_error": "Error al actualizar la etiqueta en correos existentes"
+      "migration_error": "Error al actualizar la etiqueta en correos existentes",
+      "nesting": {
+        "label": "Etiquetas anidadas",
+        "description": "Anida etiquetas debajo de otras etiquetas y muéstralas como un árbol en la barra lateral."
+      },
+      "parent_field": "Etiqueta principal",
+      "no_parent": "Sin etiqueta principal",
+      "too_long": "Esta ruta de etiqueta es demasiado larga (máximo {max} caracteres)",
+      "has_children_locked": "Hay otras etiquetas anidadas bajo esta, por lo que su nombre y su etiqueta principal están bloqueados. Muévelas o elimínalas primero.",
+      "has_children_delete": "Elimina primero las etiquetas anidadas bajo esta",
+      "visibility_field": "Visibilidad en la barra lateral",
+      "visibility": {
+        "show": "Mostrar",
+        "unread": "Mostrar si hay no leídos",
+        "hide": "Ocultar"
+      },
+      "unrecognized": {
+        "title": "Recuperar etiquetas del servidor",
+        "description": "Los nombres y colores de las etiquetas se guardan en este navegador, pero las etiquetas en sí están en tus correos como palabras clave JMAP. Analiza tu correo en busca de palabras clave que ninguna etiqueta de aquí explique y vuelve a añadirlas.",
+        "scan": "Buscar etiquetas",
+        "rescan": "Analizar de nuevo",
+        "scanning": "Analizando… {scanned} de {total} correos",
+        "none": "Todas las etiquetas de tus correos ya están definidas aquí.",
+        "messages": "{count, plural, one {# correo} other {# correos}}",
+        "add_all": "Añadir las {count}",
+        "partial": "Solo se analizaron los {scanned} correos más recientes de {total}. Puede que falten etiquetas usadas únicamente en correos más antiguos.",
+        "error": "No se pudo analizar tu correo en busca de etiquetas."
+      }
     },
     "notifications": {
       "test_sound": "Probar sonido de notificación",
@@ -1042,18 +1163,34 @@
         "description": "Recibe notificaciones del sistema para correo nuevo cuando este sitio está cerrado. Se entrega a través del relay push de Bulwark; el relay nunca ve el contenido del correo.",
         "disable": "Desactivar",
         "enable": "Activar",
+        "dismiss_aria": "Cerrar aviso de notificaciones",
         "ios_hint": "En iOS, instala primero el sitio en la pantalla de inicio: Safari solo entrega Web Push a PWAs instaladas.",
         "reenable": "Volver a registrar",
         "relay_desc": "Usa el relay alojado de Bulwark de forma predeterminada. Cámbialo solo si te alojas tú mismo.",
         "relay_label": "Relay push",
         "relay_locked": "Establecido por el administrador",
         "relay_locked_desc": "La URL del relay push ha sido establecida por tu administrador y no se puede cambiar.",
-        "relay_placeholder": "https://notifications.relay.example.com",
         "status_active": "Activo en este dispositivo",
         "status_busy": "Trabajando…",
         "status_inactive": "No habilitado en este dispositivo",
         "status_unsupported": "Este navegador no admite Web Push",
-        "title": "Notificaciones en segundo plano"
+        "title": "Notificaciones en segundo plano",
+        "devices_title": "Dispositivos registrados",
+        "devices_desc": "Todos los dispositivos registrados para recibir notificaciones en segundo plano de esta cuenta. Al revocar uno, deja de recibirlas de inmediato.",
+        "devices_loading": "Cargando dispositivos registrados…",
+        "devices_empty": "No hay dispositivos registrados para notificaciones en segundo plano.",
+        "devices_error": "No se pudieron cargar los dispositivos registrados.",
+        "devices_refresh": "Actualizar",
+        "device_this": "Este dispositivo",
+        "device_other": "Otro dispositivo",
+        "device_status_active": "Entregando notificaciones",
+        "device_status_inactive": "Nunca ha entregado una notificación",
+        "device_status_unknown": "Desconocido para este relé",
+        "device_expires": "Caduca el {date}",
+        "revoke": "Revocar",
+        "confirm_revoke_title": "¿Revocar este dispositivo?",
+        "confirm_revoke_message": "Dejará de recibir notificaciones en segundo plano de inmediato. Si vuelves a activar las notificaciones push en ese dispositivo, se registrará de nuevo.",
+        "confirm_revoke_message_this": "Este dispositivo dejará de recibir notificaciones en segundo plano de inmediato."
       }
     },
     "language_region": {
@@ -1094,6 +1231,12 @@
         "description": "Iniciar la semana en domingo o lunes",
         "sunday": "Domingo",
         "monday": "Lunes"
+      },
+      "time_zone": {
+        "label": "Time zone",
+        "description": "Show email and calendar times in this time zone instead of the one reported by your browser",
+        "auto": "Automatic ({zone})",
+        "preview_now": "Now:"
       }
     },
     "email_behavior": {
@@ -1132,6 +1275,12 @@
         "auto": "Automático (recomendado)",
         "always": "Añadir espaciado siempre",
         "edge": "De borde a borde"
+      },
+      "plain_text_font": {
+        "label": "Fuente de texto sin formato",
+        "description": "Fuente utilizada para los correos de texto sin formato",
+        "mono": "Monoespaciada",
+        "sans": "Normal (igual que la aplicación)"
       },
       "archive_mode": {
         "label": "Archivar en",
@@ -1280,6 +1429,10 @@
         "add": "Add",
         "remove": "Eliminar"
       },
+      "empty_subject_warning": {
+        "label": "Aviso de asunto vacío",
+        "description": "Pedir confirmación antes de enviar un mensaje sin asunto."
+      },
       "hide_inline_image_attachments": {
         "label": "Ocultar imágenes incrustadas de los adjuntos",
         "description": "Las imágenes incrustadas en el cuerpo del mensaje no se listan como adjuntos separados"
@@ -1298,6 +1451,22 @@
       "return_to_list_after_action": {
         "label": "Volver a la lista tras eliminar o marcar como no leído",
         "description": "Después de eliminar o marcar como no leído el mensaje abierto, volver a la lista de mensajes en lugar de abrir el mensaje siguiente."
+      },
+      "swipe_right_action": {
+        "label": "Acción al deslizar a la derecha (móvil)",
+        "description": "En dispositivos táctiles, la acción que se realiza al deslizar un mensaje hacia la derecha en la lista."
+      },
+      "swipe_left_action": {
+        "label": "Acción al deslizar a la izquierda (móvil)",
+        "description": "En dispositivos táctiles, la acción que se realiza al deslizar un mensaje hacia la izquierda en la lista."
+      },
+      "swipe_actions": {
+        "none": "Ninguna",
+        "archive": "Archivar",
+        "delete": "Eliminar",
+        "mark_read": "Alternar leído",
+        "star": "Alternar destacado",
+        "spam": "Marcar como spam"
       },
       "rtl_editing": {
         "label": "Compatibilidad con edición de derecha a izquierda",
@@ -1483,7 +1652,16 @@
         "inactive": "Deshabilitado",
         "enabled": "Cifrado en reposo habilitado",
         "disabled_success": "Cifrado en reposo deshabilitado",
-        "error": "No se pudieron actualizar las configuraciones de cifrado"
+        "error": "No se pudieron actualizar las configuraciones de cifrado",
+        "algorithm_label": "Algoritmo de cifrado",
+        "encrypt_on_append": "Cifrar los correos nuevos al subirlos",
+        "allow_spam_training": "Permitir el entrenamiento antispam antes de cifrar los correos",
+        "enable_encryption": "Habilitar el cifrado",
+        "enable_tooltip": "Habilitar el cifrado con esta clave",
+        "configure_title": "Habilitar el cifrado con esta clave",
+        "enable_button": "Habilitar",
+        "disable_tooltip": "Deshabilitar el cifrado",
+        "enabled_success": "Cifrado en reposo habilitado"
       },
       "email_client": {
         "title": "Configuración del cliente de correo",
@@ -1503,6 +1681,13 @@
         "expired": "Este código ha caducado.",
         "generating": "Generando…",
         "error": "No se pudo crear un código de vinculación. Inténtelo de nuevo."
+      },
+      "public_keys": {
+        "name_label": "Nombre de la clave pública",
+        "name_placeholder": "ej. Mi clave",
+        "key_label": "Clave pública (S/MIME o PGP en formato ASCII)",
+        "key_placeholder": "Pega aquí tu clave pública",
+        "none": "No hay claves públicas configuradas"
       }
     },
     "identities": {
@@ -1587,6 +1772,7 @@
       "create_subfolder": "Crear subcarpeta",
       "reorder": "Arrastra para reordenar",
       "reorder_error": "No se pudieron reordenar las carpetas",
+      "move_error": "No se pudo mover la carpeta",
       "subfolder_of": "Dentro de {name}",
       "subfolder_name": "Nombre de la subcarpeta",
       "new_folder_name": "Nombre de la carpeta",
@@ -2008,8 +2194,7 @@
     "delete": "Eliminar",
     "mark_as_spam": "Reportar spam",
     "not_spam": "No es spam",
-    "color_tag": "Etiqueta",
-    "remove_color": "Eliminar etiqueta",
+    "tag": "Etiqueta",
     "items_selected": "{count} correos seleccionados",
     "edit_draft": "Editar borrador",
     "cancel_scheduled_send": "Cancelar envío",
@@ -2343,6 +2528,9 @@
       "section_address_book": "Directorio",
       "select_address_book": "Seleccionar un directorio...",
       "section_identity": "Nombre e identidad",
+      "contact_type": "Tipo de contacto",
+      "type_person": "Persona",
+      "type_organization": "Organización",
       "section_work": "Trabajo y organización",
       "prefix": "Prefijo",
       "prefix_placeholder": "Dr., Sr., Sra.",
@@ -2427,7 +2615,7 @@
       "cancel": "Cancelar",
       "creating": "Creando...",
       "updating": "Actualizando...",
-      "name_required": "Se requiere al menos un nombre o apellido",
+      "name_required": "Introduce un nombre, un apellido o una organización",
       "email_invalid": "Introduce una dirección de correo válida",
       "email_error_inline": "Formato de correo inválido",
       "save_failed": "Error al guardar el contacto",
@@ -2846,7 +3034,12 @@
       "events_cleared": "{count} eventos borrados",
       "error_clear": "No se pudieron borrar los eventos del calendario",
       "share": "Compartir calendario",
-      "new_event_in_calendar": "Nuevo evento en este calendario"
+      "new_event_in_calendar": "Nuevo evento en este calendario",
+      "kind": "Contenido",
+      "kind_events": "Eventos",
+      "kind_tasks": "Tareas",
+      "kind_both": "Eventos y tareas",
+      "kind_hint": "Determina qué aplicaciones ven este calendario cuando se sincroniza por CalDAV. No se puede cambiar después."
     },
     "subscription": {
       "title": "Suscripción iCal",
@@ -2983,7 +3176,12 @@
     "search_hint": "Usa los filtros avanzados para una búsqueda precisa",
     "advanced_filters_tooltip": "Filtros de búsqueda avanzados",
     "results_found": "{count, plural, =0 {No se encontraron resultados} one {# resultado encontrado} other {# resultados encontrados}}",
-    "results_found_more": "{count}+ resultados encontrados"
+    "results_found_more": "{count}+ resultados encontrados",
+    "suggestions_recent": "Búsquedas recientes",
+    "suggestions_people": "Personas",
+    "suggestions_from": "Buscar correos de {address}",
+    "suggestions_to": "Buscar correos para {address}",
+    "suggestions_remove_recent": "Quitar de las búsquedas recientes"
   },
   "welcome": {
     "title": "Bienvenido a tu buzón",
@@ -3289,5 +3487,18 @@
     "install": "Instalar",
     "dont_remind": "No volver a recordármelo",
     "dismiss_aria": "Cerrar aviso de instalación"
+  },
+  "deep_link": {
+    "message_not_found": "Este mensaje ya no está disponible.",
+    "thread_not_found": "Esta conversación ya no está disponible.",
+    "folder_not_found": "Esta carpeta ya no está disponible.",
+    "event_not_found": "Este evento ya no está disponible.",
+    "file_not_found": "Este archivo ya no está disponible.",
+    "account_unavailable": "Inicia sesión en esa cuenta para abrir este enlace.",
+    "copy_message": "Copiar enlace del mensaje",
+    "copy_conversation": "Copiar enlace de la conversación",
+    "copy_event": "Copiar enlace del evento",
+    "copied": "Enlace copiado",
+    "copy_failed": "No se pudo copiar el enlace"
   }
 }

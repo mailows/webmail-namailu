@@ -124,6 +124,14 @@ export const DEFAULT_THEME_POLICY: ThemePolicy = {
   defaultThemeId: null,
 };
 
+/** One entry of the Web Push relay list users can pick from. */
+export interface PushRelayOption {
+  /** Name shown in the relay picker. Empty falls back to the URL host. */
+  label: string;
+  /** Relay base URL, without a trailing slash. */
+  url: string;
+}
+
 export interface SettingsPolicy {
   restrictions: Record<string, SettingRestriction>;
   features: FeatureGates;
@@ -135,9 +143,14 @@ export interface SettingsPolicy {
   approvedPlugins: string[];
   /** Theme IDs that are force-enabled (users cannot deactivate) */
   forceEnabledThemes: string[];
-  /** Web Push relay base URL shown to users. Empty means the built-in default. */
+  /**
+   * Extra Web Push relays offered alongside the built-in default. Users pick
+   * from this list; only admins can introduce a relay URL.
+   */
+  pushRelays?: PushRelayOption[];
+  /** Relay preselected for users. Empty means the built-in default. */
   pushRelayUrl?: string;
-  /** When true, users cannot change pushRelayUrl in notification settings. */
+  /** When true, users are pinned to pushRelayUrl and cannot pick another relay. */
   pushRelayUrlLocked?: boolean;
 }
 
@@ -149,6 +162,7 @@ export const DEFAULT_POLICY: SettingsPolicy = {
   forceEnabledPlugins: [],
   approvedPlugins: [],
   forceEnabledThemes: [],
+  pushRelays: [],
   pushRelayUrl: '',
   pushRelayUrlLocked: false,
 };
@@ -215,6 +229,16 @@ export const CONFIG_ENV_MAP: Record<string, { envVar: string; fileEnvVar?: strin
   oauthExtraScopes: { envVar: 'OAUTH_EXTRA_SCOPES', type: 'string', defaultValue: '' },
   oauthAllowPrivateEndpoints: { envVar: 'OAUTH_ALLOW_PRIVATE_ENDPOINTS', type: 'boolean', defaultValue: false },
   allowCustomJmapEndpoint: { envVar: 'ALLOW_CUSTOM_JMAP_ENDPOINT', type: 'boolean', defaultValue: false },
+  // What being a Stalwart admin grants inside the Bulwark admin dashboard (#870).
+  //   auto     - Stalwart admins see the shield and are signed into /admin
+  //              without the Bulwark admin password (legacy behaviour).
+  //   password - Stalwart admins see the shield, but must enter the Bulwark
+  //              admin password like everyone else.
+  //   off      - Stalwart admin status is ignored; /admin is reachable only
+  //              via /admin/login with the Bulwark admin password.
+  // "password" and "off" require an admin password to be configured, or the
+  // dashboard would become unreachable.
+  stalwartAdminAccess: { envVar: 'STALWART_ADMIN_ACCESS', type: 'enum', defaultValue: 'auto', enumValues: ['auto', 'password', 'off'] },
   jmapServers: { envVar: 'JMAP_SERVERS', type: 'json', defaultValue: [] },
   jmapServerAutoPickByDomain: { envVar: 'JMAP_SERVER_AUTO_PICK_BY_DOMAIN', type: 'boolean', defaultValue: false },
   domainBranding: { envVar: 'DOMAIN_BRANDING', type: 'json', defaultValue: [] },

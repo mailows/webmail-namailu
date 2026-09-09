@@ -5,6 +5,7 @@ import { useCalendarStore } from "@/stores/calendar-store";
 import { toast } from "@/stores/toast-store";
 import { debug } from "@/lib/debug";
 import { formatIsoInTimeZone } from "@/lib/calendar-utils";
+import { fromDisplayDate, getEffectiveTimeZone } from "@/lib/timezone";
 import type { Calendar } from "@/lib/jmap/types";
 
 interface DragCreateState {
@@ -256,6 +257,18 @@ export function useTimeGridInteractions({
   const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [quickCreate, setQuickCreate] = useState<QuickCreateState | null>(null);
 
+  // Pass an explicit end alongside the clicked slot: the event modal only
+  // honors a timed `defaultDate` when `defaultEndDate` is present — without it
+  // the modal falls back to "next hour from now" (meant for date-only month
+  // clicks) and discards the clicked time (#435).
+  const slotToRange = useCallback((day: Date, hour: number): [Date, Date] => {
+    const start = new Date(day);
+    start.setHours(hour, 0, 0, 0);
+    const end = new Date(day);
+    end.setHours(hour + 1, 0, 0, 0);
+    return [start, end];
+  }, []);
+
   const handleSlotClick = useCallback((day: Date, hour: number) => {
     if (wasDragging.current) return;
     if (clickTimerRef.current) {
@@ -265,11 +278,9 @@ export function useTimeGridInteractions({
     }
     clickTimerRef.current = setTimeout(() => {
       clickTimerRef.current = null;
-      const d = new Date(day);
-      d.setHours(hour, 0, 0, 0);
-      onCreateRange(d);
+      onCreateRange(...slotToRange(day, hour));
     }, 250);
-  }, [onCreateRange]);
+  }, [onCreateRange, slotToRange]);
 
   const handleSlotDoubleClick = useCallback((day: Date, hour: number) => {
     if (wasDragging.current) return;
@@ -277,10 +288,8 @@ export function useTimeGridInteractions({
       clearTimeout(clickTimerRef.current);
       clickTimerRef.current = null;
     }
-    const d = new Date(day);
-    d.setHours(hour, 0, 0, 0);
-    onCreateRange(d);
-  }, [onCreateRange]);
+    onCreateRange(...slotToRange(day, hour));
+  }, [onCreateRange, slotToRange]);
 
   const handleQuickCreateSubmit = useCallback(async (title: string) => {
     if (!quickCreate) return;
@@ -294,7 +303,7 @@ export function useTimeGridInteractions({
       const startDate = new Date(quickCreate.day);
       startDate.setHours(quickCreate.hour, 0, 0, 0);
       const startStr = format(startDate, "yyyy-MM-dd'T'HH:mm:ss");
-      const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const timeZone = getEffectiveTimeZone();
       const defaultCal = calendars.find(c => c.isDefault) || calendars[0];
       const created = await useCalendarStore.getState().createEvent(client, {
         title,
@@ -359,8 +368,10 @@ export function useTimeGridInteractions({
       // Emit `start` as a floating wall-clock in the event's own timeZone.
       // If we used browser-local, the server would reinterpret it in event.timeZone
       // and shift the event by the offset between the two zones.
-      const eventTimeZone = event?.timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone;
-      const newStartISO = formatIsoInTimeZone(newStart, eventTimeZone);
+      const eventTimeZone = event?.timeZone || getEffectiveTimeZone();
+      // `newStart` is a display date (grid space); turn it back into the real
+      // instant before expressing it in the event's zone (#755).
+      const newStartISO = formatIsoInTimeZone(fromDisplayDate(newStart), eventTimeZone);
       if (newStartISO === data.originalStart) return;
       const client = useAuthStore.getState().client;
       if (!client) {

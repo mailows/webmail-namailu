@@ -3,6 +3,8 @@ import {
   plainTextToComposerBody,
   rewriteCidImagesForEditor,
   replaceInlineImagePlaceholders,
+  collectInlineImageCids,
+  sniffImageMime,
   INLINE_IMAGE_PLACEHOLDER,
   splitRecipients,
   formatRecipient,
@@ -150,6 +152,64 @@ describe("rewriteCidImagesForEditor", () => {
   });
 });
 
+describe("collectInlineImageCids", () => {
+  it("returns an empty set for bodies without inline images", () => {
+    expect(collectInlineImageCids("").size).toBe(0);
+    expect(collectInlineImageCids("<p>hi</p><img src=\"https://x/y.png\">").size).toBe(0);
+  });
+
+  it("collects every rendered cid, deduplicated", () => {
+    const cids = collectInlineImageCids(
+      `<img src="${INLINE_IMAGE_PLACEHOLDER}" data-cid="a@x">` +
+      `<p>text</p><img src="${INLINE_IMAGE_PLACEHOLDER}" data-cid="b@x">` +
+      `<img src="${INLINE_IMAGE_PLACEHOLDER}" data-cid="a@x">`
+    );
+    expect([...cids].sort()).toEqual(["a@x", "b@x"]);
+  });
+
+  it("picks up the cids rewriteCidImagesForEditor just wrote (#543)", () => {
+    const body = rewriteCidImagesForEditor(
+      '<img src="cid:_Foxmail.1@2ae0db4e" type="image/png">'
+    );
+    expect(collectInlineImageCids(body).has("_Foxmail.1@2ae0db4e")).toBe(true);
+  });
+
+  it("ignores data-cid on non-image elements", () => {
+    expect(collectInlineImageCids('<div data-cid="a"></div>').size).toBe(0);
+  });
+});
+
+describe("sniffImageMime", () => {
+  const bytes = (...values: number[]) => new Uint8Array(values);
+
+  it("detects a PNG embedded as application/octet-stream (#543)", () => {
+    expect(sniffImageMime(bytes(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a))).toBe("image/png");
+  });
+
+  it("detects JPEG, GIF, WebP and BMP", () => {
+    expect(sniffImageMime(bytes(0xff, 0xd8, 0xff, 0xe0))).toBe("image/jpeg");
+    expect(sniffImageMime(bytes(0x47, 0x49, 0x46, 0x38, 0x39, 0x61))).toBe("image/gif");
+    expect(
+      sniffImageMime(bytes(0x52, 0x49, 0x46, 0x46, 0x24, 0, 0, 0, 0x57, 0x45, 0x42, 0x50))
+    ).toBe("image/webp");
+    expect(sniffImageMime(bytes(0x42, 0x4d, 0x36, 0x00))).toBe("image/bmp");
+  });
+
+  it("returns null for non-image and truncated input", () => {
+    // "%PDF"
+    expect(sniffImageMime(bytes(0x25, 0x50, 0x44, 0x46))).toBeNull();
+    expect(sniffImageMime(bytes(0x89, 0x50))).toBeNull();
+    expect(sniffImageMime(new Uint8Array())).toBeNull();
+  });
+
+  it("does not mistake a RIFF container that is not WebP for an image", () => {
+    // RIFF....AVI
+    expect(
+      sniffImageMime(bytes(0x52, 0x49, 0x46, 0x46, 0x24, 0, 0, 0, 0x41, 0x56, 0x49, 0x20))
+    ).toBeNull();
+  });
+});
+
 describe("replaceInlineImagePlaceholders", () => {
   it("returns input unchanged when the map is empty", () => {
     const html = '<img src="..." data-cid="x">';
@@ -227,6 +287,36 @@ describe("splitRecipients", () => {
 
   it("returns an empty array for an empty string", () => {
     expect(splitRecipients("")).toEqual([]);
+  });
+
+  it("still splits when an angle run never closes", () => {
+    expect(
+      splitRecipients("Ap Reinders <ap@x.com, Erwin Beets <erwin@x.com, jaco@x.com"),
+    ).toEqual([
+      "Ap Reinders <ap@x.com",
+      "Erwin Beets <erwin@x.com",
+      "jaco@x.com",
+    ]);
+  });
+
+  it("splits when only the last entry closes its angle brackets", () => {
+    expect(splitRecipients("Ap <ap@x.com, Bob <bob@y.com>")).toEqual([
+      "Ap <ap@x.com",
+      "Bob <bob@y.com>",
+    ]);
+  });
+
+  it("does not count a `>` inside a quoted display name as closing the run", () => {
+    expect(splitRecipients('Ap <ap@x.com, "b>c" <b@y.com>')).toEqual([
+      "Ap <ap@x.com",
+      '"b>c" <b@y.com>',
+    ]);
+  });
+
+  it("keeps a group intact even when a member's angle run never closes", () => {
+    expect(splitRecipients("Team: Ann <a@x.com, Bob <b@y.com;")).toEqual([
+      "Team: Ann <a@x.com, Bob <b@y.com;",
+    ]);
   });
 
   it("only splits on the given separators (default comma keeps semicolons/newlines literal)", () => {
@@ -349,6 +439,32 @@ describe("splitPastedRecipients", () => {
 
   it("returns empty arrays for blank input", () => {
     expect(splitPastedRecipients("   ")).toEqual({ valid: [], invalid: [] });
+  });
+
+  it("recovers every recipient from a list whose closing brackets are missing", () => {
+    const { valid, invalid } = splitPastedRecipients(
+      "Ap Reinders <ap@x.com, Erwin Beets <erwin@x.com, jaco@x.com",
+    );
+    expect(valid).toEqual([
+      { name: "Ap Reinders", email: "ap@x.com" },
+      { name: "Erwin Beets", email: "erwin@x.com" },
+      { email: "jaco@x.com" },
+    ]);
+    expect(invalid).toEqual([]);
+  });
+
+  it("keeps the display name of a `Name <email` entry missing its bracket", () => {
+    const { valid, invalid } = splitPastedRecipients("John Doe <j@x.com");
+    expect(valid).toEqual([{ name: "John Doe", email: "j@x.com" }]);
+    expect(invalid).toEqual([]);
+  });
+
+  it("keeps both addresses when one entry carries two unclosed mailboxes", () => {
+    // The name-preserving path keeps the last angle run only, so it must not
+    // claim an entry whose prefix is an address itself - that would drop it.
+    const { valid, invalid } = splitPastedRecipients("Ann <a@x.com Bob <b@y.com");
+    expect(valid).toEqual([{ email: "a@x.com" }, { email: "b@y.com" }]);
+    expect(invalid).toEqual(["Ann", "Bob"]);
   });
 });
 

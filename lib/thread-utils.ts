@@ -1,4 +1,5 @@
 import type { Email, ThreadGroup } from "./jmap/types";
+import { compareEmails, type SortLevel } from "./message-list-order";
 
 /**
  * Groups emails by their threadId and creates ThreadGroup objects for UI display.
@@ -71,15 +72,26 @@ export function groupEmailsByThread(
 }
 
 /**
- * Sorts thread groups by their latest email's receivedAt date (newest first).
+ * Sorts thread groups to mirror the order the email list was fetched in.
  * Threads containing a pinned email ($pinned keyword) stay on top, mirroring
- * the server-side pinned-first sort of the email list.
+ * the server-side pinned-first sort of the email list. Below that, each thread
+ * takes the position of whichever of its emails sorts first under `order`
+ * (RFC 8621 §4.4.3 thread collapsing semantics) - with the default order that
+ * is the latest email's receivedAt date, newest first.
  */
-export function sortThreadGroups(groups: ThreadGroup[]): ThreadGroup[] {
+export function sortThreadGroups(groups: ThreadGroup[], order: SortLevel[] = []): ThreadGroup[] {
+  const compare = compareEmails(order);
+  const representative = new Map<ThreadGroup, Email>();
+  for (const group of groups) {
+    representative.set(
+      group,
+      group.emails.reduce((best, email) => (compare(email, best) < 0 ? email : best), group.emails[0] ?? group.latestEmail),
+    );
+  }
   return [...groups].sort(
     (a, b) =>
       (b.hasPinned ? 1 : 0) - (a.hasPinned ? 1 : 0) ||
-      new Date(b.latestEmail.receivedAt).getTime() - new Date(a.latestEmail.receivedAt).getTime()
+      compare(representative.get(a)!, representative.get(b)!)
   );
 }
 
@@ -168,41 +180,59 @@ export const KEYWORD_PREFIX = "$label:";
 export const KEYWORD_PREFIX_LEGACY = "$color:";
 
 /**
- * Gets all active label/color tag IDs from email keywords.
+ * Gets every tag id set on a message.
  * Reads both the current $label: prefix and the legacy $color: prefix.
+ * A tag written under both spellings is one tag, so it is returned once.
  */
-export function getEmailColorTags(keywords: Record<string, boolean> | undefined): string[] {
+export function getEmailTagIds(keywords: Record<string, boolean> | undefined): string[] {
   if (!keywords) return [];
-  const tags: string[] = [];
+  const tags = new Set<string>();
   for (const key of Object.keys(keywords)) {
     if ((key.startsWith(KEYWORD_PREFIX) || key.startsWith(KEYWORD_PREFIX_LEGACY)) && keywords[key] === true) {
-      tags.push(
+      tags.add(
         key.startsWith(KEYWORD_PREFIX)
           ? key.slice(KEYWORD_PREFIX.length)
           : key.slice(KEYWORD_PREFIX_LEGACY.length)
       );
     }
   }
-  return tags;
+  return [...tags];
 }
 
 /**
- * Gets label/color tag from email keywords (if any).
+ * Gets the first tag id set on a message, if any.
  * Reads both the current $label: prefix and the legacy $color: prefix.
- * @deprecated Use getEmailColorTags for multi-tag support.
+ * @deprecated Use getEmailTagIds for multi-tag support.
  */
-export function getEmailColorTag(keywords: Record<string, boolean> | undefined): string | null {
-  const tags = getEmailColorTags(keywords);
+export function getEmailTagId(keywords: Record<string, boolean> | undefined): string | null {
+  const tags = getEmailTagIds(keywords);
   return tags.length > 0 ? tags[0] : null;
 }
 
 /**
- * Checks if a thread has any color tag (returns first found).
+ * The first tag id found anywhere in a thread, if any.
  */
-export function getThreadColorTag(emails: Email[]): string | null {
+export function getThreadTagId(emails: Email[]): string | null {
   for (const email of emails) {
-    const color = getEmailColorTag(email.keywords);
+    const color = getEmailTagId(email.keywords);
     if (color) return color;
   }
   return null;
+}
+
+/**
+ * Every tag anywhere in a thread, deduplicated.
+ *
+ * A collapsed thread row stands in for all its messages, so it has to account
+ * for all their tags - showing only the first message's would hide the rest
+ * with nothing to indicate they exist.
+ */
+export function getThreadTagIds(emails: Email[]): string[] {
+  const tags = new Set<string>();
+  for (const email of emails) {
+    for (const tag of getEmailTagIds(email.keywords)) {
+      tags.add(tag);
+    }
+  }
+  return [...tags];
 }

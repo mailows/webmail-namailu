@@ -9,6 +9,7 @@ import {
 } from "date-fns";
 import { cn } from "@/lib/utils";
 import { getEventDayBounds } from "@/lib/calendar-utils";
+import { displayNow } from "@/lib/timezone";
 import type { CalendarEvent } from "@/lib/jmap/types";
 import { useCalendarLocale } from "@/hooks/use-calendar-locale";
 
@@ -205,7 +206,7 @@ export function MiniCalendar({
       {pickerView === "months" && (
         <div className="grid grid-cols-3 gap-1 py-1">
           {monthLabelKeys.map((labelKey, i) => {
-            const isCurrentMonth = i === currentMonth && currentYear === getYear(new Date());
+            const isCurrentMonth = i === currentMonth && currentYear === getYear(displayNow());
             const isSelected = i === getMonth(selectedDate) && currentYear === getYear(selectedDate);
             return (
               <button
@@ -229,7 +230,7 @@ export function MiniCalendar({
         <div className="grid grid-cols-3 gap-1 py-1">
           {years.map((year) => {
             const inDecade = year >= decadeStart && year <= decadeStart + 9;
-            const isCurrentYear = year === getYear(new Date());
+            const isCurrentYear = year === getYear(displayNow());
             const isSelected = year === getYear(selectedDate);
             return (
               <button

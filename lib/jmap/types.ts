@@ -85,6 +85,12 @@ export interface Email {
   scheduledIdentityId?: string;
   scheduledUndoStatus?: 'pending' | 'final' | 'canceled';
   scheduledDeliveryStatus?: Record<string, DeliveryStatus>;
+  /**
+   * JMAP account that owns the EmailSubmission. Set when the scheduled send
+   * lives in a shared/group account rather than the primary submission
+   * account, so cancel/reschedule can be routed back to it.
+   */
+  scheduledAccountId?: string;
   isScheduled?: boolean;
   isSmimeScheduled?: boolean;
 }
@@ -95,6 +101,13 @@ export interface SendEmailResult {
   emailSubmissionId?: string;
   sendAt?: string;
   isSmime?: boolean;
+  /**
+   * JMAP account the EmailSubmission was created in. Differs from the primary
+   * submission account when sending from a shared/group identity, and lets a
+   * later undo / send-now / cancel address the right account without having to
+   * search for it.
+   */
+  submissionAccountId?: string;
   /**
    * Set when the submission succeeded but a post-send step was rejected
    * (the implicit onSuccessUpdateEmail filing patch, or destroying the
@@ -109,6 +122,7 @@ export interface ScheduledEmail extends Email {
   scheduledIdentityId: string;
   scheduledUndoStatus: 'pending' | 'final' | 'canceled';
   scheduledDeliveryStatus?: Record<string, DeliveryStatus>;
+  scheduledAccountId?: string;
   isScheduled: true;
   isSmimeScheduled: boolean;
 }
@@ -546,6 +560,23 @@ export interface Calendar {
   // shared calendar (see lib/shared-calendar-colors). When true, the override
   // wins over per-event colors so the whole shared calendar paints uniformly.
   colorIsLocalOverride?: boolean;
+  // True when the calendar holds only tasks (VTODO) and no events, so it is
+  // hidden from the event calendar UI while remaining available to the tasks
+  // view (#761). Undefined means "not determined" (treated as not tasks-only).
+  isTasksOnly?: boolean;
+}
+
+/**
+ * iCalendar component types a calendar advertises through the CalDAV
+ * supported-calendar-component-set. Sync clients such as DAVx5 use it to
+ * decide whether a collection is offered to calendar apps, todo apps, or both
+ * (#760). Only settable while the collection is created.
+ */
+export type CalendarComponentType = 'VEVENT' | 'VTODO';
+
+export interface CreateCalendarOptions {
+  /** Component set for the new calendar; defaults to events only (VEVENT). */
+  components?: CalendarComponentType[];
 }
 
 export interface CalendarRights {
@@ -642,8 +673,11 @@ export interface CalendarRecurrenceRule {
   '@type': 'RecurrenceRule';
   frequency: 'yearly' | 'monthly' | 'weekly' | 'daily' | 'hourly' | 'minutely' | 'secondly';
   interval: number;
-  rscale: string;
-  skip: 'omit' | 'backward' | 'forward';
+  // Optional and normally omitted: these RFC 7529 (RSCALE/SKIP) fields only
+  // apply to non-Gregorian scales / invalid-date handling. Emitting a default
+  // SKIP=OMIT breaks some CalDAV clients (DAVx5) - see lib/recurrence-rule.ts (#805).
+  rscale?: string;
+  skip?: 'omit' | 'backward' | 'forward';
   firstDayOfWeek: 'mo' | 'tu' | 'we' | 'th' | 'fr' | 'sa' | 'su';
   byDay: CalendarNDay[] | null;
   byMonthDay: number[] | null;
@@ -804,6 +838,16 @@ export interface StateChange {
   };
 }
 
+// draft-ietf-jmap-emailpush EmailPushConfig: the server evaluates `filter`
+// against every newly delivered message and only pushes when it matches, so a
+// client can keep spam (Junk) out of its push channel server-side. Keyed by
+// account id on PushSubscription.emailPush.
+export interface EmailPushConfig {
+  filter: Record<string, unknown> | null;
+  properties: string[];
+  urgency?: 'very-low' | 'low' | 'normal' | 'high';
+}
+
 export interface PushSubscription {
   id: string;
   deviceClientId: string;
@@ -814,6 +858,10 @@ export interface PushSubscription {
   } | null;
   expires: string | null;
   types: string[] | null;
+  // Only present when the server advertises urn:ietf:params:jmap:emailpush
+  // and the property was requested; null when the subscription has no
+  // per-account delivery filter.
+  emailPush?: Record<string, EmailPushConfig> | null;
 }
 
 // For tracking last known states
@@ -835,7 +883,11 @@ export interface FileNode {
   blobId: string | null;
   size: number;
   created: string;
-  updated: string;
+  // Last content/metadata change, server-maintained. The property is named
+  // `modified` in draft-ietf-jmap-filenode and in Stalwart - there is no
+  // `updated` on a FileNode. Asking for the wrong name silently yields
+  // undefined, which made the UI show the creation date forever (#700).
+  modified: string;
   // JMAP Sharing (RFC 9670). Populated only when the server advertises the
   // filenode capability and the properties are explicitly requested. A node is
   // shared-out when `shareWith` has entries; `myRights` describes what the

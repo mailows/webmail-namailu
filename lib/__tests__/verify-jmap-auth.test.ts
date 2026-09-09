@@ -1,6 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const lookup = vi.fn();
+const guardedFetch = vi.fn();
+
+// Untrusted endpoints connect through the rebinding-safe fetch; stub only
+// that export and keep the real isPublicHttpUrl (which uses the mocked DNS).
+vi.mock('@/lib/security/url-guard', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/security/url-guard')>();
+  return {
+    ...actual,
+    fetchPublicUrl: (...args: unknown[]) => guardedFetch(...args),
+  };
+});
 
 vi.mock('node:dns/promises', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:dns/promises')>();
@@ -16,6 +27,7 @@ describe('verifyJmapAuth SSRF protection', () => {
 
   beforeEach(() => {
     lookup.mockReset();
+    guardedFetch.mockReset();
     vi.resetModules();
     fetchSpy = vi.spyOn(globalThis, 'fetch');
   });
@@ -88,19 +100,20 @@ describe('verifyJmapAuth SSRF protection', () => {
 
   it('refuses to follow a redirect to a private address', async () => {
     lookup.mockResolvedValue([{ address: '93.184.216.34', family: 4 }]);
-    fetchSpy.mockResolvedValueOnce(
+    guardedFetch.mockResolvedValueOnce(
       new Response(null, { status: 302, headers: { location: 'http://127.0.0.1/.well-known/jmap' } }),
     );
     const { verifyJmapAuth } = await load();
     await expect(verifyJmapAuth('https://example.com', 'Bearer x')).rejects.toMatchObject({
       status: 400,
     });
-    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(guardedFetch).toHaveBeenCalledTimes(1);
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it('refuses to follow a redirect to AWS IMDS', async () => {
     lookup.mockResolvedValue([{ address: '93.184.216.34', family: 4 }]);
-    fetchSpy.mockResolvedValueOnce(
+    guardedFetch.mockResolvedValueOnce(
       new Response(null, {
         status: 302,
         headers: { location: 'http://169.254.169.254/latest/meta-data/' },
@@ -110,12 +123,27 @@ describe('verifyJmapAuth SSRF protection', () => {
     await expect(verifyJmapAuth('https://example.com', 'Bearer x')).rejects.toMatchObject({
       status: 400,
     });
-    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(guardedFetch).toHaveBeenCalledTimes(1);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('maps a connect-time rebinding rejection to a 400', async () => {
+    // isPublicHttpUrl saw a public address, but by the time the socket
+    // resolved the name it pointed somewhere private: fetchPublicUrl throws.
+    lookup.mockResolvedValue([{ address: '93.184.216.34', family: 4 }]);
+    const { DisallowedUrlError } = await import('@/lib/security/url-guard');
+    guardedFetch.mockRejectedValueOnce(new DisallowedUrlError('https://example.com/.well-known/jmap'));
+    const { verifyJmapAuth } = await load();
+    await expect(verifyJmapAuth('https://example.com', 'Bearer x')).rejects.toMatchObject({
+      status: 400,
+      message: 'Server URL is not allowed',
+    });
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it('accepts a public host that returns a valid JMAP session', async () => {
     lookup.mockResolvedValue([{ address: '93.184.216.34', family: 4 }]);
-    fetchSpy.mockResolvedValueOnce(
+    guardedFetch.mockResolvedValueOnce(
       new Response(JSON.stringify({ apiUrl: 'https://example.com/api', accounts: {} }), {
         status: 200,
         headers: { 'content-type': 'application/json' },
@@ -125,10 +153,11 @@ describe('verifyJmapAuth SSRF protection', () => {
     await expect(verifyJmapAuth('https://example.com', 'Bearer x')).resolves.toBe(
       'https://example.com',
     );
-    expect(fetchSpy).toHaveBeenCalledWith(
+    expect(guardedFetch).toHaveBeenCalledWith(
       'https://example.com/.well-known/jmap',
-      expect.objectContaining({ redirect: 'manual' }),
+      expect.objectContaining({ method: 'GET' }),
     );
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it('rejects an invalid Authorization header before any fetch', async () => {
@@ -155,6 +184,7 @@ describe('verifyJmapAuth SSRF protection', () => {
       'https://mail.internal/.well-known/jmap',
       expect.objectContaining({ redirect: 'manual' }),
     );
+    expect(guardedFetch).not.toHaveBeenCalled();
   });
 
   it('with trusted=true, still rejects unsupported protocols', async () => {
@@ -171,5 +201,33 @@ describe('verifyJmapAuth SSRF protection', () => {
       verifyJmapAuth('https://mail.internal', 'NotAuth', { trusted: true }),
     ).rejects.toMatchObject({ status: 400 });
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe('normalizeJmapServerUrl', () => {
+  async function load() {
+    return import('@/lib/auth/verify-jmap-auth');
+  }
+
+  it('accepts an app-relative URL (dev mock JMAP server)', async () => {
+    const { normalizeJmapServerUrl } = await load();
+    expect(normalizeJmapServerUrl('/api/dev-jmap')).toBe('/api/dev-jmap');
+  });
+
+  it('strips query, hash, and trailing slashes from an app-relative URL', async () => {
+    const { normalizeJmapServerUrl } = await load();
+    expect(normalizeJmapServerUrl('/api/dev-jmap/?x=1#frag')).toBe('/api/dev-jmap');
+  });
+
+  it('rejects protocol-relative URLs', async () => {
+    const { normalizeJmapServerUrl } = await load();
+    expect(() => normalizeJmapServerUrl('//evil.example.com/api')).toThrow('Invalid server URL');
+  });
+
+  it('normalizes absolute URLs unchanged', async () => {
+    const { normalizeJmapServerUrl } = await load();
+    expect(normalizeJmapServerUrl('https://mail.example.com/jmap/?a=b')).toBe(
+      'https://mail.example.com/jmap',
+    );
   });
 });

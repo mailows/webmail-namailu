@@ -161,8 +161,6 @@ export function createDemoCalendarEvents(): CalendarEvent[] {
         '@type': 'RecurrenceRule',
         frequency: 'weekly',
         interval: 1,
-        rscale: 'gregorian',
-        skip: 'omit',
         firstDayOfWeek: 'mo',
         byDay: [{ day: 'mo' }],
         byMonthDay: null,

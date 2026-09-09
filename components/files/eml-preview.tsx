@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { Paperclip, Download } from "lucide-react";
 import { sanitizeEmailHtmlForIframe } from "@/lib/email-sanitization";
+import { getEffectiveTimeZone } from "@/lib/timezone";
 
 // A parsed message/rfc822 (.eml), as produced by postal-mime. Only the fields
 // this preview renders are typed.
@@ -74,7 +75,7 @@ export function EmlPreview({ message }: { message: ParsedEml }) {
           <div><span className="font-medium text-foreground">{t("to")}: </span><bdi>{message.to.map(formatAddress).join(", ")}</bdi></div>
         )}
         {message.date && (
-          <div><span className="font-medium text-foreground">{t("date")}: </span>{new Date(message.date).toLocaleString()}</div>
+          <div><span className="font-medium text-foreground">{t("date")}: </span>{new Date(message.date).toLocaleString(undefined, { timeZone: getEffectiveTimeZone() })}</div>
         )}
       </div>
       {bodyDoc && (
