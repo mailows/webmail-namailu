@@ -8,7 +8,7 @@ import { useAccountStore, type AccountEntry } from "@/stores/account-store";
 import { useAuthStore } from "@/stores/auth-store";
 import { canAddIndependentAccount, sortDefaultFirst, reorderNonDefaultIds } from "@/lib/account-utils";
 import { useConfig } from "@/hooks/use-config";
-import { portalUrlForBrand } from "@/lib/portal/handoff-url";
+import { portalHandoffUrl } from "@/lib/portal/handoff-url";
 import { isDocumentRTL } from "@/i18n/direction";
 import { cn } from "@/lib/utils";
 import { useRouter } from "@/i18n/navigation";
@@ -356,7 +356,7 @@ export function AccountSwitcher({ variant = "rail", className }: AccountSwitcher
               dát a kde ho uživatel hledá (hlášeno 16. 8. 2026). */}
           <div className="border-t border-border">
             <a
-              href={portalUrlForBrand(loginWebsiteUrl)}
+              href={portalHandoffUrl(loginWebsiteUrl, activeAccount?.email)}
               className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
               role="menuitem"
               data-testid="portal-link"

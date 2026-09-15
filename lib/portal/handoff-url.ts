@@ -22,3 +22,18 @@ export function portalUrlForBrand(loginWebsiteUrl: string | undefined | null): s
     return FALLBACK_PORTAL_URL;
   }
 }
+
+/**
+ * Odkaz do portálu z konkrétního účtu webmailu. Portál může mít v prohlížeči
+ * session jiného účtu (uživatel se do portálu přihlásil jako A, ve webmailu
+ * přepnul na B) — bez nápovědy by po kliku „Portál" viděl A (hlášeno 16. 9. 2026).
+ * `/sso/prepnout?ucet=` portálu řekne, KOHO chce uživatel vidět; při neshodě
+ * portál svou session zahodí a IdP dostane `login_hint`. Bez e-mailu zůstává
+ * prostý odkaz.
+ */
+export function portalHandoffUrl(loginWebsiteUrl: string | undefined | null, email: string | undefined | null): string {
+  const base = portalUrlForBrand(loginWebsiteUrl);
+  const ucet = (email || '').trim().toLowerCase();
+  if (!ucet || !ucet.includes('@') || ucet.length > 320) return base;
+  return `${base}/sso/prepnout?ucet=${encodeURIComponent(ucet)}`;
+}

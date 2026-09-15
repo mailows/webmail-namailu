@@ -40,7 +40,7 @@ import {
 } from "lucide-react";
 import { cn, buildMailboxTree, MailboxNode } from "@/lib/utils";
 import { useConfig } from "@/hooks/use-config";
-import { portalUrlForBrand } from "@/lib/portal/handoff-url";
+import { portalHandoffUrl } from "@/lib/portal/handoff-url";
 import { localizeMailboxName } from "@/lib/mailbox-label";
 import {
   buildKeywordTree,
@@ -1500,7 +1500,7 @@ export function Sidebar({
             icon={<ExternalLink className="w-4 h-4 flex-shrink-0 text-muted-foreground" />}
             label={t("portal")}
             depth={0}
-            onClick={() => { window.location.assign(portalUrlForBrand(loginWebsiteUrl)); }}
+            onClick={() => { window.location.assign(portalHandoffUrl(loginWebsiteUrl, accounts.find((a) => a.id === activeAccountId)?.email)); }}
             isCollapsed={isCollapsed}
           />
         </div>

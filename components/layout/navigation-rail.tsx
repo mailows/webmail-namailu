@@ -24,7 +24,7 @@ import { useMenuNavigation } from "@/hooks/use-menu-navigation";
 import { PluginSlot } from "@/components/plugins/plugin-slot";
 import { KeyboardShortcutsModal } from "@/components/keyboard-shortcuts-modal";
 import { apiFetch, getPathPrefix, withBasePath } from "@/lib/browser-navigation";
-import { portalUrlForBrand } from "@/lib/portal/handoff-url";
+import { portalHandoffUrl } from "@/lib/portal/handoff-url";
 import { Avatar } from "@/components/ui/avatar";
 
 interface NavItem {
@@ -644,9 +644,10 @@ export function NavigationRail({
           <Settings className="w-[18px] h-[18px]" />
         </Link>
 
-        {/* Standardní OIDC SSO: žádný handoff token ani dotaz na portál. */}
+        {/* Standardní OIDC SSO: žádný handoff token ani dotaz na portál. Odkaz nese
+            aktivní účet, ať portál nezůstane na session jiného účtu (16. 9. 2026). */}
         <a
-          href={portalUrlForBrand(loginWebsiteUrl)}
+          href={portalHandoffUrl(loginWebsiteUrl, accounts.find((a) => a.id === activeAccountId)?.email)}
           className="flex items-center justify-center w-10 h-10 rounded-md transition-colors text-muted-foreground hover:text-foreground hover:bg-muted"
           title={t("portal")}
         >
