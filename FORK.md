@@ -236,6 +236,15 @@ token**, se kterým přesměruje na portálový `/sso`. Portál (druhá strana �
 - `npx tsc --noEmit` → 0 chyb. `npm run lint` → 0 errors (jen preexistující warningy).
   `npm run build` → OK, route `ƒ /api/auth/portal-sso` zaregistrovaná jako dynamická.
 
+## Odkaz „Portál" nese aktivní účet (16.9.2026)
+
+Portál může držet session jiného účtu, než na který se uživatel ve webmailu právě
+dívá (do portálu se přihlásil jako A, ve webmailu přepnul na B): prostý odkaz pak
+ukázal A. `lib/portal/handoff-url.ts::portalHandoffUrl` proto míří na
+`https://portal.<značka>/sso/prepnout?ucet=<e-mail aktivního účtu>`; portál při
+neshodě svou session zahodí a IdP dostane `login_hint`. Identitu dál nepřenáší
+žádný token — je to jen nápověda, IdP ověřuje sám.
+
 ## Rozhodnutí: SSO přes handoff, NE sdílené doménové cookies (24.7.2026)
 
 **Zvoleno:** webmail→portál SSO **handoffem** (podepsaný krátkodobý token, viz sekce výše).
