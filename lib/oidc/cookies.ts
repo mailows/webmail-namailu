@@ -1,3 +1,4 @@
+import { bezpecnaCesta } from '@/lib/safe-path';
 /**
  * Cookies RP režimu.
  *
@@ -104,7 +105,5 @@ export function openAccess(raw: string | undefined): RpAccess | null {
  * na cizí web.
  */
 export function safeNext(raw: string | null | undefined, fallback: string): string {
-  if (!raw) return fallback;
-  if (!raw.startsWith('/') || raw.startsWith('//') || raw.startsWith('/\\')) return fallback;
-  return raw;
+  return bezpecnaCesta(raw) ?? fallback;
 }

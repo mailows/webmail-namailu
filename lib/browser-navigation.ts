@@ -1,3 +1,4 @@
+import { bezpecnaCesta } from '@/lib/safe-path';
 import { locales } from '@/i18n/routing';
 
 export function replaceWindowLocation(url: string): void {
@@ -140,9 +141,7 @@ export function stripLocalePrefix(path: string): string {
  * scheme-relative URLs to browsers, so they are rejected too.
  */
 export function safeInternalPath(path: string | null | undefined, fallback = '/'): string {
-  if (!path || !path.startsWith('/')) return fallback;
-  if (path.startsWith('//') || path.startsWith('/\\')) return fallback;
-  return path;
+  return bezpecnaCesta(path) ?? fallback;
 }
 
 /**

@@ -35,7 +35,9 @@ function ResumeInner() {
     // next-intl router přidá locale prefix sám, takže `next` musí být locale-relativní.
     // Po root fixu (stripLocalePrefix při ukládání redirect_after_login) by už měl být
     // bez locale, ale pro jistotu (staré pending cookies, přímé linky) stripneme znovu.
-    const safeNext = stripLocalePrefix(rawNext);
+    // ⚠️ Znovu ověřit AŽ po odebrání locale: `/cs//evil.test` je před ním lokální,
+    // po něm `//evil.test` (kontrola 8. 10. 2026, F3).
+    const safeNext = safeInternalPath(stripLocalePrefix(rawNext));
 
     loginWithOidc()
       .then((ok) => {
