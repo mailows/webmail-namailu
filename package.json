@@ -58,7 +58,7 @@
     "jalaali-js": "^2.0.0",
     "jszip": "^3.10.1",
     "lucide-react": "^1.8.0",
-    "next": "^16.2.6",
+    "next": "~16.3.6",
     "next-intl": "^4.13.3",
     "otpauth": "^9.5.0",
     "pdfjs-dist": "^6.0.227",
@@ -109,8 +109,9 @@
     "flatted": "^3.4.2",
     "picomatch": "^4.0.4",
     "postcss": "^8.5.18",
-    "sharp": "^0.35.4",
+    "sharp": "^0.35.5",
     "undici": "^7.24.0",
-    "nanoid": "^3.3.18"
+    "nanoid": "^3.3.18",
+    "source-map-js": "^1.2.2"
   }
 }
